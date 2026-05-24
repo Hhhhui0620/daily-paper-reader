@@ -17,6 +17,7 @@ const {
   __setQuickRunConferenceBtn,
   __setUnsavedChanges,
   __setRunSelectionState,
+  runSelectedQuickFetch,
 } = global.window.SubscriptionsManager.__test;
 
 function buildBaseConfig() {
@@ -134,6 +135,7 @@ function testRunProfileQuickFetchPassesProfileTagToWorkflow() {
       calls.push({ days, options });
     },
   };
+  global.window.confirm = () => true;
 
   const ok = global.window.SubscriptionsManager.runProfileQuickFetch('GENE', 30, {
     fetchMode: 'skims',
@@ -227,6 +229,49 @@ function testConferenceRunDisabledWhenUnsaved() {
   delete global.window.SubscriptionsSmartQuery;
 }
 
+function testQuickFetchSkipsPausedAndConferenceOnlyProfiles() {
+  const calls = [];
+  const msgEl = {
+    textContent: '',
+    style: {
+      color: '',
+    },
+  };
+  global.window.DPRWorkflowRunner = {
+    runQuickFetchByDays(days, options) {
+      calls.push({ days, options });
+    },
+  };
+  global.window.SubscriptionsSmartQuery = {
+    getSelectedProfilesForRun() {
+      return [
+        { tag: 'ACTIVE', temporary: false, paused: false },
+        { tag: 'PAUSED', temporary: false, paused: true },
+        { tag: 'CONF', temporary: true, paused: false },
+      ];
+    },
+  };
+  __setQuickRunMsgEl(msgEl);
+  __setUnsavedChanges(false);
+
+  assert.equal(runSelectedQuickFetch(10), true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options.dispatchInputs.profile_tag, 'ACTIVE');
+
+  global.window.SubscriptionsSmartQuery.getSelectedProfilesForRun = () => [
+    { tag: 'PAUSED', temporary: false, paused: true },
+    { tag: 'CONF', temporary: true, paused: false },
+  ];
+  assert.equal(runSelectedQuickFetch(10), false);
+  assert.equal(calls.length, 1);
+  assert.equal(msgEl.textContent, '请先勾选至少一个已启用的常规词条。仅会议和日常停用词条不会参与快速抓取。');
+
+  __setQuickRunMsgEl(null);
+  delete global.window.DPRWorkflowRunner;
+  delete global.window.SubscriptionsSmartQuery;
+  delete global.window.confirm;
+}
+
 testNormalizeSubscriptionsAddsBiorxivBackend();
 testNormalizeSubscriptionsPreservesCustomBiorxivBackendFields();
 testNormalizeSubscriptionsConvertsChineseTagToEnglishFallback();
@@ -234,5 +279,6 @@ testRunProfileQuickFetchPassesProfileTagToWorkflow();
 testConferenceCurrentYearDisabledForPendingSources();
 testQuickRunUnsavedMessageClearsAfterSave();
 testConferenceRunDisabledWhenUnsaved();
+testQuickFetchSkipsPausedAndConferenceOnlyProfiles();
 
 console.log('subscriptions manager tests passed');

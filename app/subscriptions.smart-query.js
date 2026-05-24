@@ -1910,8 +1910,12 @@ window.SubscriptionsSmartQuery = (function () {
         const isTemporary = isConferenceOnlyProfile(p);
         const selectable = canSelectProfileForRunMode(p);
         const selected = selectedProfileKeys.has(getProfileKey(p));
-        const pauseLabel = isPaused ? '恢复' : '暂停';
+        const pauseLabel = isPaused ? '启用日常' : '停用日常';
         const pauseBtnClass = isPaused ? 'dpr-entry-resume-btn' : 'dpr-entry-pause-btn';
+        const profileId = escapeHtml(getProfileKey(p) || '');
+        const pauseButton = isTemporary
+          ? ''
+          : `<button class="arxiv-tool-btn ${pauseBtnClass}" data-action="pause-profile" data-profile-id="${profileId}">${pauseLabel}</button>`;
         const cardClass = [
           'dpr-entry-card',
           isPaused ? 'dpr-entry-card--paused' : '',
@@ -1921,9 +1925,8 @@ window.SubscriptionsSmartQuery = (function () {
           selected ? 'is-selected' : '',
           !selectable ? 'dpr-entry-card--selection-disabled' : '',
         ].filter(Boolean).join(' ');
-        const pausedBadge = isPaused ? '<span class="dpr-entry-paused-badge">已暂停</span>' : '';
-        const temporaryBadge = isTemporary ? '<span class="dpr-entry-temp-badge">临时</span>' : '';
-        const profileId = escapeHtml(getProfileKey(p) || '');
+        const pausedBadge = isPaused ? '<span class="dpr-entry-paused-badge">日常停用</span>' : '';
+        const temporaryBadge = isTemporary ? '<span class="dpr-entry-temp-badge">仅会议</span>' : '';
         const selectionControl = `<span class="dpr-entry-select-dot" aria-hidden="true">${selected ? '✓' : ''}</span>`;
         return `
           <div class="${cardClass}" data-profile-id="${profileId}">
@@ -1937,7 +1940,7 @@ window.SubscriptionsSmartQuery = (function () {
                 <span class="dpr-entry-source-inline">${renderProfileSourceChips(p.paper_sources)}</span>
               </div>
               <div class="dpr-entry-actions">
-                <button class="arxiv-tool-btn ${pauseBtnClass}" data-action="pause-profile" data-profile-id="${profileId}">${pauseLabel}</button>
+                ${pauseButton}
                 <button class="arxiv-tool-btn dpr-entry-edit-btn" data-action="edit-profile" data-profile-id="${profileId}">修改</button>
                 <button class="arxiv-tool-btn dpr-entry-delete-btn" data-action="delete-profile" data-profile-id="${profileId}">删除</button>
               </div>
@@ -2164,8 +2167,8 @@ window.SubscriptionsSmartQuery = (function () {
     modalPanel.innerHTML = `
       <div class="dpr-modal-head">
         <div class="dpr-modal-title">
-          ${modalState && modalState.editProfileId ? '修改查询' : (modalState.temporaryProfile ? '新增临时查询' : '新增查询')}
-          ${modalState.temporaryProfile ? '<span class="dpr-entry-temp-badge">仅会议检索</span>' : ''}
+          ${modalState && modalState.editProfileId ? '修改查询' : (modalState.temporaryProfile ? '新增仅会议查询' : '新增查询')}
+          ${modalState.temporaryProfile ? '<span class="dpr-entry-temp-badge">仅会议</span>' : ''}
         </div>
         <button class="arxiv-tool-btn" data-action="close">关闭</button>
       </div>
@@ -2719,7 +2722,7 @@ window.SubscriptionsSmartQuery = (function () {
         return next;
       });
       const tag = normalizeText(profile.tag) || '该词条';
-      const statusText = nextPaused ? '已暂停' : '已恢复';
+      const statusText = nextPaused ? '已停用日常抓取' : '已启用日常抓取';
       setMessage(`词条「${tag}」${statusText}，请点击「保存」。`, '#666');
       return;
     }
@@ -2832,6 +2835,7 @@ window.SubscriptionsSmartQuery = (function () {
         description: normalizeText(profile && profile.description),
         scope: normalizeText(profile && profile.scope),
         temporary: isConferenceOnlyProfile(profile),
+        paused: !!(profile && profile.paused),
       }))
       .filter((profile) => profile.tag);
   const getSelectedProfileTags = () =>

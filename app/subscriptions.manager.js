@@ -503,11 +503,11 @@ window.SubscriptionsManager = (function () {
     if (window.SubscriptionsSmartQuery && typeof window.SubscriptionsSmartQuery.getSelectedProfilesForRun === 'function') {
       return window.SubscriptionsSmartQuery.getSelectedProfilesForRun();
     }
-    return getSelectedProfileTagsForRun().map((tag) => ({ tag, temporary: false }));
+    return getSelectedProfileTagsForRun().map((tag) => ({ tag, temporary: false, paused: false }));
   };
   const getDailySelectedProfileTagsForRun = () =>
     getSelectedProfilesForRun()
-      .filter((profile) => !profile.temporary)
+      .filter((profile) => !profile.temporary && !profile.paused)
       .map((profile) => normalizeText(profile && profile.tag))
       .filter(Boolean);
 
@@ -523,7 +523,7 @@ window.SubscriptionsManager = (function () {
   const refreshQuickRunButtons = () => {
     const selectedProfiles = getSelectedProfilesForRun();
     const selectedProfileCount = selectedProfiles.length;
-    const dailySelectedProfileCount = selectedProfiles.filter((profile) => !profile.temporary).length;
+    const dailySelectedProfileCount = selectedProfiles.filter((profile) => !profile.temporary && !profile.paused).length;
     const dailyBlocked = hasUnsavedChanges || dailySelectedProfileCount < 1;
     const conferenceBlocked =
       hasUnsavedChanges || selectedProfileCount < 1 || selectedConferenceYearPairs.size < 1;
@@ -545,7 +545,7 @@ window.SubscriptionsManager = (function () {
         } else if (btn === quickRunConferenceBtn && !selectedConferenceYearPairs.size) {
           title = '请先选择至少一个会议年份。';
         } else {
-          title = btn === quickRunConferenceBtn ? '请先选择至少一个会议年份。' : '临时词条不参与日常抓取，请选择至少一个常规词条。';
+          title = btn === quickRunConferenceBtn ? '请先选择至少一个会议年份。' : '仅会议和日常停用词条不参与日常抓取，请选择至少一个已启用的常规词条。';
         }
       }
       btn.title = title;
@@ -565,7 +565,7 @@ window.SubscriptionsManager = (function () {
     if (quickRunHintEl) {
       quickRunHintEl.textContent = dailySelectedProfileCount > 0
         ? '选择抓取范围后会对已勾选的常规词条批量执行。'
-        : '勾选一个或多个常规词条后，下方快速抓取按钮会自动激活。';
+        : '勾选一个或多个已启用的常规词条后，下方快速抓取按钮会自动激活。';
     }
     if (conferenceHintEl) {
       conferenceHintEl.textContent = selectedProfileCount > 0
@@ -697,7 +697,7 @@ window.SubscriptionsManager = (function () {
   const runSelectedQuickFetch = (days, runOptions = {}) => {
     const tags = getDailySelectedProfileTagsForRun();
     if (!tags.length) {
-      setQuickRunMessage('请先勾选至少一个常规词条。临时词条不会参与日常快速抓取。', '#c00');
+      setQuickRunMessage('请先勾选至少一个已启用的常规词条。仅会议和日常停用词条不会参与快速抓取。', '#c00');
       refreshQuickRunButtons();
       return false;
     }
@@ -1029,7 +1029,7 @@ window.SubscriptionsManager = (function () {
                 <div class="dpr-input-card">
                   <div class="dpr-inline-row">
                     <button id="dpr-sq-open-chat-btn" class="arxiv-tool-btn" style="background:#2e7d32; color:#fff;">新增</button>
-                    <button id="dpr-sq-open-temp-btn" class="arxiv-tool-btn dpr-temp-add-btn" type="button">新增临时</button>
+                    <button id="dpr-sq-open-temp-btn" class="arxiv-tool-btn dpr-temp-add-btn" type="button">新增仅会议</button>
                   </div>
                 </div>
               </div>
@@ -1488,6 +1488,7 @@ window.SubscriptionsManager = (function () {
           if (text) selectedConferenceYearPairs.add(text);
         });
       },
+      runSelectedQuickFetch,
       refreshQuickRunButtons,
       clearQuickRunUnsavedMessage,
     },
