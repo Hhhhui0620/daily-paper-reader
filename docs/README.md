@@ -48,17 +48,17 @@
 <section class="dpr-home-dashboard-card dpr-home-report-card">
   <div class="dpr-home-dashboard-header">
     <div>
-      <span class="dpr-home-dashboard-kicker">2026-08-23 ~ 2026-09-21</span>
+      <span class="dpr-home-dashboard-kicker">2026-09-21</span>
       <h3 class="dpr-home-dashboard-title">今日汇总</h3>
     </div>
-    <strong class="dpr-home-dashboard-count">共 3 篇</strong>
+    <strong class="dpr-home-dashboard-count">共 4 篇</strong>
   </div>
   <dl class="dpr-home-dashboard-stats">
     <div class="dpr-home-dashboard-stat"><dt>累计更新</dt><dd>1 次</dd></div>
     <div class="dpr-home-dashboard-stat"><dt>精读</dt><dd>0</dd></div>
-    <div class="dpr-home-dashboard-stat"><dt>速读</dt><dd>3</dd></div>
+    <div class="dpr-home-dashboard-stat"><dt>速读</dt><dd>4</dd></div>
   </dl>
-  <p class="dpr-home-dashboard-body">最近更新：2026-09-21 09:05:51 UTC<br>状态：成功</p>
+  <p class="dpr-home-dashboard-body">最近更新：2026-09-21 22:20:02 UTC<br>状态：成功</p>
 </section>
 <section class="dpr-home-dashboard-card dpr-home-brief-card">
   <div class="dpr-home-dashboard-header">
@@ -69,9 +69,9 @@
     <strong class="dpr-home-dashboard-count">AI</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<p>本期速读3篇多模态感知与检测论文，两篇9.0分聚焦无人机几何对齐和模态退化下的RGB-T显著性检测。</p>
-<p>最值得看GAAT的几何感知对齐与RA-SOD的可靠性建模，二者共同指向“先判断模态可靠性，再做多模态融合”。</p>
-<p>普通读者可先读这两篇摘要，重点关注对齐、退化与不确定性处理，再按兴趣跟进8.0分的反无人机证据融合检测。</p>
+<p>今日成功速读4篇、精读0篇，聚焦热成像-可见光配准、含噪点对应下的单应估计与事件预训练。</p>
+<p>最值得看的是《XCalib Depth-Guided Geometric Optimization for Dense Thermal-Visible Video Registration》（7.0/10），其次可关注《Hyper-RED: Scalable Event Pre-training via Semantic Hypergraph Distillation》（6.0/10）。</p>
+<p>普通读者可先看XCalib的热-可见配准思路，再扫读两篇6分工作，重点判断方法是否易复现、适用场景是否明确。</p>
   </div>
 </section>
 <section class="dpr-home-dashboard-card dpr-home-deep-card">
@@ -93,12 +93,12 @@
       <span class="dpr-home-dashboard-kicker">今日累计</span>
       <h3 class="dpr-home-dashboard-title">速读推荐</h3>
     </div>
-    <strong class="dpr-home-dashboard-count">3 篇</strong>
+    <strong class="dpr-home-dashboard-count">4 篇</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="GAAT: Geometry-Aware Alignment Transformer for Multimodal UAV Perception">GAAT: Geometry-Aware Alignment Transformer for Multimodal UAV Perception</span></li><li><span class="dpr-home-dashboard-paper-title" title="RA-SOD: Reliability-Aware RGB-T Salient Object Detection under Modality Degradation">RA-SOD: Reliability-Aware RGB-T Salient Object Detection under Modality Degradation</span></li><li><span class="dpr-home-dashboard-paper-title" title="Uncertainty-Aware Multimodal Anti-UAV Detection via Evidential Fusion and Conflict-Discounted Belief Aggregation">Uncertainty-Aware Multimodal Anti-UAV Detection via Evidential Fusion and Conflict-Discounted Belief Aggregation</span></li></ul>
+<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="XCalib Depth-Guided Geometric Optimization for Dense Thermal-Visible Video Registration">XCalib Depth-Guided Geometric Optimization for Dense Thermal-Visible Video Registration</span></li><li><span class="dpr-home-dashboard-paper-title" title="Closed-form Bayesian homography estimation from noisy point correspondences">Closed-form Bayesian homography estimation from noisy point correspondences</span></li><li><span class="dpr-home-dashboard-paper-title" title="Hyper-RED: Scalable Event Pre-training via Semantic Hypergraph Distillation">Hyper-RED: Scalable Event Pre-training via Semantic Hypergraph Distillation</span></li></ul>
   </div>
-  <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">uav-rgbt-sod <strong>3</strong></span></div>
+  <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">uav-rgbt-sod <strong>4</strong></span></div>
 </section>
 </div>
 

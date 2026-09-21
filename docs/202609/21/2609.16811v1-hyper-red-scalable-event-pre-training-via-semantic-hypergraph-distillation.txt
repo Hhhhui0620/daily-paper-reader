@@ -1,0 +1,338 @@
+Title: Hyper-RED: Scalable Event Pre-training via Semantic Hypergraph Distillation
+
+URL Source: https://arxiv.org/pdf/2609.16811v1
+
+Published Time: Wed, 16 Sep 2026 00:52:24 GMT
+
+Number of Pages: 9
+
+Markdown Content:
+# Hyper-RED: Scalable Event Pre-training via Semantic Hypergraph Distillation 
+
+## Meisen Wang 1, Zhiqiang Tian 1,2 , Wei Bao 3,4 , Chengjie Wang 5,Shaoyi Du 2, Siqi Li 3,4 ,
+
+> 1
+
+School of Software Engineering, Xi’an Jiaotong University, Xi’an 710049, China 
+
+> 2
+
+National Key Laboratory of Human-Machine Hybrid Augmented Intelligence, National Engineering Research Center for Visual Information and Applications, and Institute of Artificial Intelligence and Robotics, Xi’an Jiaotong University, Xi’an 710049, China 
+
+> 3
+
+BNRist, THUIBCS, BLBCI, School of Software, Tsinghua University, Beijing 100084, China 
+
+> 4
+
+Yangtze Delta Region Institute, Tsinghua University, Jiaxing 314006, China 
+
+> 5
+
+College of Grassland Science, Inner Mongolia Agricultural University, Hohhot 010018, China 3125158005@stu.xjtu.edu.cn, denghao293@stu.xjtu.edu.cn zhiqiangtian@xjtu.edu.cn, dushaoyi@xjtu.edu.cn, nmgcjwang3@imau.edu.cn {baoweivvv,lisiqi19971013,kevin.gaoy}@gmail.com 
+
+Abstract 
+
+Event cameras have shown great potential for robust visual perception, yet scaling event representation learning remains challenging due to the scarcity of large-scale annotated event data. Pretrained image models provide scalable semantic su-pervision, but existing image-to-event methods rely on rigid pixel-wise or token-wise alignment that overlooks modality discrepancies in texture, density, and appearance, potentially causing semantic collapse and limiting transferability. To ad-dress this issue, we propose Hyper-RED, a simple, painless, and scalable image-to-event pretraining framework that trans-fers high-order semantic structures from images to events. Hyper-RED uses hypergraphs to model and align high-order semantic associations among multiple image and event to-kens, enabling cross-modal knowledge transfer while accom-modating modality-specific differences rather than enforcing rigid one-to-one correspondence. Specifically, given a paired event–image sample, Hyper-RED leverages DINOv3 to ex-tract spatial token representations and constructs image, event, and cross-modal semantic hypergraphs, where each hyperedge connects multiple semantically correlated tokens. We further introduce a hypergraph relational distillation loss that imposes complementary intra- and cross-modal constraints, enabling the event encoder to inherit image-derived semantic organiza-tion while preserving local relational consistency and event-specific characteristics. Experiments on three tasks across five event datasets demonstrate consistent scaling from ViT-S to ViT-L and state-of-the-art performance (Fig. 1). The code is available at: https://github.com/meisenwang/Hyper--RED. 
+
+## 1 Introduction 
+
+Event cameras asynchronously record per-pixel brightness changes with high temporal resolution, high dynamic range, low latency, and low power consumption, making them well suited to fast motion and extreme illumination (Gallego et al. 2020). These advantages have motivated event-based rep-resentation learning for a wide range of visual perception tasks, including recognition (Yang et al. 2025), semantic segmentation (Kong et al. 2024; Jing et al. 2024), depth esti-mation (Zhu et al. 2023; Bartolomei et al. 2025), and object 
+
+Copyright © 2027, Association for the Advancement of Artificial Intelligence (www.aaai.org). All rights reserved. Semantic Segmentation Object Recognition Depth Estimation 
+
+> 91.83 DSEC Acc[%] 91.58 DDD17
+> Acc[%]
+> 62.55 DDD17 mIoU[%] 61.43
+> DSEC
+> mIoU[%] 98.83 N-Caltech101 Acc5[%]
+> 94.81
+> N-Caltech101 Acc1[%] 3.596 MVSEC
+> RMSE[m]
+> 77.6
+> MVSEC
+> 𝛿 1[%]
+> 4.513 DSEC-Depth
+> RMSE[m]
+> 83.8 DSEC-Depth
+> 𝛿 1[%]
+> 87.66
+> 7.68 47.6 11.473
+> 52.8 59.16 59.15 9.477 54.5 56.38
+> 55.73
+> 61.12 59.64 91.39 90.76 6.145 6.957 57.7 4.564 82.4 51.3 98.12 91.94
+> 7.65
+> 52.17 53.58
+
+Figure 1: Overall comparison across ten metrics on various datasets. With the same backbone model, our method demon-strates superior and consistent performance across all tasks. detection (Peng et al. 2024; Chen et al. 2025). However, learning transferable event representations at scale remains challenging because event streams are sparse, asynchronous, and lack rich texture cues, while large-scale annotated event datasets remain far less abundant than image datasets. In con-trast to event-based vision, the image domain has benefited from powerful pretrained models and visual foundation mod-els (Caron et al. 2021; Oquab et al. 2023; Siméoni et al. 2025; Radford et al. 2021; He et al. 2022), which provide strong semantic representations across diverse downstream tasks. Transferring these semantic priors to event encoders there-fore provides a scalable alternative to annotation-intensive event pre-training. arXiv:2609.16811v1 [cs.CV] 15 Sep 2026 Image Similarity Heatmap Image Grid Map Event Grid Map   
+
+> Event Similarity Heatmap
+> Modality
+> Gap !
+> Pixel-wise/Token-wise Alignment
+> …
+> PCA t-SNE
+> PCA t-SNE
+> Semantic Collapse !
+> …
+
+Figure 2: Representation analysis under rigid image–event alignment. We train an event encoder through rigid alignment with a frozen image encoder, and compare their similarity heatmaps on paired inputs. PCA and t-SNE further visualize the feature distributions of the two encoders. Recent event pretraining methods have alleviated the scarcity of event annotations by leveraging pretrained im-age models for event representation learning (Yang, Pan, and Liu 2023, 2024; Liang et al. 2025; Wu et al. 2025; Cao et al. 2026). Although these methods have achieved promis-ing performance, existing distillation paradigms primarily rely on embedding-level, pixel-wise, or token-wise corre-spondence between paired event and image inputs. Such a design implicitly assumes that spatially corresponding fea-tures should encode consistent semantics across modalities. However, this assumption becomes fragile under the inher-ent image–event modality gap, where image representations are strongly shaped by dense appearance cues, while event representations are derived from sparse motion- and contrast-sensitive responses. As shown in Fig. 2, compared with the compact similarity patterns of the image encoder, those of the rigidly aligned event encoder become noticeably more dif-fuse, accompanied by reduced class separability. This obser-vation reveals that rigid alignment fails to preserve semantic organization across the modality gap, posing a key bottleneck to scalable image-to-event pre-training. ScaleEvent (Chen et al. 2026) recognizes this limitation and alleviates rigid point-wise matching through graph-based structural align-ment. However, its pairwise formulation decomposes the multi-token associations underlying high-order semantics into isolated relations, potentially causing semantic infor-mation loss during cross-modal transfer. Motivated by this observation, we rethink image-to-event distillation from the perspective of high-order semantic relation alignment, aim-ing to transfer modality-invariant semantic structures beyond isolated spatial correspondence and pairwise graph relations. To address this limitation, we propose Hyper-RED, a sim-ple, painless and scalable image-to-event pretraining distil-lation paradigm that transfers high-order semantic structures across modalities. By exploiting the multi-node relational ca-pacity of hypergraphs, Hyper-RED captures shared seman-tics and aligns high-order semantic associations among mul-tiple image and event tokens, thereby narrowing the cross-modal representation gap without enforcing rigid one-to-one correspondence. Given paired event–image samples, Hyper-RED extracts spatial token representations using a frozen DI-NOv3 image teacher and a trainable event encoder, and con-structs image, event, and cross-modal semantic hypergraphs. Each hyperedge groups semantically correlated tokens to rep-resent region-level dependencies beyond isolated point-wise correspondence. Based on these hypergraphs, we introduce a hypergraph relational distillation loss with complemen-tary intra-modal and cross-modal constraints, allowing the event encoder to inherit image-derived semantic organiza-tion while preserving event-specific characteristics. Experi-ments on three downstream tasks across five datasets show that Hyper-RED scales consistently from ViT-S to ViT-L and achieves state-of-the-art overall performance in object recognition, semantic segmentation, and depth estimation. Our contributions are summarized as follows: 
+
+• We propose Hyper-RED, a scalable image-to-event pre-training framework that distills high-order semantic struc-tures from a frozen visual foundation model through se-mantic hypergraphs, moving beyond point-wise matching and pairwise relations. 
+
+• We revisit semantic collapse arising from image–event mismatch under rigid alignment and introduce a hyper-graph relational distillation loss that aligns hyperedge memberships and prototypes through intra- and cross-modal constraints, thereby enabling reliable semantic transfer while preserving event-specific characteristics. 
+
+• We demonstrate state-of-the-art overall performance on five benchmarks across three tasks, with consistent scal-ing from ViT-S to ViT-L and strong transferability under linear probing, few-shot fine-tuning, and full supervision. 
+
+## 2 Related Work 
+
+2.1 Event-Based Representation Pre-training 
+
+Event-Only Self-Supervision. The sparsity and asyn-chronous nature of event streams, together with the scarcity of large-scale annotations, have motivated self-supervised pre-training directly on unlabeled event data. Masked Event Modeling (Klenk et al. 2024) learns transferable repre-sentations by reconstructing masked event inputs, whereas TESPEC (Mohammadi, Wu, and Gilitschenski 2025) ex-tends this paradigm to long event sequences and recurrent encoders. By deriving supervisory signals entirely from event streams, these methods eliminate the need for paired event– image data or manual annotations during pre-training. 
+
+Cross-Modal Knowledge Transfer. Another line of re-search transfers semantic priors from large-scale pretrained image models to event encoders. An early representative study distilled multi-level image features into event net-works for recognition and optical flow (Deng et al. 2021). ECDP (Yang, Pan, and Liu 2023) and ECDDP (Yang, Pan, and Liu 2024) subsequently transferred image knowledge to event encoders for generic representation learning and dense prediction, respectively. Subsequent studies extended this paradigm through prompt fusion (Liang et al. 2025), cross-modal masked modeling (Wu et al. 2025), and generative pre-training (Cao et al. 2026). The Cross-Modal Event En-coder (Jeong et al. 2026) further transfers image–text knowl-edge to event streams while retaining text-aligned zero-shot capabilities. ScaleEvent (Chen et al. 2026) advances beyond direct feature matching by introducing graph-based align-ment of pairwise token relations. 
+
+Remark. Event-only self-supervision eliminates the need for paired event–image data, but its effectiveness depends heav-ily on the scale and diversity of event data and on carefully de-signed pretext tasks. Cross-modal knowledge transfer instead allows event encoders to inherit rich semantic priors from visual foundation models, reducing the burden of discover-ing high-level semantics solely from sparse event streams. Nevertheless, existing image-to-event distillation methods primarily rely on point-wise feature imitation, task-specific proxy supervision, or pairwise relational constraints. Such objectives are sensitive to the image–event modality gap and provide insufficient supervision for preserving region-level semantic organization. Scalable image-to-event pre-training therefore requires robust, task-agnostic alignment beyond isolated point-wise and pairwise relations. 
+
+2.2 Hypergraph Representation Learning 
+
+Hypergraphs generalize ordinary graphs by allowing a sin-gle hyperedge to connect multiple nodes, thereby represent-ing group-wise dependencies beyond pairwise edges (Gao et al. 2022, 2020). HGNN (Feng et al. 2019) introduced hy-pergraph convolution to encode complex data correlations during representation learning. DHGNN (Jiang et al. 2019) subsequently learned and dynamically updated hypergraph structures from evolving features, while UniGNN (Huang and Yang 2021) formulated a unified message-passing frame-work for graph and hypergraph neural networks. Beyond ar-chitectural design, hypergraphs have also been incorporated into learning objectives. In visual metric learning, HIST (Lim et al. 2022) employs semantic tuplets to capture multilateral sample-to-class relations that cannot be represented by in-dependent pairwise constraints. Collectively, these studies establish hypergraphs as an effective mechanism for model-ing high-order relations among multiple entities. 
+
+Remark. Lessons from existing studies demonstrate that hy-pergraphs are effective at modeling high-order dependencies among multiple entities. However, they have primarily been used as prediction backbones or task-specific learning objec-tives within a single modality. Consequently, their potential as structured knowledge carriers between heterogeneous vi-sual modalities remains underexplored. This gap motivates us to investigate semantic hypergraphs as structured carriers for image-to-event relational distillation. 
+
+## 3 Preliminary 
+
+Synchronized Event–Image Data. Let E denote an event representation constructed from an event stream and I its spa-tially and temporally aligned image. Although they describe the same scene, the two modalities exhibit substantially dif-ferent sensing characteristics: images contain dense appear-ance and texture cues, whereas event data capture sparse brightness changes caused by motion or illumination vari-ation. This modality gap makes isolated one-to-one token correspondence insufficient for transferring the semantic or-ganization learned by an image foundation model. 
+
+Cross-Modal Distillation. Given an aligned pair (E, I), a trainable event encoder Fθe and a frozen image teacher Gθi
+
+extract spatial token features 
+
+K = Fθe (E), Q = Gθi (I), (1) where K, Q ∈ RN ×D contain N spatial tokens of dimen-sion D. The two encoders share the same spatial token layout, enabling the teacher to provide aligned supervision. Conven-tional distillation directly aligns spatially corresponding to-kens in K and Q. Beyond this one-to-one alignment, Hyper-RED transfers the semantic organization among multiple tokens, allowing the event encoder to inherit region-level structure from the teacher. 
+
+Hypergraph Representation. A hypergraph G =(V, Eh, H) comprises a node set V, a hyperedge set Eh, and an incidence matrix H. Unlike an ordinary graph edge that re-lates two nodes, a hyperedge jointly connects multiple nodes and captures group-wise dependencies. In our formulation, each node corresponds to a spatial token, each hyperedge rep-resents a semantic group, and the incidence weights quantify the relative contributions of its connected tokens. 
+
+## 4 Methodology 
+
+Our goal is to learn fine-grained event representations by transferring high-order semantic structures from a frozen pretrained DINOv3 (Siméoni et al. 2025) image teacher us-ing synchronized event–image data without manual annota-tions. To this end, we propose Hyper-RED, a teacher-guided semantic hypergraph distillation framework. As illustrated in Fig. 3, Hyper-RED organizes semantically correlated tokens into teacher-defined hyperedges and transfers their group-wise organization to the event encoder. It introduces two complementary objectives: a high-order intra-modal struc-ture loss that aligns image and event token organization, and a high-order cross-modal structure loss that establishes corre-spondence between image semantic anchors and event-token groups. Because the construction operates on normalized token affinities, the formulation is agnostic to feature dimen-sion and applies uniformly to ViT-S/B/L encoders without scale-specific modifications. 
+
+4.1 Semantic Hypergraph Construction 
+
+Teacher-Guided Semantic Grouping. We first ℓ2-normalize each token in Q and K along the feature dimension and reuse the same notation for the normalized matrices. We then construct image–image, event–event, and image–event affinity matrices as 
+
+SI = [ QQ ⊤]+, SE = [ KK ⊤]+, SX = [ QK ⊤]+, (2) where [·]+ clips negative similarities to zero. The teacher-derived matrix SI provides a stable structural reference, while High-Order Cross-Modal Structure Loss 
+
+> High-Order Intra-Modal Structure Loss
+
+Figure 3: Overview of Hyper-RED. Hyper-RED mitigates semantic collapse from rigid one-to-one image–event alignment by constructing teacher-guided semantic hypergraphs and distilling high-order intra- and cross-modal relations, yielding transfer-able, modality-invariant event representations across encoder scales. 
+
+SE and SX characterize the corresponding event–event and image–event relations, respectively. In particular, the ae-th row of SX measures the associations between image anchor 
+
+qae and all event tokens, allowing the teacher anchor to directly query the event representation. We rank image tokens by their total affinities to all other tokens and select the M highest-scoring ones as semantic anchors, whose indices form A = {ae}Me=1 . For each an-chor ae, its k most correlated image token indices form the member set 
+
+Ve = TopKIndices k
+
+SI
+
+> aej
+> Nj=1
+
+
+
+. (3) Each hyperedge thus groups an anchor with multiple tokens from a coherent teacher-defined semantic region. Because the two encoders share the same spatial token layout, the teacher-selected anchor and member indices define a com-mon topology across all branches. This design ensures that the losses compare branch-specific relation strengths within identical semantic groups rather than mismatched neighbor-hoods. 
+
+Soft Hyperedge Representation. Although the three branches share a topology, their member contributions de-pend on branch-specific affinities. For branch r ∈ { I, E, X},the soft membership of token i in hyperedge e is 
+
+Hrie = exp( Sraei/τ )
+
+P 
+
+> j∈V e
+
+exp( Sraej /τ ) , i ∈ V e, (4) where τ = 0.07 controls the distribution concentration, 
+
+Hrie = 0 for i / ∈ V e, and Hr ∈ RN ×M . The matrices HI,
+
+HE, and HX encode teacher grouping, event-token organi-zation, and cross-modal association, respectively. Membership distributions characterize the internal orga-nization of a hyperedge but do not explicitly summarize its semantic content. We therefore aggregate the member tokens into a normalized prototype: 
+
+pre = Norm X
+
+> i∈V e
+
+Hrie uri
+
+!
+
+, (5) where uI 
+
+> i
+
+= qi and uE 
+
+> i
+
+= uX 
+
+> i
+
+= ki. Here, qi and ki are normalized image and event tokens, respectively, and Norm 
+
+denotes ℓ2 normalization. The membership distribution and prototype therefore encode the internal composition and ag-gregated semantics of each hyperedge, respectively. 
+
+4.2 High-Order Structure Distillation 
+
+The image teacher defines the topology and target organiza-tion of the semantic hypergraph. We transfer this knowledge by aligning the teacher hypergraph with the event–event and image–event hypergraphs. All divergences are averaged over the M constructed hyperedges, and teacher-derived member-ships and prototypes are detached during optimization. 
+
+High-Order Intra-Modal Structure Loss. The event–event branch models the internal semantic geometry of event to-kens. We align its membership distribution HE with the teacher distribution HI using KL divergence and align their hyperedge prototypes using cosine distance: 
+
+LHOI = KL( HI∥HE) + 1 − cos( PI, PE) , (6) where Pr = [ pr
+
+> 1
+
+, . . . , prM ]⊤ ∈ RM ×D stacks the M pro-totypes. Here and below, the cosine term averages similari-ties between corresponding prototypes over all hyperedges. The membership term transfers the relative roles of tokens within each semantic group, while the prototype term pre-serves its group-level representation. It is termed intra-modal because the two hypergraphs are independently constructed from image–image and event–event relations before struc-tural alignment. 
+
+High-Order Cross-Modal Structure Loss. Internal event-token consistency alone does not ensure alignment with the image semantic space. We therefore use the image–event branch derived from cross-modal affinities and impose 
+
+LHOC = KL( HI∥HX) + 1 − cos( PI, PX) . (7) This loss transfers the teacher-defined semantic association between each image anchor and its event-token group. Con-sequently, LHOI preserves the organization among event to-kens, whereas LHOC anchors that organization to the teacher. Method Venue Backbone MVSEC-Depth DSEC-Depth                                                                                                           
+
+> δ1↑δ2↑δ3↑AbsRel ↓RMSE ↓RMSE log ↓δ1↑δ2↑δ3↑AbsRel ↓RMSE ↓RMSE log ↓
+> RGB Initialization †
+> E2Depth 3DV’20 ResNet-18 0.432 0.717 0.868 0.420 7.268 0.455 0.409 0.719 0.891 0.395 13.258 0.412 EReFormer TCSVT’24 Swin-T 0.391 0.652 0.810 0.551 8.373 0.523 0.524 0.824 0.945 0.297 11.608 0.334
+> Event Pretraining †
+> ECDP ICCV’23 ViT-S/16 0.476 0.772 0.863 0.496 7.680 0.506 0.528 0.818 0.938 0.324 11.473 0.376 ECDDP ECCV’24 ViT-S/16 0.513 0.762 0.871 0.428 6.957 0.469 0.545 0.857 0.959 0.263 9.477 0.294 DepthAnyEvent-R ICCV’25 ViT-S/16 0.489 0.751 0.878 0.365 6.465 0.483 0.691 0.930 0.981 0.191 8.880 0.266 ScaleEvent CVPR’26 ViT-L/16 0.625 0.834 0.934 0.268 5.554 0.343 0.896 0.983 0.997 0.101 3.694 0.144 Ours –ViT-S/16 0.776 0.940 0.982 0.165 3.596 0.214 0.838 0.965 0.992 0.123 4.513 0.167 Ours –ViT-B/16 0.804 0.943 0.982 0.155 3.449 0.205 0.864 0.974 0.995 0.111 4.193 0.158
+> Ours –ViT-L/16 0.807 0.947 0.983 0.152 3.383 0.202 0.904 0.985 0.998 0.096 3.624 0.137
+
+Table 1: Comparison of monocular depth estimation performance on the MVSEC-Depth and DSEC-Depth. The best and second-best results are shown in bold and underline, respectively. † denotes fully supervised training. Their combination provides complementary high-order su-pervision beyond isolated token-wise correspondence and pairwise relations. 
+
+Overall Objective. The complete objective is 
+
+L = Lℓ1 + LPRD + λH (LHOI + LHOC ) , (8) where λH = 2 , and LPRD denotes the pairwise relational distillation loss (Chen et al. 2026). 
+
+## 5 Experiments 
+
+5.1 Experimental Setup 
+
+Pre-training Datasets. To learn transferable event represen-tations, we construct a large-scale pre-training corpus con-taining both real and simulated event data. The real-world subset comprises DSEC (Gehrig et al. 2021), DDD17 (Li et al. 2019), MVSEC (Zhu et al. 2018), CoeSot (Tang et al. 2025), VisEvent (Wang et al. 2023), FEVD (Kim, Cho, and Yoon 2024), SEE-600K (Lu et al. 2025), and HighREV (Sun et al. 2023). The simulated subset is generated with v2e from Cityscapes (Cordts et al. 2016), KITTI (Geiger et al. 2013), DAVIS 2017 (Pont-Tuset et al. 2017), DECD (Rebecq et al. 2019), and GoPro (Nah et al. 2019). Following Ev-DTAD (Wang et al. 2026), we use HTA as the unified event representation and resize both modalities to 640 × 480 .
+
+Feature Encoders. We evaluate DINOv3 (Siméoni et al. 2025) ViT-S/B/L encoders with 16 × 16 patches. At each scale, the image teacher and event encoder share the same ar-chitecture and pretrained initialization; the teacher is frozen, while the event encoder is optimized. 
+
+Benchmark Setup. Following ScaleEvent (Chen et al. 2026), we adopt the same task-specific decoders, training pipelines, and evaluation protocols for full supervision, lin-ear probing (LP), and few-shot fine-tuning. LP freezes the encoder and optimizes only the decoder, while few-shot eval-uation uses 1% , 5% , 10% , or 20% of the annotations selected by fixed-interval sampling. 
+
+Implementation Details. We optimize the event encoder with AdamW using a learning rate of 5×10 −6, weight decay of 10 −4, gradient clipping at 0.1, and exponential decay of                                                             
+
+> Method Venue Backbone N-Caltech101 acc1 ↑acc5 ↑
+> Training from scratch
+> ViT ICLR’21 ViT-S/16 55.63 –
+> RGB Initialization †
+> BEiT ICLR’22 ViT-B/16 53.10 –MAE CVPR’22 ViT-B/16 67.68 –MoCo-v3 ICCV’21 ViT-S/16 76.59 –DINOv2 TMLR’24 ViT-S/16 91.94 98.12
+> Event Representation Learning †
+> EventPillars AAAI’25 ResNet-34 85.30 –EVA-L ICLR’26 EVA-L 86.30 –OmniEvent AAAI’26 ResNet-34 90.20 –
+> Event Pretraining †
+> ECDP ICCV’23 ViT-S/16 87.66 –EventBind ECCV’24 ViT-B/16 94.08 –GEP CVPR’26 ViT-B/16 96.47 99.56 Ours –ViT-S/16 94.81 98.83 Ours –ViT-B/16 97.62 99.68
+> Ours –ViT-L/16 98.25 99.89
+
+Table 2: Object recognition results on N-Caltech101. Top-1 (acc1 ) and top-5 ( acc5 ) accuracies are reported. 
+
+0.9. We construct 128 hyperedges, each containing an anchor and its top-32 related tokens. Training runs for 15 epochs on 
+
+4 NVIDIA RTX 3090 GPUs with 100 ,000 pairs per epoch. Additional details are provided in the Appendix .
+
+5.2 Depth Estimation 
+
+Settings. We employ DAv2 (Yang et al. 2024) as the downstream depth decoder and initialize it with the re-leased pre-trained weights. Following DepthAnyEvent (Bar-tolomei et al. 2025), we report absolute relative error (AbsRel ), root mean squared error ( RMSE ), logarithmic RMSE ( RMSE log ), and threshold accuracies δ1, δ2, and δ3,corresponding to 1.25 , 1.25 2, and 1.25 3, respectively. Lower Method Backbone MVSEC-Depth DSEC-Depth LP 1% 5% 10% 20% Full LP 1% 5% 10% 20% Full DepthAnyEvent-R ViT-S/16 7.473 7.542 7.261 6.794 6.637 6.465 10.584 10.347 9.898 9.534 9.065 8.880 ScaleEvent ViT-S/16 6.756 6.930 6.712 6.477 6.352 6.145 4.861 4.983 4.751 4.728 4.694 4.564 Ours ViT-S/16 4.020 4.223 3.945 3.727 3.651 3.596 4.860 4.923 4.726 4.684 4.632 4.513 
+
+Table 3: Monocular depth estimation results on MVSEC-Depth and DSEC-Depth under linear probing (LP), few-shot fine-tuning, and full supervision (Full). Performance is measured by RMSE , where lower values are better. error and higher accuracy indicate better performance. 
+
+Results. Table 1 reports the monocular depth estimation re-sults. The ViT-L/16 variant achieves the strongest overall performance on both benchmarks. On MVSEC-Depth, it im-proves over ScaleEvent by 0.182 , 0.113 , and 0.049 in δ1, δ2,and δ3, respectively, while reducing AbsRel , RMSE , and 
+
+RMSE log by 0.116 , 2.171 , and 0.141 . These gains across both accuracy and error metrics indicate that the learned representations encode effective geometric information. On DSEC-Depth, the same model increases δ1 from 0.896 to 
+
+0.904 and reduces AbsRel from 0.101 to 0.096 and RMSE 
+
+from 3.694 to 3.624 .
+
+5.3 Object Recognition 
+
+Settings. Following GEP (Cao et al. 2026), we employ a mul-tilayer perceptron (MLP) as the downstream classification head and report top-1 accuracy ( acc1 ) and top-5 accuracy (acc5 ) as the evaluation metrics. 
+
+Results. Table 2 reports recognition results on N-Caltech101. With ViT-S/16, Hyper-RED achieves 94 .81% top-1 accuracy, exceeding the matched-scale DINOv2 (Oquab et al. 2023) and ECDP (Yang, Pan, and Liu 2023) baselines by 2.87 
+
+and 7.15 percentage points, respectively. With ViT-B/16, it reaches 97 .62% top-1 and 99 .68% top-5 accuracy, surpassing GEP (Cao et al. 2026) by 1.15 and 0.12 percentage points under the same backbone scale. Increasing the encoder to ViT-L/16 raises the two scores to 98 .25% and 99 .89% , es-tablishing state-of-the-art performance. 
+
+5.4 Semantic Segmentation 
+
+Settings. We employ EoMT (Kerssies et al. 2025) as the downstream semantic segmentation decoder and initialize it with the released pre-trained weights. For evaluation, follow-ing OpenESS (Kong et al. 2024), we report mean intersection over union ( mIoU ) and accuracy ( Acc ). 
+
+Results. Table 4 presents the semantic segmentation re-sults. On DDD17-Seg, our ViT-L/16 model achieves 67 .16% mIoU , improving over ScaleEvent by 2.08 percentage points. On DSEC-Semantic, it obtains the highest Acc of 93 .86% 
+
+and the second-best mIoU of 69 .04% , only 0.61 percentage points below ScaleEvent. Under the same ViT-L/16 back-bone, Hyper-RED improves Acc over ScaleEvent by 0.46 and 
+
+0.76 percentage points on DDD17-Seg and DSEC-Semantic, respectively. Figure 4 further presents qualitative results on DSEC, showing accurate predictions for both semantic seg-mentation and monocular depth estimation. Additional qual-itative results and visual comparisons with prior methods are provided in the Appendix .                                                                                                              
+
+> Method Venue Backbone DDD17 DSEC Acc ↑mIoU ↑Acc ↑mIoU ↑
+> RGB Initialization †
+> Ev-SegNet CVPRW’19 Xception 89.76 54.81 88.61 51.76 E2VID TPAMI’19 ResNet-18 85.84 48.47 80.06 44.08 PVT-FPN ICCV’21 ResNet-34 94.28 53.89 ––MaskCLIP ECCV’22 ViT-B/16 90.50 61.27 89.81 55.01 ESS ECCV’22 E2VID 88.43 53.09 84.17 45.38 ESS-Sup ECCV’22 E2VID 91.08 61.37 89.37 53.29 HMNet CVPR’23 HMNet-L1 ––89.80 55.00 EvSegformer TIP’23 MiT-B1 94.72 54.41 ––FC-CLIP NeurIPS’23 CNeXt-L 90.68 62.01 89.97 55.67 DINOv2 TMLR’24 ViT-S/16 –53.85 –52.17 HALSIE WACV’24 SNN-ANN 92.50 60.66 89.01 52.43 ESEG AAAI’25 MiT-B1 90.68 59.97 91.47 57.55 KWYAF AAAI’25 MiT-B0 91.32 62.41 90.87 57.75
+> Event Pretraining †
+> ECDP ICCV’23 ResNet-50 –59.15 –59.16 ECDDP ECCV’24 ViT-S/16 –55.73 –56.38 ECDDP ECCV’24 Swin-T/7 –62.56 –61.25 OpenESS CVPR’24 ResNet-50 –57.01 –55.01 OpenESS CVPR’24 E2VID 91.05 63.00 90.21 57.21 STP ICCV’25 ResNet-50 –62.13 –61.29 STP ICCV’25 Swin-T/7 –63.29 –62.05 GEP CVPR’26 ViT-B/16 –61.90 –67.37 ScaleEvent CVPR’26 ViT-L/16 92.62 65.08 93.10 69.65
+> Ours –ViT-S/16 91.58 62.55 91.83 61.43 Ours –ViT-B/16 92.54 65.58 93.14 65.35
+> Ours –ViT-L/16 93.08 67.16 93.86 69.04
+
+Table 4: Semantic segmentation results on DDD17-Seg and DSEC-Semantic, with all metrics reported in percentage (%). 
+
+5.5 Scalability Analysis 
+
+We assess Hyper-RED along two practical dimensions: model-capacity scaling and annotation-efficient transfer. 
+
+Model-Capacity Scaling. Using the same formulation and 
+
+16 × 16 patches, Hyper-RED improves monotonically across ViT-S/B/L on N-Caltech101 top-1 accuracy ( 94 .81% →
+
+97 .62% → 98 .25% ), DDD17-Seg mIoU (62 .55% →
+
+65 .58% → 67 .16% ), and MVSEC-Depth RMSE (3.596 →
+
+3.449 → 3.383 ). These consistent gains across recognition, dense segmentation, and geometric prediction show that in-creased capacity translates into task-general improvements rather than benefiting a specific benchmark. Hyper-RED Method Backbone DDD17-Seg DSEC-Semantic LP 1% 5% 10% 20% Full LP 1% 5% 10% 20% Full MaskCLIP ViT-B/16 31.91 53.91 56.27 59.32 59.97 61.27 33.08 33.89 37.03 38.83 42.40 55.01 FC-CLIP ConvNeXt-L 54.07 56.38 58.50 60.05 60.85 62.01 43.00 39.12 43.71 44.09 47.77 55.67 OpenESS E2VID 55.61 57.58 59.07 61.03 61.78 63.00 44.26 41.41 44.97 46.25 48.28 57.21 ScaleEvent ViT-B/16 57.87 57.23 59.54 61.45 62.06 62.81 58.42 54.37 62.82 63.88 64.15 64.93 Ours ViT-B/16 62.94 60.86 63.51 64.04 64.68 65.58 61.94 56.16 62.17 63.65 64.95 65.35 
+
+Table 5: Semantic segmentation results on DDD17-Seg and DSEC-Semantic under linear probing (LP), few-shot fine-tuning, and full supervision (Full). All mIoU scores are reported in percentage (%).                                                                                     
+
+> Exp. Distill PRD HOI HOC MVSEC-Depth DSEC-Depth DDD17-Seg DSEC-Semantic
+> δ1↑RMSE ↓δ1↑RMSE ↓Acc. ↑mIoU ↑Acc. ↑mIoU ↑
+> (a) 0.593 6.635 0.846 4.424 91.39 59.60 91.94 64.31 (b) ✓0.609 6.114 0.875 4.063 92.16 62.41 92.74 66.17 (c) ✓✓0.739 4.238 0.893 3.713 92.48 65.82 93.66 68.73 (d) ✓✓✓0.792 3.470 0.896 3.727 92.72 66.24 93.84 68.79 (e) ✓✓✓0.799 3.448 0.893 3.734 92.61 67.01 93.81 68.68 (f) ✓✓✓✓0.807 3.383 0.904 3.624 93.08 67.16 93.86 69.04
+
+Table 6: Component ablation using ViT-L/16 under full supervision. Distill, PRD, HOI, and HOC denote feature distillation, pairwise relational distillation, and the proposed high-order intra- and cross-modal losses, respectively. Exp. (a) uses image-domain initialization, and Exp. (f) represents the full model. therefore scales to larger encoders without scale-specific modifications to its distillation formulation. 
+
+Transferability and Annotation Efficiency. Tables 3 and 5 show that Hyper-RED outperforms ScaleEvent across all pro-tocols on MVSEC-Depth and DDD17-Seg, reducing RMSE 
+
+by 2.549 –2.767 and improving mIoU by 2.59 –5.07 percent-age points, respectively. It also achieves the lowest DSEC-Depth RMSE throughout and ranks first under LP, 1%, 5%, 10%, 20%, and full-supervision settings, while remaining competitive otherwise. The strong LP and low-shot results indicate that the pretrained encoder already captures transfer-able semantic and geometric structures before extensive task-specific adaptation. Overall, Hyper-RED consistently bene-fits from larger encoders while remaining effective across diverse tasks and annotation budgets. (a) Input (b) Ours (c) Label (d) RGB 
+
+Figure 4: Qualitative results on semantic segmentation (top) and monocular depth estimation (bottom). 
+
+5.6 Ablation Studies 
+
+Table 6 evaluates each component. Feature distillation im-proves over image-domain initialization, while PRD further establishes a stronger pairwise-relational baseline. Building on Exp. (c), LHOI and LHOC yield task-dependent gains, reflecting their complementary roles: the former preserves event-token organization, whereas the latter anchors event groups to image semantics. Combining both in Exp. (f) achieves the best results across all metrics. Relative to Exp. (c), it improves MVSEC-Depth δ1 by 0.068 and reduces RMSE by 0.855 , while increasing mIoU by 1.34 and 0.31 
+
+points on DDD17-Seg and DSEC-Semantic, respectively. These results validate the effectiveness and complementarity of the proposed high-order objectives. Additional ablation results and further analyses are provided in the Appendix .
+
+## 6 Conclusion 
+
+In this work, we presented Hyper-RED, a scalable image-to-event pre-training framework that addresses semantic col-lapse caused by rigid point-wise alignment across the image– event modality gap. Instead of forcing isolated token corre-spondences, Hyper-RED organizes semantically correlated tokens into teacher-guided hypergraphs and transfers their region-level organization through complementary intra- and cross-modal high-order relational distillation. By aligning both hyperedge memberships and prototypes, it preserves re-lational consistency and group-level semantics while retain-ing event-specific characteristics. Built on real and simulated pre-training data, Hyper-RED scales consistently from ViT-S to ViT-L without scale-specific modifications. Experiments on three downstream tasks across five event-based datasets demonstrate state-of-the-art overall performance and strong transferability under linear probing, few-shot fine-tuning, and full supervision. These results establish semantic hy-pergraphs as structured knowledge carriers for scalable and annotation-efficient event representation learning. 
+
+## References 
+
+Bartolomei, L.; Mannocci, E.; Tosi, F.; Poggi, M.; and Mat-toccia, S. 2025. Depth AnyEvent: A Cross-Modal Distillation Paradigm for Event-Based Monocular Depth Estimation. In 
+
+Proceedings of the IEEE/CVF International Conference on Computer Vision , 19669–19678. Cao, J.; Xing, J.; Messikommer, N.; and Scaramuzza, D. 2026. Generative Event Pretraining with Foundation Model Alignment. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , 3189–3199. Caron, M.; Touvron, H.; Misra, I.; Jégou, H.; Mairal, J.; Bojanowski, P.; and Joulin, A. 2021. Emerging properties in self-supervised vision transformers. In Proceedings of the IEEE/CVF international conference on computer vision ,9650–9660. Chen, N.; Xiao, C.; Dai, Y.; He, S.; Li, M.; and An, W. 2025. Event-based tiny object detection: A benchmark dataset and baseline. In Proceedings of the IEEE/CVF International Conference on Computer Vision , 7209–7218. Chen, Z.; Hou, J.; Zhu, Z.; Wu, J.; and Shi, G. 2026. Scal-ing Dense Event-Stream Pretraining from Visual Foundation Models. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , 8011–8022. Cordts, M.; Omran, M.; Ramos, S.; Rehfeld, T.; Enzweiler, M.; Benenson, R.; Franke, U.; Roth, S.; and Schiele, B. 2016. The cityscapes dataset for semantic urban scene understand-ing. In Proceedings of the IEEE conference on computer vision and pattern recognition , 3213–3223. Deng, Y.; Chen, H.; Chen, H.; and Li, Y. 2021. Learning from images: A distillation learning framework for event cameras. 
+
+IEEE Transactions on Image Processing , 30: 4919–4931. Feng, Y.; You, H.; Zhang, Z.; Ji, R.; and Gao, Y. 2019. Hypergraph neural networks. In Proceedings of the AAAI conference on artificial intelligence , volume 33, 3558–3565. Gallego, G.; Delbrück, T.; Orchard, G.; Bartolozzi, C.; Taba, B.; Censi, A.; Leutenegger, S.; Davison, A. J.; Conradt, J.; Daniilidis, K.; et al. 2020. Event-based vision: A survey. 
+
+IEEE transactions on pattern analysis and machine intelli-gence , 44(1): 154–180. Gao, Y.; Feng, Y.; Ji, S.; and Ji, R. 2022. HGNN+: General hypergraph neural networks. IEEE Transactions on Pattern Analysis and Machine Intelligence , 45(3): 3181–3199. Gao, Y.; Zhang, Z.; Lin, H.; Zhao, X.; Du, S.; and Zou, C. 2020. Hypergraph learning: Methods and practices. IEEE transactions on pattern analysis and machine intelligence ,44(5): 2548–2566. Gehrig, M.; Aarents, W.; Gehrig, D.; and Scaramuzza, D. 2021. Dsec: A stereo event camera dataset for driving sce-narios. IEEE Robotics and Automation Letters , 6(3): 4947– 4954. Geiger, A.; Lenz, P.; Stiller, C.; and Urtasun, R. 2013. Vision meets robotics: The kitti dataset. The international journal of robotics research , 32(11): 1231–1237. He, K.; Chen, X.; Xie, S.; Li, Y.; Dollár, P.; and Girshick, R. 2022. Masked autoencoders are scalable vision learners. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , 16000–16009. Huang, J.; and Yang, J. 2021. Unignn: a unified framework for graph and hypergraph neural networks. arXiv preprint arXiv:2105.00956 .Jeong, S.; Chen, H.; Yun, S.; Cho, S.; Huang, W.; Liu, X.; and Imani, M. 2026. Cross-Modal Event Encoder: Bridging Image-Text Knowledge to Event Streams. In Proceedings of the IEEE/CVF Winter Conference on Applications of Com-puter Vision , 3213–3222. Jiang, J.; Wei, Y.; Feng, Y.; Cao, J.; and Gao, Y. 2019. Dy-namic hypergraph neural networks. In Ijcai , 2635–2641. Jing, L.; Ding, Y.; Gao, Y.; Wang, Z.; Yan, X.; Wang, D.; Schaefer, G.; Fang, H.; Zhao, B.; and Li, X. 2024. Hpl-ess: Hybrid pseudo-labeling for unsupervised event-based se-mantic segmentation. In Proceedings of the IEEE/CVF con-ference on computer vision and pattern recognition , 23128– 23137. Kerssies, T.; Cavagnero, N.; Hermans, A.; Norouzi, N.; Averta, G.; Leibe, B.; Dubbelman, G.; and De Geus, D. 2025. Your vit is secretly an image segmentation model. In 
+
+Proceedings of the computer vision and pattern recognition conference , 25303–25313. Kim, T.; Cho, H.; and Yoon, K.-J. 2024. Frequency-aware event-based video deblurring for real-world motion blur. In 
+
+Proceedings of the IEEE/CVF Conference on Computer Vi-sion and Pattern Recognition , 24966–24976. Klenk, S.; Bonello, D.; Koestler, L.; Araslanov, N.; and Cre-mers, D. 2024. Masked event modeling: Self-supervised pre-training for event cameras. In Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision ,2378–2388. Kong, L.; Liu, Y.; Ng, L. X.; Cottereau, B. R.; and Ooi, W. T. 2024. Openess: Event-based semantic scene understanding with open vocabularies. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition ,15686–15698. Li, J.; Dong, S.; Yu, Z.; Tian, Y.; and Huang, T. 2019. Event-based vision enhanced: A joint detection framework in au-tonomous driving. In 2019 ieee international conference on multimedia and expo (icme) , 1396–1401. IEEE. Liang, Q.; Li, Q.; Liu, S.; Cao, X.; Lu, J.; Yang, F.; Zhang, W.; Huang, K.; and Tian, Y. 2025. Efficient Event Camera Data Pretraining with Adaptive Prompt Fusion. In Proceed-ings of the IEEE/CVF International Conference on Computer Vision , 8656–8667. Lim, J.; Yun, S.; Park, S.; and Choi, J. Y. 2022. Hypergraph-induced semantic tuplet loss for deep metric learning. In 
+
+Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , 212–222. Lu, Y.; Xu, X.; Lu, H.; Qian, Y.; Li, P.; Yao, H.; Yang, B.; Li, J.; Cai, Q.; Guo, W.; et al. 2025. SEE: See Everything Ev-ery Time—Adaptive Brightness Adjustment for Broad Light Range Images via Events. arXiv:2502.21120. Mohammadi, M.; Wu, Z.; and Gilitschenski, I. 2025. TESPEC: Temporally-Enhanced Self-Supervised Pretrain-ing for Event Cameras. In Proceedings of the IEEE/CVF International Conference on Computer Vision , 7782–7793. Nah, S.; Baik, S.; Hong, S.; Moon, G.; Son, S.; Timofte, R.; and Mu Lee, K. 2019. Ntire 2019 challenge on video deblur-ring and super-resolution: Dataset and study. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition workshops , 0–0. Oquab, M.; Darcet, T.; Moutakanni, T.; Vo, H.; Szafraniec, M.; Khalidov, V.; Fernandez, P.; Haziza, D.; Massa, F.; El-Nouby, A.; et al. 2023. Dinov2: Learning robust visual fea-tures without supervision. arXiv preprint arXiv:2304.07193 .Peng, Y.; Li, H.; Zhang, Y.; Sun, X.; and Wu, F. 2024. Scene adaptive sparse transformer for event-based object detection. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , 16794–16804. Pont-Tuset, J.; Perazzi, F.; Caelles, S.; Arbeláez, P.; Sorkine-Hornung, A.; and Van Gool, L. 2017. The 2017 DAVIS Chal-lenge on Video Object Segmentation. arXiv:1704.00675. Radford, A.; Kim, J. W.; Hallacy, C.; Ramesh, A.; Goh, G.; Agarwal, S.; Sastry, G.; Askell, A.; Mishkin, P.; Clark, J.; et al. 2021. Learning transferable visual models from natural language supervision. In International conference on machine learning , 8748–8763. PmLR. Rebecq, H.; Ranftl, R.; Koltun, V.; and Scaramuzza, D. 2019. High speed and high dynamic range video with an event camera. IEEE transactions on pattern analysis and machine intelligence , 43(6): 1964–1980. Siméoni, O.; Vo, H. V.; Seitzer, M.; Baldassarre, F.; Oquab, M.; Jose, C.; Khalidov, V.; Szafraniec, M.; Yi, S.; Ra-mamonjisoa, M.; et al. 2025. Dinov3. arXiv preprint arXiv:2508.10104 .Sun, L.; Sakaridis, C.; Liang, J.; Sun, P.; Cao, J.; Zhang, K.; Jiang, Q.; Wang, K.; and Van Gool, L. 2023. Event-based frame interpolation with ad-hoc deblurring. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pat-tern Recognition , 18043–18052. Tang, C.; Wang, X.; Huang, J.; Jiang, B.; Zhu, L.; Chen, S.; Zhang, J.; Wang, Y.; and Tian, Y. 2025. Revisiting color-event based tracking: A unified network, dataset, and metric. 
+
+Pattern Recognition , 112718. Wang, M.; Deng, H.; Bao, W.; Ma, Y.; Wang, C.; Tian, Z.; Du, S.; and Li, S. 2026. Rethinking Event-Based Object Detection through Representation-Level Tempo-ral Aggregation and Model-Level Hypergraph Reasoning. arXiv:2605.08825. Wang, X.; Li, J.; Zhu, L.; Zhang, Z.; Chen, Z.; Li, X.; Wang, Y.; Tian, Y.; and Wu, F. 2023. Visevent: Reliable object tracking via collaboration of frame and event flows. IEEE transactions on cybernetics , 54(3): 1997–2010. Wu, W.; Wang, X.; Li, C.; Jiang, B.; Tang, J.; Luo, B.; and Liu, Q. 2025. CM3AE: A Unified RGB Frame and Event-Voxel/-Frame Pre-training Framework. In Proceedings of the 33rd ACM International Conference on Multimedia , 2159– 2168. Yang, L.; Kang, B.; Huang, Z.; Zhao, Z.; Xu, X.; Feng, J.; and Zhao, H. 2024. Depth anything v2. Advances in Neural Information Processing Systems , 37: 21875–21911. Yang, Y.; Pan, L.; Li, D.; and Liu, L. 2025. EZSR: Event-based zero-shot recognition. In Proceedings of the Computer Vision and Pattern Recognition Conference , 4628–4638. Yang, Y.; Pan, L.; and Liu, L. 2023. Event camera data pre-training. In Proceedings of the IEEE/CVF international conference on computer vision , 10699–10709. Yang, Y.; Pan, L.; and Liu, L. 2024. Event camera data dense pre-training. In European Conference on Computer Vision ,292–310. Springer. Zhu, A. Z.; Thakur, D.; Özaslan, T.; Pfrommer, B.; Kumar, V.; and Daniilidis, K. 2018. The multivehicle stereo event camera dataset: An event camera dataset for 3D perception. 
+
+IEEE Robotics and Automation Letters , 3(3): 2032–2039. Zhu, J.; Liu, L.; Jiang, B.; Wen, F.; Zhang, H.; Li, W.; and Liu, Y. 2023. Self-supervised event-based monocular depth estimation using cross-modal consistency. In 2023 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS) , 7704–7710. IEEE.

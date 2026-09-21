@@ -1,0 +1,73 @@
+{
+  "date": "20260921",
+  "date_label": "",
+  "generated_at": "2026-09-21 22:20:02 UTC",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2609.21770v1",
+      "route": "202609/21/2609.21770v1-xcalib-depth-guided-geometric-optimization-for-dense-thermal-visible-video-registration",
+      "title": "XCalib Depth-Guided Geometric Optimization for Dense Thermal-Visible Video Registration",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "针对空间失配的可见光-红外稠密配准",
+      "first_seen_at": "2026-09-21 22:20:02 UTC",
+      "updated_at": "2026-09-21 22:20:02 UTC"
+    },
+    {
+      "paper_id": "2609.15227v1",
+      "route": "202609/21/2609.15227v1-closed-form-bayesian-homography-estimation-from-noisy-point-correspondences",
+      "title": "Closed-form Bayesian homography estimation from noisy point correspondences",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向几何对齐的噪声对应不确定性量化",
+      "first_seen_at": "2026-09-21 22:20:02 UTC",
+      "updated_at": "2026-09-21 22:20:02 UTC"
+    },
+    {
+      "paper_id": "2609.16811v1",
+      "route": "202609/21/2609.16811v1-hyper-red-scalable-event-pre-training-via-semantic-hypergraph-distillation",
+      "title": "Hyper-RED: Scalable Event Pre-training via Semantic Hypergraph Distillation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "通过高阶语义蒸馏在模态差异下进行跨模态对齐",
+      "first_seen_at": "2026-09-21 22:20:02 UTC",
+      "updated_at": "2026-09-21 22:20:02 UTC"
+    },
+    {
+      "paper_id": "2609.18133v1",
+      "route": "202609/21/2609.18133v1-stealthy-in-semantics-antagonistic-in-space-attacking-visible-infrared-object-detectors-via-object-level-misalignment",
+      "title": "Stealthy in Semantics, Antagonistic in Space: Attacking Visible-Infrared Object Detectors via Object-Level Misalignment",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "通过破坏可见光-红外跨模态空间对齐干扰融合",
+      "first_seen_at": "2026-09-21 22:20:02 UTC",
+      "updated_at": "2026-09-21 22:20:02 UTC"
+    }
+  ]
+}

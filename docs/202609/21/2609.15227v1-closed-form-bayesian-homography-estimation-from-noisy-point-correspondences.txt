@@ -1,0 +1,1986 @@
+Closed-form Bayesian homography estimation from noisy point correspondences
+Hanne Beuter
+Technische Hochschule Augsburg
+TTZ Landsberg am Lech
+Augsburg, Germany
+hanne.beuter@tha.de
+Sebastian Dorn
+Technische Hochschule Augsburg
+TTZ Landsberg am Lech
+Augsburg, Germany
+sebastian.dorn@tha.de
+Abstract
+While homographies are fundamental to many computer
+vision tasks, the majority of conventional estimation tech-
+niques provide only point estimates without directly quanti-
+fying uncertainty introduced by noisy observations. Uncer-
+tainty, though, propagates to subsequent processing steps
+such as camera calibration and 3D reconstruction and is
+particularly relevant in safety-critical and socially rele-
+vant fields including medical imaging, autonomous driv-
+ing, and defense.
+We present a fast Bayesian formula-
+tion for homography estimation from point correspondences
+that explicitly incorporates measurement uncertainty and
+prior knowledge while providing a posterior distribution
+over the homography parameters. A closed-form solution
+of the posterior mean of the homography is derived in ho-
+mogeneous coordinates and supplemented by an iterative
+Bayesian approach to handle non-linearities. Synthetic ex-
+periments demonstrate the applicability to projective trans-
+formations and show improved estimation accuracy over
+DLT under varying noise conditions. Image stitching ex-
+periments further demonstrate applicability to real image
+correspondences while additionally providing uncertainty
+information.
+1. Introduction
+A homography is a projective transformation that maps the
+corresponding points between two images of the same pla-
+nar scene taken from different viewpoints [13, 23] and is
+a central concept in Computer Vision (CV). Many funda-
+mental methods, including image registration and stitching
+[22], Bird’s Eye View transformations [5], Camera Calibra-
+tion (CC) [26], and visual SLAM [18], rely on it. Medi-
+cal imaging [1, 17], UAV geolocation in defense [3], and
+autonomous driving [5, 25] are examples of safety-critical
+application fields utilizing homographies where errors in
+perception can directly affect system decisions or outputs
+and consequently pose a risk to human safety [20, 25].
+This makes the uncertainty of an estimated homography
+matrix important information for subsequent processing in
+homography-based CV systems. Traditional homography
+estimation (HE) methods such as Direct Linear Transforma-
+tion (DLT) [13] provide deterministic point estimates rather
+than directly inferring parameter uncertainty or incorporat-
+ing prior parameter knowledge. In contrast, Bayesian Infer-
+ence (BI) provides both by posterior inference [10]. How-
+ever, recent implementations require computationally ex-
+pensive sampling [11, 21] or information about camera mo-
+tion over time [4, 8]. We derive a closed-form Bayesian in-
+ference method including Uncertainty Quantification (UQ)
+for feature-based HE on static image correspondences. Our
+contributions are as follows:
+• Theoretical derivation of the inference method to deter-
+mine the posterior mean of a homography from point cor-
+respondences.
+• UQ of the homography matrix parameters via posterior
+distributions.
+• Proof of Concept (PoC) on synthetic and image stitching
+data with application specific noise modeling.
+2. Related work
+In order to determine the homography transformations, fea-
+ture detectors usually first identify keypoints and assign
+them pairwise, before the homographic parameters are esti-
+mated by standard methods of linear algebra, e.g. by the
+DLT [13]. The robustness of the solution is usually en-
+sured by removing outlier keypoints with additional algo-
+rithms like RANSAC [9], resulting in precise estimates for
+accurately localized point correspondences. Estimation ac-
+curacy, however, decreases as localization noise increases
+[27]. Although often precise enough, the homography ma-
+trix remains a point estimate without directly providing in-
+formation on its uncertainty [19]. While likelihood-based
+error propagation is used [13], standard DLT-based estima-
+tion does not allow for the inclusion of prior knowledge
+potentially available from previous experiments or expert
+1
+arXiv:2609.15227v1  [cs.CV]  14 Sep 2026
+
+
+judgments. BI allows treating unknown parameters as ran-
+dom variables and inferring posterior distributions while ex-
+plicitly modeling uncertainty [10]. Bayesian approaches for
+HE and CC share the central motivation of mitigating the
+consequences of uncertain parameter estimates for subse-
+quent processing [4, 8, 11, 21]. Previous works [4, 8] for-
+mulate sequential Bayesian filtering frameworks to exploit
+information from preceding video frames for HE. In [4], vi-
+sual feature correspondences, rate-gyro measurements and
+a camera motion model are combined within a Bayesian
+state estimator, providing both a homography estimate and
+an associated state covariance. The approach in [8] instead
+derives information about camera movement entirely from
+image observations. A two-stage Kalman filter first tracks
+keypoint positions and their uncertainties and subsequently
+estimates the homography and its uncertainty while incor-
+porating information from preceding video frames. Both
+approaches improve robustness when visual information is
+limited, but rely on sequential observations and temporal
+information.
+Bayesian estimation without a temporal component has
+also been investigated for camera parameter estimation
+[11, 21]. The method in [21] formulates a posterior over
+extrinsic camera parameters based on noisy point corre-
+spondences, allowing the resulting parameter uncertainty
+to be propagated into subsequent 3D reconstruction. An-
+other method [11] considers uncertainty characterization for
+Zhang’s camera calibration procedure [26] and infers in-
+trinsic and lens-distortion parameters. Although homogra-
+phies are used for the estimation of initial extrinsic param-
+eters within the calibration procedure, they are not them-
+selves inferred probabilistically. A common computational
+aspect of these non-temporal approaches is that the result-
+ing posterior distributions are not evaluated in closed form
+and computationally expensive Markov Chain Monte Carlo
+(MCMC) sampling is used [11, 21].
+Taken together, the related methods demonstrate the ef-
+fectiveness of Bayesian methods for uncertainty-aware geo-
+metric vision problems, ranging from HE to CC. However,
+the approaches are either limited by a necessity for sam-
+pling techniques, leading to approximations and high run-
+time, making the methods not real-time applicable, or their
+dependence on video sequences for temporal information.
+In contrast to these approaches, our work introduces an ex-
+act, closed-form solution to infer homographic projections.
+It can cope with noisy observations (e.g. from feature detec-
+tions), few data points and is computationally cheap. Addi-
+tionally, it allows for incorporation of prior knowledge.
+3. Methodology
+We aim to introduce Bayesian inference theory to esti-
+mate homographic transformations especially for 2D image
+points in 3D homogeneous coordinates. Since all findings
+below hold without any restrictions for arbitrarily high di-
+mensions, we carry out the derivations for the general case
+of points in k−dim. homogeneous coordinates.
+3.1. Observation model
+We observe a given image S of a specific scenery in (k −1)
+dimensions. E.g. for k = 3 we observe a 2D image as a pro-
+jection of a 3D scenery. A point within S in homogeneous
+coordinates is given by si ∈Pk−1 ⊂Rk. The specific
+points, following named keypoints, might have been de-
+tected automatically by a computer vision algorithm. Sub-
+sequently, we observe a second image D including parts
+of the scenery observed already in S from a different per-
+spective. The relation between the image points is mod-
+eled as follows: Out of all points in S, a specific subset
+of n points si, i = 1, ..., n, is respectively transformed by
+a homographic operator R ∈Rk×k to new data points di
+being part of the second image D. The data generation is
+in general affected by some noise ni, that is in general dif-
+ferent for each point di. This might be caused in practice
+by, e.g., non-optimal keypoints detection/location or devia-
+tions from homographic assumptions (planar scenes). Sub-
+sequently the noise is considered to be additive and Gaus-
+sian1, ni ∼G(0, Ni) with
+G(ni, Ni) = |2πNi|−1
+2 exp
+
+−1
+2nt
+iN−1
+i ni
+
+,
+(1)
+where Ni denotes the noise covariance matrix, | · | the de-
+terminant, and (·)t the transposition operation. The obser-
+vation equation is then given by
+di = Rsi + ni.
+(2)
+In vector notation the equation reads d = ˆRs + n,
+ˆR =
+
+
+R
+0
+· · ·
+0
+0
+R
+· · ·
+0
+...
+...
+...
+...
+0
+0
+· · ·
+R
+
+, ˆN =
+
+
+N1
+0
+· · ·
+0
+0
+N2
+· · ·
+0
+...
+...
+...
+...
+0
+0
+· · ·
+Nn
+
+,
+(3)
+with s, n, d ∈Rkn and ˆR, ˆN ∈Rkn×kn. Note that also the
+original points si might suffer from noise. Due to the linear
+structure of the observation equation, this can be absorbed
+in ni as well.
+The subsequent general-purpose derivation is done using
+a generic Gaussian noise model without further restrictions
+to Ni. Specific noise models that are relevant for CV are
+discussed in Sec. 4.
+1The derivation can be repeated with any other noise model.
+2
+
+
+3.2. Prior knowledge about the homographic trans-
+formation
+The goal, as described in Sec. 1, is to statistically infer the
+homographic transformation R, given d and s (observed
+images). This means that we treat R as a statistical quan-
+tity with statistical properties like mean and covariance. In
+order to infer R, we calculate the posterior probability dis-
+tribution
+P(R|d, s) = P(d, s|R)P(R)
+P(d, s)
+= P(d|R, s)P(R)
+P(d|s)
+(4)
+∝P(d|R, s)P(R).
+(5)
+The prior term P(R) in equation (5) enables us to include
+prior knowledge about the homographic transformation it-
+self. If, for instance, the type of transformation is already
+known (euclidean, affine, ...) and/or the expected range of
+the parameters, describing the transformation, can be esti-
+mated, this information can be included in P(R).
+To model the prior, we choose within this work a Gaus-
+sian probability distribution. Reasons for this choice rely
+theoretically on maximum entropy arguments for poten-
+tially known first and second moment of the distribution as
+well as practically on the fact that a Gaussian is a conjugate
+prior to the likelihood of equation (5), i.e. the posterior is
+a Gaussian as well. Since R is a matrix, a matrix normal
+distribution is required,
+P(R) = G(R, (U, V))
+(6)
+=(2π)−k2
+2 |V|−k
+2 |U|−k
+2 e(−1
+2 tr[V−1RtU−1R])
+(7)
+=(2π)−k2
+2 |V ⊗U|−1
+2 e(−1
+2 vec(R)t(V⊗U)−1vec(R))
+(8)
+=G(vec(R), V ⊗U) ,
+(9)
+with covariance matrices U, V ∈Rk×k to model the corre-
+lation structure among the rows and columns, respectively.
+vec(·) denotes the vectorization of a matrix and ⊗the Kro-
+necker product.
+The above formulation assumes a zero-
+mean prior, but prior knowledge of an expected homog-
+raphy R0 can be incorporated as P(R) = G(vec(R) −
+vec(R0), V ⊗U).
+In fact, a homographic mapping, as described in homo-
+geneous coordinates, only has 8 degrees of freedom. In
+practice, however, it is common to infer all components of
+R followed by a normalization, e.g. by setting R[9] = 1, or
+||vec(R)||2
+2 = 1, etc.
+3.3. Bayesian inference of the homographic trans-
+formation
+To perform the Bayesian inference step we need the likeli-
+hood,
+P(d|R, s) =
+Z
+dnP(d|Rs, n)P(n|R, s)
+(10)
+=
+Z
+δ(d −ˆRs −n)G(n, N) = G(d −ˆRs, N).
+(11)
+≡exp (−H(d|R, s))
+(12)
+where the information H was introduced,
+H(R|d, s) = −ln P(R|d, s)
+(13)
+= −ln P(d|R, s) −ln P(R) + H0.
+(14)
+H0 (and H′
+0 below) summarize all terms constant in R. In-
+serting Eqs. (7) and (12) into Eq. (14) yields the posterior
+information
+H(R|d, s) = 1
+2st ˆRt ˆN−1 ˆRs −dt ˆN−1 ˆRs
+(15)
++ 1
+2tr
+
+V−1RtU−1R
+
++ H′
+0
+(16)
+= 1
+2
+X
+i
+ st
+iRtN−1
+i Rsi −2dt
+iN−1
+i Rsi
+
+(17)
++ 1
+2tr
+
+V−1RtU−1R
+
++ H′
+0
+(18)
+≡1
+2
+X
+i
+[(H1)i −(H2)i] + Hprior + H′
+0. (19)
+Given the posterior information we can calculate the maxi-
+mum a posteriori estimate RMAP by determining the global
+minima of H(R|d, s). Since the posterior information con-
+tains terms up to quadratic order in R the MAP solution is
+simultaneously the posterior mean solution Rm
+Rm,kl =
+Z Y
+k,l dRkl
+
+Rkl P(R|d, s).
+(20)
+Thus, the following matrix derivatives are needed
+∂(H1)i
+∂R
+= 2N−1
+i R(sist
+i) ,
+(21)
+∂(H2)i
+∂R
+= 2N−1
+i (dist
+i) , ∂Hprior
+∂R
+= U−1RV−1 . (22)
+Taking the derivate of (Eq. (19)) with regard to R, and
+equating to zero then leads to
+X
+i
+
+N−1
+i Rm(sist
+i) −N−1
+i (dist
+i)
+
++ U−1RmV−1 = 0.
+(23)
+3
+
+
+Vectorization of Eq. (23) and solving for Rm yields
+vec(Rm) =
+"X
+i
+ sist
+i
+
+⊗N−1
+i
++ (Vt ⊗U)−1
+#−1 X
+i
+si ⊗N−1
+i di ,
+(24)
+and represents the closed-form Wiener filter [24] solution.
+3.4. Simplification of the observation model
+Eqs. (23) and (24) provides a way to compute the poste-
+rior mean Rm in general for arbitrary covariance matrices
+U, V, Ni. In practice, it is often more convenient and even
+more realistic to apply the following simplifications:
+• Noise: a) Instead of using individual Noise covariances
+Ni for each data point, one might assume that all points
+obey one and the same statistics, i.e. Ni = N ∀i. Often it
+is sufficient to use white noise statistics, N = σ2
+n1k×k ≡
+diag(σ2
+n).
+b) If it is required to have individual noise covariances per
+data point, e.g. due to local image properties affecting the
+keypoints detection algorithm, one could still use Ni =
+diag(σ2
+n,i).
+• Prior: General covariance matrices U, V allow for ar-
+bitrary correlations among rows and columns.
+Often,
+however, it is sufficient to assume an isotropic scenario:
+U = σ2
+u1k×k ≡diag(σ2
+u), V = σ2
+v1k×k ≡diag(σ2
+v).
+I.e. the entries of distribution samples are statistically in-
+dependent and identical.
+Applying the prior and the noise simplifications a to
+Equation (23) leads to
+Rm,a) =
+ X
+i
+dist
+i
+! 
+diag
+ σ2
+n
+σ2vσ2u
+
++
+X
+i
+sist
+i
+!−1
+,
+(25)
+with diag(x) denoting a diagonal matrix with diagonal el-
+ements equal to the scalar x. Using instead noise simplifi-
+cation b) yields
+Rm,b) =
+ X
+i
+diag
+ σ−2
+n,i
+  dist
+i
+
+!
+(26)
+×
+ 
+diag
+ σ−2
+v σ−2
+u
+
++
+X
+i
+diag
+ σ−2
+n,i
+  sist
+i
+
+!−1
+.
+(27)
+Interpretation of equations (25, 27): Without any prior
+knowledge with regard to the transformation, i.e. σ−2
+u
+=
+σ−2
+v
+= 0, the equations (25, 27) are consistent with findings
+in optimal linear filter theory for inference of scalar-valued
+quantities [14]. Eq. (27) reduces to
+Rm,b) =
+ X
+i
+diag
+ σ−2
+n,i
+  dist
+i
+
+!
+(28)
+×
+ X
+i
+diag
+ σ−2
+n,i
+  sist
+i
+
+!−1
+(29)
+that is the ratio between a noise-weighted sum over dist
+i and
+sist
+i, respectively. Data points with huge noise, σ2
+n,i ≈∞
+will not contribute to the sum. For σ2
+n,i = σ2
+n ∀i the result
+becomes independent of noise
+Rm,b) =
+ X
+i
+ dist
+i
+
+! X
+i
+ sist
+i
+
+!−1
+.
+(30)
+3.5. Uncertainty quantification
+There are several fields of application where reliable re-
+sults of computer vision algorithms are crucial. Examples
+are safety-critical areas in robotics, medical imaging, au-
+tonomous systems - in particular autonomous driving - as
+well as research in general or high-quality requirements in
+user experience. Statistical confidence is required for relia-
+bility. To this end we derive probabilistic error bars assigned
+to the posterior mean Rm below.
+From Eq. (19) we see that the posterior distribution of
+R is Gaussian, since only terms up to the quadratic order
+are contained in H(R|d, s). The uncertaity quantification
+in terms of the posterior covariance is thus determined by
+the inverse of
+Σ−1 ≡∂2H(R|d, s)
+∂R2
+=
+X
+i
+∂2(H1)i
+∂R2
++ ∂2Hprior
+∂R2
+(31)
+=
+X
+i
+(sist
+i) ⊗N−1
+i
++ (Vt ⊗U)−1.
+(32)
+Note, that for Ni = 0 the covariance Σ = 0, i.e. zero un-
+certainty in the reconstruction. For elements Ni larger than
+zero we see from equation (32) that the total uncertainty,
+given by Σ, is decreasing with the number of points n. For
+the simplified observation model, Eq. (25), the covariance
+becomes
+Σ−1
+a) = σ−2
+n
+X
+i
+(sist
+i) ⊗1k×k + σ−2
+v σ−2
+u 1k2×k2.
+(33)
+Given mean and covariance of R we are now able to
+provide the exact posterior probability distribution in vec-
+torized form,
+P (R|d, s) = G(vec(R) −vec(Rm), Σ) .
+(34)
+The 1σ−uncertainty interval U1σ with respect to the poste-
+rior mean Rm is given by
+U1σ =
+h
+vec(Rm) −
+p
+diag(Σ) , vec(Rm) +
+p
+diag(Σ)
+i
+,
+(35)
+4
+
+
+where diag(Σ) denotes a vector, given by the diagonal of
+the matrix Σ.
+3.6. Demonstration on a simple example
+Figure 1. Original black key points si within image S are observ-
+able as red key points di in image D under a different perspective.
+Key point detection was noisy (σ2
+n), illustrated when comparing
+it to the noiseless (blue) points. The probabilistically inferred in-
+verse transformation R−1
+m applied to red points di yields the re-
+constructed (green) crosses and proofs the concept.
+We provide a first proof of the derived concept with a
+simple example in 2 dimensions and without using homo-
+geneous coordinates. An experiment setup with projective
+transformations and homogenous coordinates is described
+in Sec. 5.1. Assume we identified four key points in the
+images S (original) and D (other perspective). We do not
+know the transformation between the keypoints and have
+no prior knowledge about the transformation, i.e. σ−2
+u
+=
+σ−2
+v
+= 0. We further assume to know how precise the key-
+point detection algorithm works, i.e. the noise covariance
+σ2
+n > 0 is known. For the sake of convenience we choose a
+rotation matrix, parametrized by rotation angle Θ.
+For a simple experiment, we choose Θ = π/6, σ2
+n =
+10−2 to generate mock data,
+dmock = Rmocks + n =
+0.87
+−0.5
+0.5
+0.87
+
+s + n.
+(36)
+Reconstruction of transformation matrix Rm, given mock
+data points dmock and s, by applying equation (30) and
+equations (33,35) for uncertainty quantification, yields
+Rm =
+0.86
+−0.48
+0.49
+0.89
+
+±
+0.02
+0.02
+0.02
+0.02
+
+.
+(37)
+Fig. 1 visualizes the results of this experiment and serves
+as first PoC for optimally inferring the transformation from
+noisy data.
+4. Image and perspective noise
+Uncertainty in homographic projections can arise from dif-
+ferent sources and at different stages of the imaging pro-
+cess. Conventional feature-localization uncertainty is intro-
+duced in the image plane and is therefore modeled as ad-
+ditive noise after perspective normalization (details below).
+Before that, deviations of the underlying imaging geome-
+try already act on the projective mapping itself. Examples
+include uncertainty in camera intrinsics or extrinsics, uncer-
+tainty in a previously estimated homography, temporal mis-
+alignment between cameras observing a dynamic scene, and
+small geometric deviations of the observed surface from the
+assumed planar model. Thus, additive homogeneous noise
+is not introduced as an alternative representation of pixel
+noise, but as a local stochastic model of uncertainty in the
+geometry or in the physical process underlying the projec-
+tion.
+The homogeneous measurement model is given by
+dH = RsH + nH ,
+(38)
+where sH and dH denote a single matched pair of ho-
+mogeneous source and target keypoints, respectively, and
+nH =
+nx
+ny
+nw
+t ∼G (0, NH), NH ∈R(3×3) de-
+notes the noise in homogeneous coordinates. Note that for
+simplicity, the point index i is omitted throughout this sec-
+tion unless explicitly required. All derived relations apply
+individually to each pair of matched points.
+The homogeneous projection RsH contains the projec-
+tive component w := (RsH)3 = r31sx+r32sy+r33, which
+is used for perspective normalization. Note that r33 = 1 in
+all cases due to normalization of the homography matrix.
+Projection of Eq. (38) onto the two-dimensional Eu-
+clidean image plane yields
+dP = P(dH) = (RsH)[1:2] + (nH)[1:2]
+w + nw
+,
+(39)
+and introduces non-linearity into the measurement model,
+where subscript P denotes projected quantities and P(·) is
+the projection operator. Pixel noise introduced directly in
+the two-dimensional Euclidean image space is a common
+special case in image-based CV problems. While the ho-
+mogeneous measurement model, Eq. (38), with nw = 0
+remains applicable in close-to-affine scenarios (w ≈1)
+and low noise cases, n ≪1, we have to account for non-
+linearities otherwise.
+Keypoint observations are commonly modeled by addi-
+tive Gaussian noise [13, 26],
+dP = P (R˜sP) + nP,
+nP ∼G(0, NP),
+(40)
+5
+
+
+where sP and dP denote a single matched pair of source and
+target image keypoints, respectively, ˜· denotes the normal-
+ized homogeneous representation of an image point.
+To model pixel noise we set nw = 0 in Eq. (39). Com-
+parison with Eq. (40) gives (nH)[1:2] = wnP and therefore
+(NH)[1:2,1:2] = w2NP .
+(41)
+Thus, Gaussian measurement noise specified in image coor-
+dinates can be represented in homogeneous coordinates by
+scaling its covariance with the squared projective compo-
+nent w. Considering Eq. (41) and after simple rearranging,
+Eq. (40) becomes
+˜dP = 1
+wR˜sP + ˜nP .
+(42)
+Since w depends on R and each signal point si itself,
+Eq. (42) is still a nonlinear inference problem that might be
+solved by methods of variational inference. To still use the
+linear model derived in Sec. 3, we propose the following ap-
+proach: We initially assume that R and w are independent
+and alternately infer R using Eq. (24) for a fixed 1/w, and
+1/w for a fixed R. During this process, the mean of 1/w is
+also estimated by a Wiener filter in each iteration step,
+ 1
+wi
+
+m
+=
+h
+W −1
+inv,i + (xi)tN−1
+P (xi)
+i−1
+(43)
+×
+ 
+(xi)tN−1
+P ˜di
+P + W −1
+inv,i
+ 1
+wi
+!
+∀i ,
+(44)
+where Winv,i denotes the prior variance of 1/wi, (1/wi) its
+prior mean, and xi ≡R˜si
+P. This process repeats until con-
+vergence, e.g., when the changes in Rm between iterations
+fall below a certain threshold. By initializing the approach
+with a good choice for R (e.g. the DLT solution), conver-
+gence is accelerated.
+Non-Gaussian noise
+Although the derivation in Sec. 3 uses a Gaussian noise
+model, the results are valid for other noise models. Let Pn
+be a general noise distribution. Then the likelihood is given
+by
+P(d|R, s) = Pn(d −ˆRs) .
+(45)
+To keep the approach analytically, but without loss of gen-
+erality for non-Gaussian noise, one might use a conju-
+gate prior with regard to the noise probability distribution
+Pconjugate(R) to include prior knowledge of R. Hence, the
+posterior information reads
+H(R | d, s) = −ln Pn(d −ˆRs) −ln Pconjugate(R) + H0.
+(46)
+Following Secs. 3.3 to 3.5 one might derive analytical
+expressions for the posterior mean or maximum, depending
+on the specific noise/prior distribution used.
+5. Experimental Setup
+5.1. Synthetic Data
+This proof of concept is an extension of Sec. 3.6 in ho-
+mogeneous coordinates and for projective transformations.
+Again, all parameters (Rmock, sH and dmock
+H
+) are known.
+The noise is modeled according to Sec. 4. Noise levels are
+given in the units of the synthetic coordinate system. For
+numerical stability, Hartley normalization [12, 13] is ap-
+plied to the noisy keypoints before homography estimation.
+For a given noise level, 100 independent runs are per-
+formed.
+In each run, a new noise vector is sampled
+and added to RmocksH.
+A posterior mean homogra-
+phy matrix Rm and its parameter uncertainty (Eqs. (32)
+and (35)) are then inferred using Eq. (24). The iterative
+BI (Eq. (24), Eq. (44)) is considered converged when be-
+tween two consecutive iterations the relative change be-
+tween the homography matrices and the displacement of the
+transformed keypoints fall below certain thresholds (ϵ∆R =
+10−6, ϵ∆points = 10−3).
+For comparison, DLT is ap-
+plied to the same noisy keypoint correspondences in each
+run. The estimated homographies are applied to the source
+keypoints and compared to the noise-free target keypoints
+RmocksH. The resulting Root Mean Squared Error (RMSE)
+(see details in Sec. 5.2) is calculated for each run and av-
+eraged over the 100 independent noise realizations. This
+procedure is repeated for several noise levels to evaluate
+the estimation accuracy under increasing observation noise.
+Results can be found in Fig. 2 and are discussed in the sub-
+sequent section.
+5.2. Image Stitching Experiment
+In a next step, we extend the PoC to image stitching, us-
+ing images from the StitchBench dataset collection [6] and
+HPatches [2].
+The proprosed method is still applied in
+a controlled environment, but now not all parameters are
+known, namely R and wi (see Sec. 4). sP and dP are de-
+tected using Scale Invariant Feature Transform (SIFT) [16]
+and are matched between the two images. In total, only
+four2 keypoint pairs across foreground and background re-
+gions are selected and used for homography estimation. No
+additional outlier removal is implemented. Noise samples
+of different zero mean Gaussian noise are added to the ho-
+mogeneous destination coordinates ˜dP which acts as dH. A
+second set of correspondences is selected as a test set and
+is not used during homography estimation. For both DLT
+and the Bayesian estimator, Hartley normalization [12, 13]
+2In order to demonstrate the strength of BI the minimum of 4 points
+has been chosen.
+6
+
+
+0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09
+0.1
+Pixel STD 
+n per point
+0.02
+0.04
+0.06
+0.08
+0.10
+0.12
+0.14
+RMSE
+Iterative Bayesian
+Single-run Bayesian, 
+init
+DLT
+Single-run DLT
+(a) Mean RMSE over 100 runs.
+0.0
+0.5
+1.0
+1.5
+2.0
+xt
+0.75
+1.00
+1.25
+1.50
+1.75
+2.00
+2.25
+y
+Source
+Ground truth
+Mean Bayes
+Mean DLT
+(b) Mean homography matrices over 100 runs for σn = 0.04.
+Figure 2. Results for the experiment given a projective transformation.
+is applied to sH, dH and the estimated homographies are
+transformed back to the original image coordinate system
+for evaluation. The probabilistic estimation of (1/w)m and
+Rm is done as described in Sec. 4. Rinit is initialized us-
+ing either DLT or a single run using the Bayesian estimator.
+For the estimation of Rinit
+Bayes a zero mean prior is assumed,
+because of a lack of further information on the true homog-
+raphy matrix. Regardless of the initialization method, Rinit
+is used for the initialization of ˆw and as the prior mean
+for R during inference.
+Performance is evaluated using
+the two-dimensional RMSE between the original destina-
+tion keypoints and the corresponding source keypoints of
+the test data set transformed by the estimated homographies.
+The Bayesian estimator additionally reports the posterior 1σ
+standard deviations of the inferred homography parameters
+as parameter uncertainty. Convergence of the iterative es-
+timator is controlled according to the criteria introduced in
+Sec. 5.1. See Fig. 3 and Appendix B for representative ex-
+amples and Sec. 6 for further discussion.
+6. Results
+6.1. Synthetic Data
+The experiment was performed for the complete range
+of considered noise levels NP
+=
+diag(σ2
+n), σn
+∈
+{0.01, 0.02, . . . , 0.10} and the ground truth matrices,
+Rmock
+affine =
+
+
+0.86
+−0.50
+0.02
+0.50
+0.86
+0.50
+0.00
+0.00
+1.00
+
+,
+Rmock
+projective =
+
+
+0.86
+−0.50
+0.02
+0.50
+0.86
+0.50
+0.40
+0.03
+1.00
+
+,
+(47)
+with results being aggregated over 100 runs per noise level.
+Note that as discussed in Sec. 4, nw = 0, but (NH)33 ≈0
+to avoid matrix singularity. To reflect only little knowledge
+about R, high values for the prior parameters are chosen:
+Uaffine = diag(10, 10, 10−4), Vaffine = diag(1, 1, 2.5)
+and Uprojective
+=
+diag(10, 10, 2.5), Vprojective
+=
+diag(1.0). We modify this assumption in the image stitch-
+ing proof of concept as described in Sec. 5.2. In the pro-
+jective case, the third row of R should not be pushed to-
+wards an affine solution, which is why U33, V33 differ in
+the affine and projective cases.
+Fig. 2 shows results for the projective case. The graphs
+in Fig. 2a show the mean RMSE for the different estimation
+methods per noise level. Fig. 2a depicts a standard DLT
+solution (orange), a single-run BI estimation, where the
+DLT solution has been used for initialization of w (Sec. 4)
+(green) and the proposed iterative BI (blue) method. For the
+iterative BI method w has been initialized separately with 1
+and winit
+DLT. Both initializations lead to non-distinguishable
+overlapping curves, which is why only a single iterative
+Bayesian curve is shown. Accuracy improves with iterative
+optimization, whereas the single-run BI method performs
+between the iterative approach and standard DLT while ad-
+ditionally providing uncertainty quantification. Although
+all three methods perform better in lower noise levels, the
+difference between DLT and BI increases, with our pro-
+posed method achieving lower RMSE. The ground truth
+transformation (black) in Fig. 2b is accurately matched by
+the mean homography inferred with our proposed method
+(blue). The orange DLT solution under noise differs con-
+siderably from the real transformation. This is expected be-
+cause our proposed method shows lower spread across the
+7
+
+
+Reference test points
+Projected test points
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+1516
+17
+18
+19
+20
+(a) DLT estimation (RMSE= 47.47 px). The DLT solution is visibly dis-
+torted.
+Reference test points
+Projected test points
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+1516
+17
+18
+19
+20
+(b) Iterative Bayesian approach with probabilistic estimation of w and ini-
+tialization with Bayes (RMSE= 8.92 px).
+Figure 3. Comparison of a stitched panorama with four point correspondences estimated by DLT (left) and our proposed iterative Bayesian
+approach (right) on images from the StitchBench[6]/AANAP skyline[15] dataset.
+individual homography parameters and DLT shows extreme
+cases in outliers for each matrix parameter, which leads to
+the distorted transformations. Comparing the mean esti-
+mates over 100 runs, the iterative Bayesian method is con-
+siderably closer to the ground-truth homography than the
+DLT estimate. See Appendix A.2 for the numerical param-
+eters and Appendix A.1 for the affine experiment results.
+This PoC in a controlled environment demonstrates that the
+theory behind the proposed approach is solid even for pro-
+jective transformations.
+6.2. Image Stitching Example
+The
+image
+sets
+used
+are
+AANAP/skyline
+[15],
+NISwGSP-06 PalazzoPubblico
+[7],
+OBJ-GSP-03 river,
+Aerial/Restaurant, included in the StitchBench dataset
+collection
+[6],
+and
+HPatches/v graffiti
+[2].
+For
+AANAP/skyline, Gaussian noise with σn
+=
+10.0 px
+is added to dH. The DLT solution (Fig. 3a) shows visible
+distortion with an RMSE of 47.42 px and a runtime of
+1 ms. With empirically selected parameters, initialization
+using ˆwinit
+Bayes, and a prior of (V ⊗U) = diag(0.1), the
+iterative Bayesian approach converges after 184 iterations
+in 2.18 ms and reduces the RMSE to 8.92 px (Fig. 3b).
+The corresponding homography matrices are provided in
+Appendix B.1, along with stitching results other than those
+shown in Fig. 3 (Appendix B.2–B.5).
+For v graffiti, Gaussian noise with σn = 5.0 px is used
+and the iterative approach is initialized with DLT without a
+prior. While DLT requires 1.43 ms and reaches an RMSE
+of 16.95 px, the iterative approach requires 1507 iterations
+and 1679 ms but improves the initial solution to 14.11 px.
+Thus, despite initialization with DLT, the iterative estima-
+tion further optimizes the homography based on the intro-
+duced projective information. Detailed matrices and the re-
+sulting panorama are provided in Appendix B.2.
+With this PoC, we have demonstrated, that the iterative
+Bayesian approach with pixel noise is able to outperform
+the DLT method, even though we introduced the initial in-
+dependence of w and R. If the proposed method is effi-
+ciently initialized, it can derive better results as the initial-
+ization method. In scenarios where the iterative method is
+not improving from the initial DLT guess, our approach still
+adds uncertainty quantification to the mean estimator.
+7. Conclusion
+This work presented a Bayesian formulation for homogra-
+phy estimation that incorporates measurement uncertainty
+and prior knowledge and provides posterior estimates of the
+homography parameters and their uncertainty. A closed-
+form solution has been derived for the posterior mean in
+the linear homogeneous-noise model and has been extended
+by an iterative approach to account for the nonlinearities
+introduced by perspective normalization in the pixel-noise
+case. Proof-of-concept experiments on synthetic data and
+real image correspondences demonstrate the applicability
+of the proposed formulations under their respective assump-
+tions. It demonstrates the feasibility of Bayesian homogra-
+phy estimation with explicit incorporation of measurement
+and parameter uncertainty.
+8
+
+
+The further development of the iterative Bayesian PoC-
+method for the nonlinear pixel-noise case to some direct
+Bayesian method, followed by an intensive benchmark
+comparison using this direct method is left for future work.
+Additionally, research on the application of the presented
+Bayesian method to uncertainty in the geometry or in the
+physical process underlying the projection is planned.
+Acknowledgements
+This research was funded by the Free State of Bavaria, Ger-
+many, through the Hightech Agenda Bayern, and supported
+by the Technical University of Applied Sciences Augsburg
+and its Technology Transfer Center (TTZ) Data Science and
+Autonomous Systems Landsberg am Lech.
+The authors
+would also like to thank Adrian Schlosser for his valuable
+feedback on the manuscript.
+References
+[1] Milica Badˇza Atanasijevi´c, Tijana Radovi´c, Milica M.
+Jankovi´c, and Marko Barjaktarovi´c. Open-source application
+for MRI and CT registration using homography transforma-
+tion. In Proceedings of the 9th International Conference on
+Bioinformatics Research and Applications, pages 111–115,
+Berlin Germany, 2022. ACM. 1
+[2] Vassileios Balntas, Karel Lenc, Andrea Vedaldi, and Krys-
+tian Mikolajczyk. Hpatches: A benchmark and evaluation of
+handcrafted and learned local descriptors. In CVPR, 2017.
+6, 8, 11
+[3] Fatih Baykal, Mehmet ˙Irfan Gedik, Constantino Carlos
+Reyes-Aldasoro, and Cefa Karaba˘g.
+Image matching for
+UAV geolocation: Classical and deep learning approaches.
+Journal of Imaging, 11(11):409, 2025. 1
+[4] Arturo
+Del
+Castillo
+Bernal,
+Philippe
+Decoste,
+and
+James Richard Forbes.
+Bayesian filtering for homog-
+raphy estimation. IEEE Robotics and Automation Letters, 8
+(12):8216–8223, 2023. Publisher: Institute of Electrical and
+Electronics Engineers (IEEE). 1, 2
+[5] Massimo Bertozzi, Alberto Broggi, and Alessandra Fasci-
+oli. Stereo inverse perspective mapping: Theory and appli-
+cations. Image and Vision Computing, 16(8):585–590, 1998.
+1
+[6] Wenxiao Cai and Wankou Yang.
+Object-level geometric
+structure preserving for natural image stitching. In Proceed-
+ings of the AAAI Conference on Artificial Intelligence, pages
+1926–1934, 2025. 6, 8, 10, 11
+[7] Yu-Sheng Chen and Yung-Yu Chuang. Natural image stitch-
+ing with the global similarity prior. In Proceedings of Euro-
+pean Conference on Computer Vision (ECCV 2016), pages
+V186–201, 2016. 8, 11
+[8] Paul Johannes Claasen and Johan Pieter De Villiers. Video-
+based sequential Bayesian homography estimation for soc-
+cer field registration. Expert Systems with Applications, 252:
+124156, 2024. 1, 2
+[9] Martin A. Fischler and Robert C. Bolles. Random sample
+consensus: A paradigm for model fitting with applications to
+image analysis and automated cartography. Communications
+of the ACM, 24(6):381–395, 1981. 1
+[10] Andrew Gelman, John B. Carlin, Hal S. Stern, David B. Dun-
+son, Aki Vehtari, and Donald B. Rubin. Bayesian Data Anal-
+ysis. CRC Press, Taylor & Francis Group, Boca Raton, third
+edition edition, 2014. 1, 2
+[11] Ram´on Guti´errez-Moizant, Mar´ıa Jes´us L. Boada, Mar´ıa
+Ram´ırez-Berasategui, and Abdulla Al-Kaff. Novel Bayesian
+Inference-Based Approach for the Uncertainty Characteriza-
+tion of Zhang’s Camera Calibration Method.
+Sensors, 23
+(18):7903, 2023. Publisher: MDPI AG. 1, 2
+[12] R.I. Hartley. In defense of the eight-point algorithm. IEEE
+Transactions on Pattern Analysis and Machine Intelligence,
+19(6):580–593, 1997. 6
+[13] Richard Hartley and Andrew Zisserman. Multiple View Ge-
+ometry in Computer Vision. Cambridge University Press, 2
+edition, 2004. 1, 5, 6
+[14] T. Kailath. A view of three decades of linear filtering theory.
+IEEE Transactions on Information Theory, 20(2):146–181,
+1974. 4
+[15] Chung-Ching
+Lin,
+Sharathchandra
+U.
+Pankanti,
+Karthikeyan
+Natesan
+Ramamurthy,
+and
+Aleksandr
+Y.
+Aravkin.
+Adaptive as-natural-as-possible image stitching.
+In Proceedings of the IEEE Conference on Computer Vision
+and Pattern Recognition (CVPR), pages 1155–1163, 2015.
+8, 10
+[16] David G. Lowe.
+Distinctive image features from scale-
+invariant keypoints. International Journal of Computer Vi-
+sion, 60(2):91–110, 2004. 6
+[17] Kapil Mundada, Shivam Dapkekar, Shambhavi Deshpande,
+Raghav Deshpande, and Sweety Deshmane. Automated X-
+Ray Image Stitching for Enhanced Medical Diagnostics and
+Visualization. In 2025 2nd International Conference on Inte-
+gration of Computational Intelligent System (ICICIS), pages
+1–6, Lohegaon, India, 2025. IEEE. 1
+[18] Ra´ul Mur-Artal, J. M. M. Montiel, and Juan D. Tard´os. Orb-
+slam: A versatile and accurate monocular SLAM system.
+IEEE Transactions on Robotics, 31(5):1147–1163, 2015. 1
+[19] Rahul Raguram, Jan-Michael Frahm, and Marc Pollefeys.
+Exploiting uncertainty in random sample consensus. In 2009
+IEEE 12th International Conference on Computer Vision,
+pages 2074–2081, Kyoto, 2009. IEEE. 1
+[20] Lujie Song, Haibo Zou, Zhenyu Ji, Xiaoming Xie, and Wei
+Li. A novel iterative matching scheme based on homography
+method for x-ray image. Journal of Mechanics in Medicine
+and Biology, 20(06):2050038, 2020. 1
+[21] R. Sundareswara and P.R. Schrater.
+Bayesian modelling
+of camera calibration and reconstruction.
+In Fifth Inter-
+national Conference on 3-D Digital Imaging and Model-
+ing (3DIM’05), pages 394–401, Ottawa, ON, Canada, 2005.
+IEEE. 1, 2
+[22] Richard Szeliski. Image alignment and stitching: A tutorial.
+Foundations and Trends® in Computer Graphics and Vision,
+2(1):1–104, 2007. 1
+[23] Richard Szeliski. Computer Vision: Algorithms and Appli-
+cations. Springer International Publishing, Cham, 2022. 1
+9
+
+
+[24] Norbert Wiener. Extrapolation, Interpolation, and Smooth-
+ing of Stationary Time Series: With Engineering Applica-
+tions. The MIT Press, 1949. 4
+[25] Ju Hee Yoo, Ho Gi Jung, and Jae Kyu Suhr. Accurate road
+user position estimation for v2i using point clouds from mo-
+bile mapping systems. Electronics, 15(6), 2026. 1
+[26] Z. Zhang. A flexible new technique for camera calibration.
+IEEE Transactions on Pattern Analysis and Machine Intelli-
+gence, 22(11):1330–1334, 2000. 1, 2, 5
+[27] Chunyang Zhao and Huaici Zhao.
+Accurate and robust
+feature-based homography estimation using HALF-SIFT
+and feature localization error weighting.
+Journal of Vi-
+sual Communication and Image Representation, 40:288–
+299, 2016. 1
+A. Synthetic results
+A.1. Affine transformation
+0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09
+0.1
+Pixel STD 
+n per point
+0.02
+0.04
+0.06
+0.08
+0.10
+0.12
+0.14
+RMSE
+Iterative Bayesian
+Single-run Bayesian, 
+init
+DLT
+Single-run DLT
+Figure 4. Affine scenario: Mean RMSE over 100 runs. Iterative
+Bayesian (Blue) performs best, while Single run Bayesian (wDLT
+init )
+performs similarly, unlike in the projective case.
+The inferred Bayesian parameters RBayes
+m
+3 and the DLT
+solution RDLT for the affine case at σn = 0.04 are
+RDLT =
+
+
+0.93
+−0.52
+−0.02
+0.58
+0.98
+0.38
+0.02
+0.03
+1.00
+
+,
+(48)
+RBayes
+m
+=
+
+
+0.87
+−0.50
+0.02
+0.50
+0.87
+0.50
+0.00
+0.00
+1.00
+
+
+(49)
+±
+
+
+0.04
+0.04
+0.09
+0.04
+0.04
+0.09
+0.00
+0.00
+0.00
+
+.
+(50)
+3Only the normalized homography matrix is reported, even though the
+1σ values are derived for the non-normalized homography matrix. If not
+declared otherwise, the inferred homography is near (R33) = 1.
+In contrast to the projective case, the single-run BI fol-
+lows the iterative solution more closely, as the affine trans-
+formation does not introduce a projective scale w. Itera-
+tive optimization consistently achieves the lowest RMSE.
+At σn = 0.04, the Bayesian estimate closely recovers
+the ground-truth affine transformation, while the DLT es-
+timate shows larger parameter deviations. Isotropic noise
+yields identical uncertainties in the first two rows, while
+(NH)33 ≪1 introduces small near-zero uncertainties in
+the third row despite nw = 0.
+A.2. Projective transformation
+The inferred Bayesian parameters RBayes
+m
+and the DLT
+RDLT solution of the projective case at σn = 0.04 are
+RDLT
+m
+=
+
+
+0.14
+−0.24
+0.28
+−0.18
+−0.05
+1.04
+−0.12
+−0.23
+1.00
+
+,
+(51)
+RBayes
+m
+=
+
+
+0.85
+−0.50
+0.04
+0.49
+0.87
+0.52
+0.40
+0.03
+1.00
+
+
+(52)
+±
+
+
+0.07
+0.06
+0.14
+0.07
+0.06
+0.14
+0.00
+0.00
+0.00
+
+.
+(53)
+The uncertainty structure follows the same noise assump-
+tions as in the affine case.
+B. Image stitching results
+B.1. AANAP/skyline
+The
+numerical
+transformation
+parameters
+for
+the
+AANAP skyline
+[15]
+images
+from
+the
+StitchBench
+[6] dataset collection are
+RDLT =
+
+
+0.54
+−0.50
+464.63
+−0.09
+0.17
+631.97
+0.00
+0.00
+1.00
+
+,
+(54)
+RBayes
+m
+=
+
+
+0.96
+−0.06
+426.58
+0.05
+1.05
+605.47
+0.00
+0.00
+1.00
+
+
+(55)
+±
+
+
+0.01
+0.03
+0.32
+0.01
+0.03
+0.32
+0.01
+0.01
+0.32
+
+.
+(56)
+For the resulting panoramas see Fig. 3 in the main paper.
+The low uncertainty is a result of the chosen prior.
+10
+
+
+B.2. HPatches/v graffiti
+The
+numerical
+transformation
+parameters
+for
+the
+HPatches/v graffiti images4 [2] are
+RDLT =
+
+
+0.85
+−0.36
+130.70
+0.16
+0.81
+−87.02
+0.00
+0.00
+1.00
+
+,
+(57)
+RBayes
+m
+=
+
+
+1.19
+−0.40
+87.29
+0.27
+1.04
+−151.80
+0.00
+0.00
+1.00
+
+
+(58)
+±
+
+
+0.02
+0.03
+10.79
+0.02
+0.03
+10.79
+0.01
+0.01
+4.83
+
+.
+(59)
+The resulting panoramas are shown in Fig. 5. Assuming
+isotropic noise as before, the iterative Bayesian estimate
+shows a lower RMSE than DLT for the considered point
+correspondences, with larger absolute translational uncer-
+tainties reflecting their pixel scale. Similar behavior in the
+following examples is not discussed further.
+B.3. OBJ-GSP-03 river
+The numerical transformation parameters for the OBJ-GSP-
+03 river images from the StitchBench [6] dataset are
+RDLT =
+
+
+0.61
+0.00
+383.19
+−0.25
+0.79
+148.53
+0.00
+0.00
+1.00
+
+,
+(60)
+RBayes
+m
+=
+
+
+0.66
+0.01
+381.54
+−0.23
+0.83
+126.80
+0.00
+0.00
+1.00
+
+
+(61)
+±
+
+
+0.02
+0.01
+14.84
+0.02
+0.01
+14.84
+0.01
+0.00
+4.69
+
+.
+(62)
+The resulting panoramas are shown in Fig. 6.
+B.4. Aerial/Restaurant
+The
+numerical
+transformation
+parameters
+for
+the
+Aerial/Restaurant
+images5
+from
+the
+StitchBench
+[6]
+dataset are
+RDLT =
+
+
+1.33
+−0.08
+108.94
+0.13
+1.36
+−995.27
+0.00
+0.00
+1.00
+
+,
+(63)
+RBayes
+m
+=
+
+
+0.97
+−0.07
+110.52
+0.07
+1.00
+−649.48
+0.00
+0.00
+1.00
+
+
+(64)
+±
+
+
+0.00
+0.00
+2.80
+0.00
+0.00
+2.80
+0.00
+0.00
+2.04
+
+.
+(65)
+4Images 1.ppm and 2.ppm.
+5Images DJI 0036.jpg and DJI 0037.jpg.
+Table 1. Parameters of the image stitching examples.
+Image
+σn (px) Method
+ˆwinit
+Prior RMSE (px)
+Skyline
+10.00
+DLT
+–
+–
+47.42
+Skyline
+10.00
+Bayes
+ˆwinit
+Bayes
+0.10
+8.92
+v graffiti
+5.00
+DLT
+–
+–
+16.95
+v graffiti
+5.00
+Bayes
+ˆwinit
+DLT
+None
+14.11
+River
+10.00
+DLT
+–
+–
+17.03
+River
+10.00
+Bayes
+ˆwinit
+DLT
+None
+11.44
+Restaurant
+5.00
+DLT
+–
+–
+277.45
+Restaurant
+5.00
+Bayes
+ˆwinit
+Bayes
+10.00
+235.88
+Palazzo
+5.00
+DLT
+–
+–
+14.48
+Palazzo
+5.00
+Bayes
+ˆwinit
+DLT
+None
+11.48
+The resulting panoramas are shown in Fig. 7.
+B.5. NISwGSP-06 PalazzoPubblico
+The
+numerical
+transformation
+parameters
+for
+the
+NISwGSP-06 PalazzoPubblico
+[7]
+images6
+from
+the
+StitchBench [6] dataset collection are
+RDLT =
+
+
+2.81
+−0.15
+−3145.30
+0.78
+2.74
+−4715.48
+0.00
+0.00
+1.00
+
+,
+(66)
+RBayes
+m
+=
+
+
+2.39
+−0.13
+−2651.55
+0.63
+2.35
+−3969.74
+0.00
+0.00
+1.00
+
+,
+(67)
+≡
+
+
+1.30
+−0.07
+−1440.42
+0.34
+1.27
+−2156.52
+0.00
+0.00
+0.54
+
+
+(68)
+±
+
+
+0.01
+0.01
+12.89
+0.01
+0.01
+12.89
+0.00
+0.00
+5.77
+
+.
+(69)
+The resulting panoramas are shown in Fig. 8.
+6Images image02.jpg and image04.jpg.
+11
+
+
+Reference test points
+Projected test points
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+(a) DLT estimation (RMSE= 16.95 px).
+Reference test points
+Projected test points
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+(b) Iterative Bayesian approach (RMSE = 14.11 px).
+Figure 5. Comparison of a HPatches/v graffiti panorama.
+Reference test points
+Projected test points
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+(a) DLT estimation (RMSE= 17.03 px).
+Reference test points
+Projected test points
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+(b) Iterative Bayesian approach (RMSE= 11.44px).
+Figure 6. Comparison of a OBJ-GSP-03 river panorama.
+12
+
+
+Reference test points
+Projected test points
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+(a) DLT estimation (RMSE= 277.45 px).
+Reference test points
+Projected test points
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+(b) Iterative Bayesian approach (RMSE= 235.88, px).
+Figure 7. Comparison of a Aerial/Restaurant panorama.
+Reference test points
+Projected test points
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+(a) DLT estimation (RMSE= 14.48 px).
+Reference test points
+Projected test points
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+(b) Iterative Bayesian approach (RMSE= 11.48 px).
+Figure 8. Comparison of a NISwGSP-06 PalazzoPubblico panorama.
+13

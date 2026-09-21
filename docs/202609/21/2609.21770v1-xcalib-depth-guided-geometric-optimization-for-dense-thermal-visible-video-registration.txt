@@ -1,0 +1,1532 @@
+1
+XCalib: Depth-Guided Geometric Optimization for Dense
+Thermal–Visible Video Registration
+Aurélien Godet, Gabriel Jobert, Mauro Dalla Mura
+Abstract—Image registration is a vital preprocessing step in
+multimodal perception tasks, including image fusion, object
+detection, and semantic segmentation. In Advanced Driver-
+Assistance Systems (ADAS), spatial misalignment between visible
+(RGB) and infrared (IR) cameras—caused by non-coincident
+optical axes and field-of-view differences—introduces non-uniform
+parallax and visual ghosting. Classical keypoint-based methods
+are restricted to global homographies that fail under dynamic
+depth, while unconstrained dense flow algorithms lack structural
+regularization and suffer from temporal instability.
+In this paper, we propose XCalib, an unsupervised dense
+thermal-visible registration framework that bridges this gap.
+Rather than serving as an absolute metric calibration tool, XCalib
+leverages virtual pinhole camera parameterization strictly as a
+geometric constraint space. By optimizing effective relative pose
+and intrinsics alongside predicted monocular metric depth, XCalib
+restricts the search space of spatial displacements to physically
+valid projection geometries.
+Our key contributions are: (1) a novel registration paradigm
+that uses camera parameterization as an implicit regularizer for
+dense cross-modal warping; (2) Normalized Edges Correlation
+(NEC), a robust structural similarity metric tailored to cross-
+spectral alignment; and (3) extensive quantitative and qualitative
+evaluations across public ADAS datasets, demonstrating superior
+temporal stability and alignment accuracy over unconstrained
+dense flow baselines.
+The code will be made publicly available at https://github.com/
+Azorgz/XCalib.git.
+Index Terms—Multimodal registration, Camera calibration,
+Computer vision, Deep-Learning, Road transportation.
+I. INTRODUCTION
+Multimodal imaging systems combining visible light (RGB)
+and thermal infrared (IR) sensors are critical for robust
+environment perception in Advanced Driver-Assistance Systems
+(ADAS) and autonomous driving [1]. RGB cameras capture
+high-resolution color and rich textural details under favorable
+illumination, whereas thermal sensors detect long-wave infrared
+radiation, offering resilience against poor lighting, fog, and
+severe headlight glare. Effective integration of these modalities
+enhances safety-critical visual tasks such as multi-spectral
+object detection, tracking, semantic segmentation, and image
+fusion.
+However, downstream multimodal networks heavily rely on
+strict pixel-level spatial alignment [2]–[5]. In practical ADAS
+setups, cameras are mounted on multi-sensor rigs with non-
+coincident optical axes and distinct fields of view (FoV). This
+Aurélien Godet and Mauro Dalla Mura are with the Univ. Grenoble Alpes,
+CNRS, Grenoble INP–UGA, GIPSA-lab, 38000 Grenoble, France. Mauro
+Dalla Mura is also with the Institut Universitaire de France (IUF), France.
+Gabriel Jobert is with Lynred, 364 Avenue de Valence, 38113 Veurey-Voroize,
+France.
+This work was supported by the Fondation Grenoble INP, DeepRed chair,
+under the patronage of Lynred.
+spatial separation induces depth-dependent parallax: near-field
+objects experience large coordinate displacements between
+sensors, while far-field objects shift minimally. Assuming pre-
+aligned image pairs or applying uniform planar homographies
+introduces severe ghosting artifacts and degrades downstream
+perception performance.
+LYNRED Day
+FLIR day
+Fig. 1.
+Samples from the Lynred Mobility Dataset (left column) and the
+FLIR ADAS v2 dataset (right column). Top: superimposed visible and infrared
+images without registration. Bottom: superimposed visible and warped infrared
+images using the dense mapping estimated by our method.
+Existing registration approaches generally fall between two
+paradigms: keypoint-based descriptor matching and uncon-
+strained dense optical flow regression. Keypoint matching
+methods estimate global spatial transformations; while invariant
+to affine illumination changes, they cannot model depth-
+dependent parallax. Conversely, dense optical flow models
+regress pixel-wise displacement vectors directly. Although
+capable of handling local parallax, standard optical flow formu-
+lations lack structural geometric constraints. This unconstrained
+optimization often leads to localized structural deformations and
+severe temporal jitter across video sequences. While effective
+in some settings, both approaches face difficulties in cross-
+modal scenarios: feature descriptors often fail to generalize
+across modalities, and optical flow methods typically assume
+photometric consistency, which does not hold between RGB
+and IR images. We explore related work in more detail in
+Section II.
+To resolve this trade-off, we introduce XCalib, an unsu-
+pervised geometry-constrained registration framework. We
+emphasize that XCalib is not designed as a high-precision
+metric sensor calibration tool. Instead, it employs virtual
+arXiv:2609.21770v1  [cs.CV]  18 Sep 2026
+
+
+XCalib: Dense Thermal–Visible Video Registration
+B
+   Depth
+Wrapper
+Stage 1: Geometry-Constrained 
+Optimization
+Metric Depth 
+Estimations
+Metric Depth 
+Estimation
+: Parameters in training
+: Parameters frozen
+: Buﬀer, stores images and depth predictions and load 
+them per batch as input for the training loop
+Buﬀer
+Batch 
+Buﬀer size
+Images
+Registered
+Stage 2: Dense Reprojection 
+Warping
+   Depth
+Wrapper
+    Loss
+Model 
+N
+Fig. 2. The proposed two-stage pipeline for thermal–visible image registration. The first stage involves unsupervised calibration of the camera rig to estimate
+intrinsic and extrinsic parameters using monocular depth estimation. The second stage uses these parameters, along with metric depth predictions, to compute
+dense pixel-wise mappings between thermal and visible images.
+pinhole camera intrinsics and extrinsics strictly as a geometric
+constraint space to parameterize dense reprojection flow fields.
+By modeling pixel shifts through relative projection equations
+and monocular metric depth, XCalib restricts the optimization
+search space to physically valid camera geometries without
+requiring accurate offline calibration targets or absolute ground-
+truth pose parameters. The core pipeline operates in two distinct
+optimization stages:
+1) Geometry-Constrained Optimization: We optimize an
+effective parameter set of intrinsic and extrinsic camera
+parameters using a combined objective comprising coarse
+cross-modal optical flow and a novel structural metric,
+Normalized Edges Correlation (NEC). NEC evaluates
+edge magnitude and orientation correlation, providing
+strong optimization gradients across distinct spectral
+signatures.
+2) Dense Reprojection Warping: Using the optimized
+virtual parameter set and per-frame monocular metric
+depth maps, we compute dense non-rigid reprojection
+flow fields to warp source thermal images onto the
+reference visible coordinate lattice.
+By constraining dense displacement fields to mathematically
+valid camera projections, XCalib significantly mitigates un-
+constrained structural warping artifacts and enforces temporal
+stability across continuous video acquisitions. Experiments
+demonstrate that our approach produces smooth, temporally
+consistent registration flows on challenging ADAS datasets,
+matching or outperforming conventional keypoint-based and
+optical flow–based baselines. Although the method assumes a
+fixed multi-camera arrangement, the estimated parameter set
+remains valid for subsequent frame pairs acquired under the
+same setup.
+II. RELATED WORKS
+Accurate registration of thermal and visible images is a
+prerequisite for many multimodal perception and fusion tasks.
+However, the two modalities exhibit substantially different
+image formation processes and radiometric responses, mak-
+ing conventional intensity-based correspondence unreliable.
+In particular, corresponding structures may exhibit different
+contrast, missing texture, or even reversed edge polarity
+across modalities [6]. In addition, the spatial separation and
+different intrinsic parameters of the sensors introduce geometric
+discrepancies that cannot always be represented by a single
+global transformation. Existing thermal–visible registration
+methods can therefore be broadly divided into two main
+approaches: keypoint-based feature matching and crossmodal
+dense flow estimation.
+Keypoint-based Feature Matching. The first family identi-
+fies sparse correspondences between salient points or local im-
+age regions and uses them to estimate a spatial transformation.
+Classical descriptors such as SIFT [7] were primarily designed
+for matching images with similar imaging characteristics and
+can therefore be unreliable across spectral modalities. In
+particular, gradient polarity and modality-dependent appearance
+variations can lead to ambiguous or incorrect correspondences.
+To address this issue, several descriptors specifically designed
+or adapted for multimodal registration have been proposed,
+including PIIFD [6], DASC [8] or RIFT [9]. Other methods
+learn modality-invariant representations by extracting features
+from a shared latent space [10], [11]. Recent approaches have
+also explored deep feature extractors followed by deformation
+of a regular image grid from sparse correspondences, enabling
+more flexible transformations than a purely rigid model [12].
+The main advantage of feature-based methods is their
+ability to establish correspondences while being relatively
+insensitive to modality-dependent intensity changes, scale, and
+2
+
+
+XCalib: Dense Thermal–Visible Video Registration
+orientation. However, the resulting correspondences remain
+sparse, and the transformation model used to propagate them
+to the full image generally imposes a global or smoothly
+varying deformation. For thermal–visible cameras with a
+non-negligible baseline, this assumption is restrictive: the
+displacement between corresponding pixels varies with scene
+depth, so a single homography or rigid transformation cannot
+simultaneously align objects located at substantially different
+distances. This limitation is particularly relevant for close-range
+ADAS scenes, where depth-dependent parallax can become
+significant.
+Crossmodal Flow Estimation. The second family di-
+rectly estimates dense pixel correspondences between the
+two modalities. Optical flow has been extensively studied
+for conventional single-modality image sequences [13], [14],
+and several works have adapted dense correspondence esti-
+mation to multimodal registration. NeMAR [15], followed by
+UMF [16] and IMF [17], introduces a modality-translation
+step to reduce the appearance discrepancy before estimating
+the deformation. VoxelMorph [18] investigates unsupervised
+multimodal registration using a deep neural network and
+normalized cross-correlation (NCC) as a similarity objective.
+Other approaches estimate the crossmodal displacement more
+directly: SuperFusion [19] combines dense matching with
+semantic constraints, while CrossRAFT [20] adapts RAFT [21]
+to thermal–visible correspondence through complementary
+training and crossmodal data augmentation. These methods
+provide dense pixel-wise mappings and can therefore model
+local geometric variations that cannot be represented by a
+single global transformation.
+Despite this flexibility, dense flow estimation also introduces
+a fundamental limitation for the considered problem. The
+predicted displacement field is generally optimized directly
+in image space, without explicitly encoding the persistent
+geometric relationship between the cameras. Consequently, the
+estimated mapping may contain local deformations that compen-
+sate for ambiguous or modality-specific image structures rather
+than reflecting the underlying sensor geometry. Moreover, when
+applied independently to consecutive frames, such methods
+have no explicit mechanism enforcing the temporal consistency
+expected from a fixed camera rig. Crossmodal dense matching
+is further challenged by large differences in scale, field of
+view, and appearance, which can make local feature correlation
+unreliable when the initial displacement is large.
+Geometry-constrained registration. The two families
+therefore expose a complementary trade-off. Feature-based
+approaches provide relatively robust correspondences but
+usually rely on a restrictive global transformation, whereas
+dense flow methods provide the required spatial flexibility at
+the cost of a largely unconstrained image-space deformation.
+An alternative is to constrain the dense mapping through the
+physical geometry of the sensor pair. In a fixed multi-camera
+rig, the relative camera parameters remain constant across
+acquisitions, while the image displacement varies primarily
+as a function of scene depth. A depth-aware camera model
+can therefore provide dense, depth-dependent correspondences
+while substantially reducing the degrees of freedom of the
+registration problem.
+This principle has been explored in earlier thermal–visible
+video registration works through geometric transformations
+and depth or object-level constraints. For example, Torabi et
+al. [22] estimate an affine transformation from trajectories for
+thermal–visible video registration, while LSS-based approaches
+incorporate disparity and depth-related cues to handle objects at
+different distances [23], [24]. These approaches demonstrate the
+benefit of exploiting geometric structure, but they either rely on
+global transformations or estimate correspondences/disparities
+directly rather than optimizing a persistent camera model. More
+recent deep-learning approaches have substantially improved
+dense crossmodal correspondence, but generally retain the
+image-space formulation described above.
+Our approach combines the advantages of these two
+paradigms by parameterizing the dense displacement field
+through a shared camera configuration and monocular metric
+depth. Rather than estimating an unconstrained flow field
+independently for each frame pair, we optimize a compact
+set of intrinsic and extrinsic parameters and derive the dense
+mapping through the camera projection model. This formulation
+naturally introduces depth-dependent parallax while maintain-
+ing a consistent geometric configuration across acquisitions.
+The following section describes this formulation using a
+differentiable pinhole camera model and the corresponding
+depth-dependent reprojection.
+III. METHODOLOGY
+A. Problem Formulation and Framework
+We consider a fixed multi-camera imaging system composed
+of a reference camera and a source camera. For each synchro-
+nized acquisition, the two cameras observe the same scene
+from different viewpoints and potentially through different
+sensing modalities. The objective is to estimate a dense spatial
+transformation mapping the pixels of the reference image onto
+their corresponding locations in the source image, thereby
+enabling the source image to be resampled on the reference
+image grid.
+Let ΩR ⊂R2 and ΩS ⊂R2 denote the continuous image-
+coordinate domains of the reference and source cameras,
+respectively, with corresponding discrete pixel lattices ΛR
+and ΛS. A pixel coordinate ˆx ∈ΛR represents a discrete
+sample location, whereas x ∈ΩR denotes a continuous image
+coordinate.
+The reference and source images are defined as
+IR : ΛR →RdR,
+IS : ΛS →RdS,
+(1)
+where dR and dS denote their respective numbers of channels.
+In our visible–infrared configuration, the visible image acts
+as the reference image and the infrared image as the source
+image, though the formulation itself is modality-independent.
+The proposed approach explicitly models the spatial trans-
+formation through the geometry of the camera system rather
+than estimating an independent displacement at every pixel. Let
+Pcam denote the set of intrinsic and extrinsic camera parameters.
+Together with a depth map D defined in the reference camera
+frame, these parameters induce a continuous mapping
+Tp : ΩR →ΩS.
+(2)
+3
+
+
+XCalib: Dense Thermal–Visible Video Registration
+For a reference coordinate x ∈ΩR, the corresponding source
+coordinate is
+xS = Tp (x; Pcam, D(x)) .
+(3)
+Rather than explicitly optimizing a dense displacement field,
+the displacement is implicitly induced by the camera geometry
+and scene depth. For a discrete reference pixel ˆx ∈ΛR, the
+induced displacement field is
+u(ˆx) = Tp (ˆx; Pcam, D(ˆx)) −ˆx,
+u : ΛR →R2.
+(4)
+The dense transformation can therefore be written as
+Tp(ˆx; u) = ˆx + u(ˆx),
+u : ΛR →R2.
+(5)
+Importantly, u is not represented by independent learn-
+able variables; it is generated by a low-dimensional camera
+model and the depth associated with each reference pixel.
+Consequently, the resulting dense transformation is constrained
+to remain compatible with a physically realizable camera
+configuration. The following sections establish this geometric
+mapping and formulate its estimation as an unsupervised
+optimization problem.
+B. Geometric Formulation of Dense Registration
+1) Differentiable Geometric Mapping: We assume a pinhole
+camera model for both imaging systems. The geometric
+configuration is characterized by intrinsic matrices KR and
+KS, and by the rigid transformation from the reference to the
+source camera coordinate system. The complete set of camera
+parameters is
+Pcam = {KR, KS, R, t} ,
+(6)
+where R ∈SO(3) is the relative rotation and t ∈R3 is the
+relative translation.
+Let ˆx = [u, v]T ∈ΛR be a discrete reference pixel with
+homogeneous representation ex = [u, v, 1]T. A depth map D :
+ΛR →R>0 provides the depth of each reference pixel in the
+reference frame. The depth map is treated as a fixed input
+to the proposed optimization, independently of whether it is
+obtained from a monocular metric depth estimator or an external
+measurement system.
+Given D(ˆx), the reference pixel is first unprojected into the
+3D reference camera frame:
+XR = D(ˆx)K−1
+R ex.
+(7)
+The 3D point is then transformed into the source camera
+coordinate system:
+XS = RXR + t.
+(8)
+Finally, perspective projection yields the corresponding
+continuous source-image coordinate:
+xS = π (KSXS) ,
+(9)
+where the perspective division operator π
+ [X, Y, Z]T
+=
+[X/Z, Y/Z]T maps a 3D point in camera coordinates onto
+the continuous 2D image plane.
+Combining Eqs. (7)–(9) yields the dense geometric mapping:
+Tp (ˆx; Pcam, D(ˆx)) = π
+
+KS
+ D(ˆx)RK−1
+R ex + t
+
+.
+(10)
+Since perspective projection is invariant to non-zero uniform
+scaling, dividing the continuous mapping by D(ˆx) yields the
+decomposed form:
+Tp (ˆx; Pcam, D(ˆx)) = πp
+
+
+
+
+KSRK−1
+R
+|
+{z
+}
+(1)
+ex +
+1
+D(ˆx)KS
+|
+{z
+}
+(2)
+t
+
+
+
+
+.
+(11)
+Here, term (1) represents the infinite homography matrix:
+H∞= KSRK−1
+R ,
+(12)
+which is governed solely by the relative camera rotation and
+intrinsic parameters. Term (2) introduces a parallax displace-
+ment scaling inversely with depth, 1/D(ˆx), thereby modeling
+the scene’s 3D structure. Unlike a planar homography, this
+formulation accounts for spatially non-uniform displacements
+induced by camera translation and finite scene geometry as
+established in epipolar geometry literature [25], [26].
+The continuous source coordinates generally do not fall
+on integer lattice points of ΛS. A differentiable resampling
+operator B(IS, x) : ΩS →RdS interpolates the discrete
+samples of IS. The warped source image defined on ΛR is
+thus
+I′
+S(ˆx) = B (IS, Tp (ˆx; Pcam, D(ˆx))) ,
+ˆx ∈ΛR.
+(13)
+We implement B using differentiable bilinear interpola-
+tion [27], establishing an end-to-end differentiable path from
+the registration loss to the camera parameters.
+2) Optimization Objective: Given a dataset of N synchro-
+nized observations randomly sampled from the entire dataset
+to improve scene diversity, D = {(I(i)
+R , I(i)
+S , D(i))}N
+i=1, the
+camera parameters are estimated via
+P∗
+cam = arg min
+Pcam
+N
+X
+i=1
+L
+
+I(i)
+R , I′(i)
+S
+
+(14)
+with
+I′(i)
+S
+= W
+
+I(i)
+S , Tp
+
+·; Pcam, D(i)
+,
+(15)
+where W denotes the differentiable warping operation defined
+by Eq. (13).
+The depth maps D(i) remain fixed throughout optimization.
+The method conditions camera configuration estimation on
+externally provided scene geometry rather than performing
+joint depth estimation and calibration.
+C. Registration Loss Model
+In the absence of ground-truth correspondences or baseline
+calibration, we formulate registration in an unsupervised
+manner using three complementary loss terms:
+1) a cross-modal optical-flow loss for coarse global align-
+ment;
+2) an edge-based image similarity loss for fine structural
+alignment;
+3) a camera regularization loss constraining parameters to
+plausible configurations.
+4
+
+
+XCalib: Dense Thermal–Visible Video Registration
+1) Cross-Modal Flow Loss: To estimate coarse displacement
+robustly across spectral modalities, we use the pretrained cross-
+modal flow estimator (Here CrossRAFT model [20], but any
+suitable model can be used). Let F = CrossRAFT(IR, I′
+S) :
+ΛR →R2 denote the residual flow field. The flow loss is
+defined as its mean Euclidean magnitude:
+Lflow =
+1
+|ΛR|
+X
+ˆx∈ΛR
+∥F(ˆx)∥2.
+(16)
+2) Cross-Modal Edge Similarity: Because pixel-wise in-
+tensity metrics (e.g., MSE, SSIM) fail across visible–infrared
+modalities due to radiometric differences, we evaluate structural
+similarity using Normalized Edge Correlation (NEC), which
+constitutes one contribution of this work. It’s a differentiable,
+polarity-invariant edge similarity metric that combines gradient
+magnitude and orientation information.
+For an image I, its gradient field G(I) = [g(I), θ(I)]T
+comprises magnitude and orientation components:
+g(I) =
+q
+(∂xI)2 + (∂yI)2,
+θ(I) = atan2 (∂yI, ∂xI) .
+(17)
+To suppress noise while limiting dominant edge artifacts,
+the magnitude is clamped via
+g′(I) = max
+
+min (g(I), 5g) , 2g
+r
+
+,
+(18)
+where g denotes the mean gradient magnitude over ΛR, and r is
+the proportion of active gradient pixels. Orientation alignment
+is measured using polarity-invariant absolute cosine similarity:
+C(ˆx) = |cos (θ(IR)(ˆx) −θ(I′
+S)(ˆx))| .
+(19)
+The resulting Normalized Edge Correlation is
+NEC =
+P
+ˆx∈ΛR g′(IR)(ˆx)g′(I′
+S)(ˆx)C(ˆx)
+qP
+ˆx∈ΛR g′(IR)(ˆx)2 P
+ˆx∈ΛR g′(I′
+S)(ˆx)2 .
+(20)
+Each pair’s contribution is weighted by its structural infor-
+mation magnitude factor:
+ci =
+s X
+ˆx∈ΛR
+g′(I(i)
+R )(ˆx)2 X
+ˆx∈ΛR
+g′(I′(i)
+S )(ˆx)2.
+(21)
+Over a batch of N pairs, the image loss is
+Limage =
+PN
+i=1 ci
+h
+1 −NEC
+
+I(i)
+R , I′(i)
+S
+i
+PN
+i=1 ci
+.
+(22)
+3) Camera Regularization: To prevent parameter drift and
+coupling non-uniqueness [28], we penalize deviations from the
+initial state using the Huber loss:
+HL(a, b; δ) =
+(
+1
+2(a −b)2,
+|a −b| ≤δ,
+δ
+ |a −b| −1
+2δ
+
+,
+|a −b| > δ.
+(23)
+The regularization term on translation t and unit quaternion
+Q is
+Lreg = HL(t, t0; 0.1) + HL(Q, Q0; 0.05).
+(24)
+4) Total Registration Objective: The overall optimization
+objective is
+Ltotal = Limage + λLflow + γLreg ,
+(25)
+D. Differentiable Camera Parameterization
+Direct optimization of raw physical parameters is ill-
+conditioned due to differing units and scales. We parameterize
+physical settings via unconstrained variables ϕ through a
+differentiable mapping Pcam = Ψ(ϕ), yielding the execution
+chain:
+ϕ −→Pcam −→Tp −→I′
+S −→Ltotal.
+(26)
+1) Intrinsic Parameters: The intrinsic matrix K is parame-
+terized as
+K =
+
+
+fx
+s
+cx
+0
+fy
+cy
+0
+0
+1
+
+,
+(27)
+where principal points are normalized to image dimensions
+(w, h) via cx = ecxw, cy = ecyh (initialized at ecx0 = ecy0 = 0.5),
+and skew is s = es (es0 = 0).
+Focal lengths are parameterized via horizontal and vertical
+fields of view (initialized at a baseline 45◦HFoV, and scaled
+to the image aspect ratio):
+fx =
+w
+2 tan
+ e
+fxπ
+8
+,
+fy =
+h
+2 tan
+h
+efy arctan
+  h
+w tan
+  π
+8
+i,
+(28)
+where efx and efy are unconstrained optimization variables
+initialized at 1.0.
+2) Extrinsic Parameters: Extrinsic pose is represented
+as E = [R | t]. To enforce valid rotation constraints,
+rotation is parameterized via an unconstrained quaternion
+eQ = [eqθ, eqx, eqy, eqz]T, normalized as Q = eQ/∥eQ∥2 (initialized
+at [1, 0, 0, 0]T). Given Q = [qθ, qx, qy, qz]T, the rotation matrix
+is
+R =
+
+
+1 −2(q2
+y + q2
+z)
+2(qxqy −qθqz)
+2(qxqz + qθqy)
+2(qxqy + qθqz)
+1 −2(q2
+x + q2
+z)
+2(qyqz −qθqx)
+2(qxqz −qθqy)
+2(qyqz + qθqx)
+1 −2(q2
+x + q2
+y)
+
+.
+(29)
+3) Multi-Scale Translation Parameterization: To account
+for scale disparities between parameters, translation is split
+into fine and coarse optimization components:
+t =
+
+
+et[0]
+x
+et[0]
+y
+et[0]
+z
+
++ λt
+
+
+et[1]
+x
+et[1]
+y
+et[1]
+z
+
+,
+(30)
+initialized at zero with scale factor λt = 10.
+E. Optimization Strategy
+The camera parameters are not equally identifiable from
+the reprojection objective, and several of them can produce
+partially equivalent image-space effects. In particular, focal
+length and z-translation can both modify the apparent scale of
+the reprojection, while image-plane translation and the principal
+point can partially compensate for each other. Similar couplings
+arise between rotation and translation parameters. Optimizing
+all parameters simultaneously from the initial configuration
+can therefore lead to competing parameter updates, unstable
+trajectories, and convergence toward unfavorable local minima.
+This issue is further amplified by the uncertainty of the
+monocular depth estimates used to compute the reprojection.
+5
+
+
+XCalib: Dense Thermal–Visible Video Registration
+To mitigate these effects, we adopt a two-stage optimization
+strategy with progressive parameter unfreezing. The first stage
+restricts the optimization to the dominant parameters, providing
+a stable initial geometric configuration while allowing the
+more strongly coupled or less influential parameters to remain
+fixed. The second stage then releases the remaining degrees of
+freedom for fine refinement around this configuration.
+• Stage 1 (Coarse Alignment): The dominant camera
+parameters are optimized using L(1) = Limage +λLflow +
+γLreg, with an initial learning rate η1 = 5 × 10−3 and
+a decay rate of 0.98 per step. Secondary and strongly
+coupled variables, namely z-translation, the principal
+point, roll, and skew, are frozen during this stage. This
+restriction reduces the effective dimensionality of the
+optimization and prevents these parameters from compen-
+sating prematurely for errors in the dominant geometric
+configuration. In particular, the z-translation has limited
+practical importance for the considered fixed camera
+rig compared with the lateral translation and rotational
+components.
+• Stage 2 (Fine Refinement): At 75% of the optimiza-
+tion schedule, all parameters are unfrozen and jointly
+refined. The regularization term is removed, yielding
+L(2) = Limage + λLflow, and the learning rate is reduced
+to η2 = 5 × 10−4. At this point, the dominant parameters
+have already established a suitable geometric configuration,
+allowing the remaining variables to refine the alignment
+without inducing large compensating changes in the
+overall projection.
+Optimization is performed with Adam for 15 epochs on a 32-
+frame buffer, using a batch size of 4. The resulting parameter
+set P∗
+cam defines a consistent virtual camera configuration and
+is directly reused for subsequent acquisitions from the same
+fixed camera rig. The hyperparameters of the loss are set with
+a grid search to λ = 2.5 and γ = 1.0.
+IV. EXPERIMENTS
+In this section, we present five different experiments:
+• (1) A comparison of the registration capability of several
+common metrics used as loss functions against the
+proposed NEC loss.
+• (2) An evaluation of the temporal consistency of the
+registration over video sequences.
+• (3) A quantitative and qualitative evaluation of our method
+against selected state-of-the-art cross-modality registration
+algorithms.
+• (4) A model analysis for the proposed multi-scale transla-
+tion parametrization.
+• (5) An ablation study to evaluate the impact of each
+component of our loss model (Presented in supplementary
+material).
+• (6) A monocular depth noise and scale robustness analysis
+of the proposed framework (Presented in supplementary
+material).
+The two last experiments are detailed in the supplementary
+material. The first three experiments are presented in this sec-
+tion. State-of-The-Art algorithms: To evaluate the efficiency
+of our method, we compare the alignment results with other
+State-of-The-Art (SoTA) algorithms. The selected methods are:
+• IMF [17], an improved version of UMF [16], both
+of which rely on modality translation followed by the
+estimation of a deformation field for image registration.
+• SuperFusion [19], which directly estimates a deformation
+field by computing cross features correlation between the
+two modalities.
+• PGMR [29], a recent method inspired by SuperFusion
+with the addition of a modality adapation module and an
+result enhancer.
+• CrossRAFT [20], which estimates the optical flow directly
+between the two modalities. This is a clever adaptation
+of the RAFT [21] architecture for cross-modality flow.
+• RIFT [9], a classical keypoint matching algorithm made
+for cross-modality keypoints matching. We do not expect
+this algorithm to perform as well as the other as the final
+wrap is a rigid homography, not fit for correcting parallax
+effects.
+FLIR Day
+FLIR Night
+LYNRED Day
+LYNRED Night
+Fig. 3. Samples from the selected datasets. First row: the rgb images, Second
+row: the infrared images
+Datasets: The experiments are conducted on a selection of
+image sequences chosen based on their difficulty (see fig. 3).
+Sample extracts from each dataset are presented in fig. 3.
+• FLIR day/night – Respectively a day/night sequence of
+672/1040 pairs of visible and thermal images extracted
+from the FLIR ADAS v2 dataset [30].
+• Lynred day/night – 2 Sequences of 1800 pairs of left
+visible and left thermal images from the Lynred mobility
+dataset [31].
+• RoadScene – 221 aligned pairs of visible and thermal
+images [32]. We use it only for the first experiment as
+it’s already aligned.
+TABLE I
+DATASETS USED FOR THE EXPERIMENTS. *THE COLOR RATES THE
+DIFFICULTY OF THE ALIGNMENT: EASY, MEDIUM, HIGH. **VISIBILITY:
+REFERS TO THE ILLUMATION OR THE WEATHER CONDITIONS
+Dataset*
+Vis**
+Focal
+diff
+Baseline
+Resolution
+RGB
+Nb
+frames
+Lynred day
+high
+low
+low
+960x1280
+1800
+Lynred night
+med
+low
+low
+960x1280
+1800
+FLIR day
+high
+med
+low
+1024x1280
+672
+FLIR night
+med
+high
+low
+1600x1800
+1040
+RoadScene
+high
+Aligned
+Aligned
+variable
+221
+6
+
+
+XCalib: Dense Thermal–Visible Video Registration
+A. Experiment 1: Comparison of metrics for cross-modality
+registration quality
+To compare the efficiency of different metrics to assess the
+quality of cross-modality registration, we take the RoadScene
+dataset [32], which is already well aligned.
+• NEC, our proposed metric.
+• Gradient Correlation (GC) [33], a metric based on the
+correlation of image gradients. Expected to work well for
+cross-modality registration.
+• SSIM, The structural similarity should be maximized
+between the registered image and the reference image.
+• RMSE, is expected to perform poorly for cross-modality
+registration as it’s a purely intensity-based metric.
+• NCC, a classical metric for image registration, not
+optimized for cross-modality registration.
+• PSNR, another classical metric for image quality, not
+meant for cross-modality registration.
+For this experiment we will compute each compared metric on
+the 221 pairs of images adding 20 steps of increasing disparity
+(pure horizontal offset) between the visible and infrared images:
+IRδ(u, v) = IR(u + 2δ, v)
+u ∈[0, W −40]
+V ISδ(u, v) = V IS(u −2δ, v)
+u ∈[40, W]
+with
+v ∈[0, H],
+δ ∈[0, 20]
+(31)
+For each value of δ, we compute the average value of each
+metric over the 221 image pairs. The results are reported in
+fig. 4. Since only NEC and GC consistently decrease as the
+disparity increases, they are the only metrics that are fully
+suitable for assessing cross-modality registration quality. We
+also retain SSIM and NCC, as they exhibit some sensitivity to
+misalignment, although this sensitivity is significantly weaker
+The remaining metrics, namely RMSE and PSNR, are not
+relevant for this task, as they do not show a consistent trend
+with increasing misalignment. In the remainder of this work,
+we therefore use only NEC, GC, SSIM, and NCC as quality
+metrics for cross-modality registration.
+0
+20
+40
+60
+80
+0.4
+0.6
+0.8
+1
+δ (pixels)
+Metric normalized value
+NEC
+GC
+SSIM
+RMSE
+NCC
+PSNR
+Fig. 4.
+Experiment 1: Metrics (divided by per v[δ = 0]) evolution with
+increasing disparity (δ) between the infrared and visible registered images.
+We expect metrics suitable for cross-modality registration quality assessment
+to consistently decrease as the disparity increases.
+B. Experiment 2. Frame to frame consistency.
+TABLE III
+FLOW EVALUATION METRICS. THE BEST PERFORMANCES PER METRIC AND
+DATASET IS HIGHLIGHTED IN GREEN.
+Dataset
+Method
+EPE↓
+< 1px↑
+< 3px↑
+< 5px↑
+Lynred
+day
+SFusion
+0.86
+0.75
+0.95
+0.98
+RIFT
+5.19
+0.28
+0.69
+0.83
+C-RAFT
+0.70
+0.83
+0.97
+0.99
+PGMR
+0.85
+0.74
+0.97
+0.99
+Ours
+0.53
+0.90
+0.98
+0.99
+Lynred
+night
+SFusion
+1.68
+0.51
+0.84
+0.94
+RIFT
+5.14
+0.11
+0.46
+0.69
+C-RAFT
+1.41
+0.58
+0.89
+0.96
+PGMR
+1.68
+0.42
+0.87
+0.95
+Ours
+0.94
+0.77
+0.94
+0.97
+FLIR
+night
+SFusion
+10.69
+0.07
+0.28
+0.44
+RIFT
+14.34
+0.03
+0.17
+0.31
+C-RAFT
+16.12
+0.11
+0.34
+0.46
+PGMR
+9.17
+0.07
+0.34
+0.53
+Ours
+8.44
+0.23
+0.55
+0.67
+FLIR
+day
+SFusion
+19.91
+0.06
+0.20
+0.32
+RIFT
+12.12
+0.07
+0.36
+0.55
+C-RAFT
+15.89
+0.19
+0.44
+0.54
+PGMR
+16.61
+0.04
+0.21
+0.35
+Ours
+10.10
+0.28
+0.59
+0.68
+Another crucial aspect is the stability of the produced
+registration for each method. Since our experiments use
+video sequences, we compute the frame-to-frame optical flow
+separately for the visible and registered infrared channels. The
+flow is estimated using a pretrained RAFT [21] model, with the
+visible flow serving as the reference. We compute the L2 norm
+between the two flows to quantify stability. For this experiment,
+only the four best-performing methods were evaluated on the
+sequential FLIR [30] and Lynred Mobility datasets [31]. The
+results are summarized in table III.
+Our method benefits from the consistency of metric depth
+estimation, resulting in smooth frame-to-frame alignment
+without local deformations. This is the primary limitation of
+keypoint-based methods like RIFT: the estimated homography
+varies from frame to frame, making the registration flow
+unstable. FLIR EndPoint Error (EPE) is higher because the
+flow between frame is much higher due to the low framerate.
+C. Experiment 3: Comparison with SoTA methods
+The objective is for each dataset to register for all frames the
+infrared image to the corresponding visible image. All chosen
+comparison methods provide pretrained weights, except for
+CrossRAFT.
+To train CrossRAFT [20], we followed the procedure outlined
+in the original paper, training the network over 10k steps using
+the YouTube-VOS dataset.
+Our method. We use the training strategy and parameters
+described in Section III. Camera calibration takes approximately
+one minute on an NVIDIA® A5000 GPU, followed by image
+registration at approximately 10 images/s using Depth Anything
+V2 [34]. No post-processing is applied to occlusion-induced
+artifacts, as the objective is to evaluate the registration method
+itself.
+7
+
+
+XCalib: Dense Thermal–Visible Video Registration
+TABLE II
+EXPERIMENT 2. QUANTITATIVE EVALUATION OF IMAGE ALIGNMENT. THE Source COLUMN REPORTS THE METRIC VALUES COMPUTED ON THE IMAGES
+BEFORE REGISTRATION. ALL OTHER COLUMNS REPORT THE CORRESPONDING VALUES AFTER REGISTRATION. THE TOP THREE RESULTS FOR EACH METRIC
+ARE HIGHLIGHTED FROM FIRST TO THIRD USING 1.GREEN, 2.BLUE, AND 3.CYAN.
+Dataset
+Metric
+Source
+RIFT [9]
+IMF [17]
+SuperFusion [19]
+CrossRAFT [20]
+PGMR [29]
+XCalib (ours)
+Lynred day
+NEC ↑
+0.45
+0.54 (+21.2%)
+0.46 (+2.8%)
+0.60 (+34.3%)
+0.60 (+34.2%)
+0.56 (+26.8%)
+0.57 (+28.8%)
+GC ↑
+0.19
+0.24 (+28.3%)
+0.22 (+14.4%)
+0.38 (+103.0%)
+0.35 (+87.0%)
+0.34 (+79.3%)
+0.33 (+74.1%)
+SSIM ↑
+0.48
+0.50 (+4.2%)
+0.49 (+2.6%)
+0.52 (+7.7%)
+0.51 (+7.1%)
+0.51 (+6.6%)
+0.52 (+7.9%)
+NCC ↑
+0.14
+0.15 (+12.3%)
+0.14 (+4.5%)
+0.16 (+18.0%)
+0.16 (+17.2%)
+0.15 (+14.3%)
+0.16 (+17.2%)
+Lynred night
+NEC ↑
+0.39
+0.43 (+9.7%)
+0.39 (+1.3%)
+0.47 (+21.0%)
+0.46 (+19.1%)
+0.44 (+13.3%)
+0.46 (+17.2%)
+GC ↑
+0.05
+0.07 (+33.7%)
+0.06 (+31.6%)
+0.12 (+145.0%)
+0.10 (+111.6%)
+0.14 (+179.1%)
+0.13 (+173.1%)
+SSIM ↑
+0.35
+0.36 (+2.4%)
+0.37 (+3.5%)
+0.37 (+4.5%)
+0.37 (+4.5%)
+0.37 (+3.9%)
+0.36 (+0.6%)
+NCC ↑
+0.02
+0.02 (+8.8%)
+0.01 (-43.7%)
+0.01 (-17.4%)
+0.02 (+26.5%)
+0.02 (+28.9%)
+0.02 (+36.7%)
+FLIR day
+NEC ↑
+0.37
+0.53 (+45.6%)
+0.37 (+0.9%)
+0.44 (+18.8%)
+0.40 (+8.1%)
+0.42 (+14.3%)
+0.56 (+52.8%)
+GC ↑
+0.07
+0.19 (+158.9%)
+0.10 (+27.4%)
+0.15 (+103.1%)
+0.07 (-11.4%)
+0.16 (+114.8%)
+0.24 (+219.4%)
+SSIM ↑
+0.40
+0.45 (+14.0%)
+0.45 (+14.5%)
+0.44 (+9.9%)
+0.45 (+13.0%)
+0.44 (+10.5%)
+0.43 (+8.2%)
+NCC ↑
+0.60
+0.70 (+15.6%)
+0.61 (+1.7%)
+0.64 (+5.5%)
+0.62 (+2.4%)
+0.65 (+7.2%)
+0.70 (+15.9%)
+FLIR night
+NEC ↑
+0.41
+0.42 (+2.8%)
+0.41 (+1.3%)
+0.44 (+7.5%)
+0.39 (-3.1%)
+0.43 (+4.6%)
+0.46 (+13.1%)
+GC ↑
+0.06
+0.08 (+28.5%)
+0.09 (+38.8%)
+0.09 (+49.7%)
+0.04 (-35.0%)
+0.13 (+112.0%)
+0.11 (+81.5%)
+SSIM ↑
+0.44
+0.47 (+6.4%)
+0.52 (+16.4%)
+0.48 (+8.8%)
+0.47 (+6.8%)
+0.49 (+10.0%)
+0.52 (+17.1%)
+NCC ↑
+0.22
+0.26 (+19.6%)
+0.22 (+1.2%)
+0.23 (+6.0%)
+0.26 (+20.5%)
+0.23 (+6.8%)
+0.25 (+14.6%)
+Average
+all datasets
+NEC ↑
+0.40
+0.48 (+19.3%)
+0.41 (+1.6%)
+0.49 (+20.8%)
+0.46 (+15.2%)
+0.46 (+15.1%)
+0.51 (+27.5%)
+GC ↑
+0.09
+0.15 (+55.0%)
+0.12 (+23.3%)
+0.19 (+99.7%)
+0.14 (+50.4%)
+0.19 (+104.9%)
+0.20 (+117.2%)
+SSIM ↑
+0.42
+0.45 (+6.8%)
+0.46 (+9.3%)
+0.45 (+7.8%)
+0.45 (+7.9%)
+0.45 (+7.9%)
+0.45 (+8.9%)
+NCC ↑
+0.24
+0.28 (+15.9%)
+0.25 (+1.2%)
+0.26 (+7.0%)
+0.26 (+8.9%)
+0.26 (+8.5%)
+0.28 (+16.2%)
+Source
+RIFT
+SuperFusion
+CrossRAFT
+PGMR
+XCalib (ours)
+Fig. 5. Superimposed images with details for each methods (columns) and each datasets (rows). ’Source’ are the raw images superimposed without registration.
+In each fused image the infrared image is only colormapped with the colormap ’twilight’ from Matplotlib. For the second row, the visible registered image and
+the visible ground truth are superimposed.
+8
+
+
+XCalib: Dense Thermal–Visible Video Registration
+1) Quantitative Results: For each dataset, metrics are com-
+puted on image pairs cropped to their common Field of View,
+excluding undefined pixels and ensuring a fair comparison. The
+Source values are computed on the corresponding unregistered
+infrared and visible images after the same crop. The results
+are reported in Table II.
+It is worth clarifying that the use of NEC both as an
+optimization objective and as an evaluation metric does not
+constitute a direct optimization of the final evaluation result.
+NEC provides gradients to optimize the camera parameters,
+which are constrained to represent a physically meaningful
+camera configuration. The registered image is subsequently
+obtained through the depth-dependent reprojection induced by
+these parameters. Thus, the optimization does not directly learn
+or manipulate an unconstrained alignment field to maximize
+NEC; rather, NEC guides the estimation of a compact set of
+camera parameters whose resulting reprojection is evaluated
+independently. This distinction is particularly important for
+interpreting NEC as a measure of the quality of the recovered
+geometric alignment.
+The first key observation is that RIFT [9] and our method
+provide the most consistent improvements across the considered
+datasets. RIFT achieves strong quantitative performance overall,
+but its global transformation cannot explicitly account for depth-
+dependent parallax. SuperFusion [19] and CrossRAFT [20]
+perform well on some datasets but are less robust to large
+geometric discrepancies between the sensors. In contrast,
+our method maintains strong performance across all datasets
+without post-processing the estimated reprojection.
+2) Qualitative Results: Figure 5 presents representative
+examples from the original sample selection of each dataset,
+together with magnified views of selected regions.
+Our method consistently produces well-aligned structures
+across the different datasets. In particular, the magnified regions
+illustrate its ability to recover pixel-level correspondences while
+accounting for depth-dependent parallax. This behavior is
+especially visible in regions containing objects at different
+depths, where a single global transformation is insufficient
+to achieve accurate alignment. Importantly, these results
+are obtained without post-processing the occlusion-induced
+artifacts, further demonstrating the robustness of the estimated
+camera geometry.
+D. Experiment 4. Multi-scale translation parametrization
+model
+To assess the benefit of the proposed multi-scale translation
+parameterization, we compare optimization using different
+numbers of translation scales. Figure 6 reports the evolution
+of the combined loss over ten randomly initialized runs for
+each parameterization. The results show that introducing a
+coarse translation component consistently improves conver-
+gence compared with optimizing a single translation scale. In
+particular, the additional coarse degree of freedom facilitates
+the exploration of broader translation configurations, allowing
+the optimization to reach lower-loss solutions while retaining
+the fine-scale component for subsequent local refinement.
+In contrast, introducing a second coarse component does
+not provide a consistent improvement and instead leads to
+increased variability and less stable convergence across runs.
+This suggests that increasing the number of translation scales
+unnecessarily enlarges the optimization space and can hinder
+the gradient-based optimization. Therefore, the two-scale
+parameterization, combining one fine and one coarse translation
+component, provides the most favorable trade-off between
+global exploration and local refinement and is retained for the
+remainder of the experiments.
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+Epochs
+0.8
+1.0
+1.2
+1.4
+1.6
+1.8
+2.0
+2.2
+Combined Loss
+Total loss per model (with 95% confidence interval)
+t = t0
+t = t0 + 10 t1
+t = t0 + 10 t1 + 100 t2
+Fig. 6. Comparison of the convergence behavior of the optimization with
+different translation parameterizations. The combined loss is the weighted
+sum of the flow and image losses described in the following paragraph. The
+transparent shaded area around each curve represents the standard deviation
+across 10 randomly initialized runs, while the solid line represents the mean
+loss.
+V. DISCUSSION AND CONCLUSION
+In this work, we have presented XCalib, a multimodal image
+registration framework that constrains dense correspondences
+through a persistent camera model and scene depth. Rather than
+directly optimizing an unconstrained image-space deformation,
+the proposed approach derives the registration field from a com-
+pact set of camera parameters and monocular metric depth. This
+geometric formulation is particularly suited to scenes exhibiting
+depth-dependent parallax, where global transformations can be
+too restrictive while dense correspondence-based methods may
+produce less stable alignments. The experiments demonstrate
+that XCalib remains consistently competitive across diverse
+datasets, including daytime, nighttime, and large geometry-
+mismatch scenarios, while providing smoother frame-to-frame
+registration on image sequences.
+Experimental evaluations show that the proposed method
+matches or surpasses state-of-the-art approaches across the
+considered datasets and metrics, while maintaining consistent
+qualitative alignment. A key strength is the persistence of
+the geometric model: once optimized for a camera rig, the
+same parameters can be reused across subsequent synchronized
+frames, providing an explicit constraint that promotes temporal
+consistency. The use of depth further allows the framework
+to account for non-uniform displacements caused by scene
+geometry without requiring a separate dense deformation to be
+estimated for every image pair. Moreover, the depth input has
+a limited influence on the estimation of the global registration
+parameters, making monocular metric depth a versatile source
+9
+
+
+XCalib: Dense Thermal–Visible Video Registration
+of geometric information even when its local predictions are
+imperfect.
+The remaining influence of depth errors is primarily observed
+locally. Incorrect predictions around small structures or fine
+textures can introduce localized reprojection errors that may
+appear as slight texture instability or flickering in image
+sequences. A second limitation concerns computational cost, as
+monocular depth estimation represents the main computational
+bottleneck of the current pipeline and limits its direct use in
+real-time embedded applications. However, monocular depth
+estimation is not intrinsic to the proposed formulation. Sparse
+metric measurements from LiDAR or time-of-flight (ToF)
+sensors combined with learned depth completion or upscaling
+could provide an alternative, potentially enabling substantially
+faster dense depth estimation while retaining the geometric
+benefits of the framework.
+Future Work: Future research will focus on extending
+the framework toward real-time operation, in particular by
+investigating sparse depth sensing combined with efficient
+learned depth reconstruction, with the objective of reaching
+high frame rates suitable for embedded ADAS applications.
+Explicit treatment of occluded and disoccluded regions could
+further reduce local reprojection artifacts. Finally, although
+the optimized camera parameters are reasonably close to the
+physical configuration of the camera rig, the present work
+does not aim at precise camera calibration. The parameters
+primarily serve as a compact geometric representation from
+which the multimodal registration is derived. A more systematic
+comparison with accurately calibrated camera setups would
+nevertheless be valuable to further characterize the relationship
+between the optimized parameters and the underlying physical
+geometry.
+REFERENCES
+[1] Gabriel Jobert, Guillaume Delubac, Jessy Matias, Quentin Noir, and
+Xavier Brenière. Windshield integration of thermal and color fusion for
+automatic emergency braking in low visibility conditions. In SIA Vision,
+2024.
+[2] Nazanin Mahjourian and Vinh Nguyen. Multimodal object detection
+using depth and image data for manufacturing parts. arXiv preprint
+arXiv:2411.09062, 2024.
+[3] Mingzheng Feng and Jianbo Su. Rgbt tracking: A comprehensive review.
+Information Fusion, 110, 2024.
+[4] Ning Ma, Yubo Men, Chaoguang Men, and Xiang Li. Accurate dense
+stereo matching based on image segmentation using an adaptive multi-
+cost approach. Symmetry, 8(12), 2016.
+[5] Simrandeep Singh, Harbinder Singh, Gloria Bueno, Oscar Deniz, Sartajvir
+Singh, Himanshu Monga, P. N. Hrisheekesha, and Anibal Pedraza. A
+review of image fusion: Methods, applications and performance metrics.
+Digital Signal Processing, 137, 2023.
+[6] Qinglei Du, Aoxiang Fan, Yong Ma, Fan Fan, Jun Huang, and Xiaoguang
+Mei. Infrared and visible image registration based on scale-invariant piifd
+feature and locality preserving matching. IEEE Access, 6:64107–64121,
+2018.
+[7] David G. Lowe. Distinctive image features from scale-invariant keypoints.
+International Journal of Computer Vision, 60(2):91–110, 2004.
+[8] Seungryong Kim, Dongbo Min, Bumsub Ham, Minh N. Do, and
+Kwanghoon Sohn. Dasc: Robust dense descriptor for multi-modal and
+multi-spectral correspondence estimation. IEEE Transactions on Pattern
+Analysis and Machine Intelligence, 39(9):1712–1729, 2017.
+[9] Jiayuan Li, Qingwu Hu, and Mingyao Ai. Rift: Multi-modal image match-
+ing based on radiation-invariant feature transform. IEEE Transactions
+on Image Processing, 29:3418–3431, 2020.
+[10] Jingyu Ji, Yuhua Zhang, Zhilong Lin, Yongke Li, Changlong Wang,
+Yongjiang Hu, and Jiangyi Yao. Infrared and visible image registration
+based on automatic robust algorithm. Electronics, 11(11), 2022.
+[11] Zhiying Jiang, Zengxi Zhang, Jinyuan Liu, Xin Fan, and Risheng Liu.
+Breaking modality disparity: Harmonized representation for infrared and
+visible image registration. arXiv preprint arXiv:2304.00000, 2023.
+[12] Junhui Qiu, Hao Li, Hualong Cao, Xiangshuai Zhai, Xuedong Liu, Meng
+Sang, Kailong Yu, Yunpin Sun, Yang Yang, and Pan Tan. Ra-mmir:
+Multi-modal image registration by robust adaptive variation attention
+gauge field. Information Fusion, 105, 2024.
+[13] J. J. Gibson. The Perception of the Visual World. Houghton Mifflin,
+1950.
+[14] Andrea Alfarano, Luca Maiano, Lorenzo Papa, and Irene Amerini.
+Estimating optical flow: A comprehensive review of the state of the
+art. Computer Vision and Image Understanding, 249, 2024.
+[15] Moab Arar, Yiftach Ginger, Dov Danon, Amit H Bermano, and Daniel
+Cohen-Or. Unsupervised multi-modal image registration via geometry
+preserving image-to-image translation.
+Technical report, Tel Aviv
+University, 2020.
+[16] Di Wang, Jinyuan Liu, Xin Fan, and Risheng Liu.
+Unsupervised
+misaligned infrared and visible image fusion via cross-modality image
+generation and registration. In International Joint Conference on Artificial
+Intelligence (IJCAI), 2022.
+[17] Di Wang, Jinyuan Liu, Long Ma, Risheng Liu, and Xin Fan. Improving
+misaligned multi-modality image fusion with one-stage progressive dense
+registration. arXiv preprint arXiv:2308.11165, 2023.
+[18] Guha Balakrishnan, Amy Zhao, Mert R. Sabuncu, John Guttag, and
+Adrian V. Dalca. Voxelmorph: A learning framework for deformable
+medical image registration. IEEE Transactions on Medical Imaging,
+38(8):1788–1800, August 2019.
+[19] Linfeng Tang, Yuxin Deng, Yong Ma, Jun Huang, and Jiayi Ma.
+Superfusion: A versatile image registration and fusion network with
+semantic awareness. IEEE/CAA Journal of Automatica Sinica, 9(12):2121–
+2137, 2022.
+[20] Shili Zhou, Weimin Tan, and Bo Yan. Promoting single-modal optical
+flow network for diverse cross-modal flow estimation.
+In AAAI
+Conference on Artificial Intelligence, 2022.
+[21] Zachary Teed and Jia Deng. Raft: Recurrent all-pairs field transforms
+for optical flow. In European Conference on Computer Vision (ECCV),
+2020.
+[22] Atousa Torabi, Guillaume Massé, and Guillaume-Alexandre Bilodeau.
+An iterative integrated framework for thermal-visible image registration,
+sensor fusion, and people tracking for video surveillance applications.
+Computer Vision and Image Understanding, 116(2):210–221, 2012.
+[23] Atousa Torabi and Guillaume-Alexandre Bilodeau. Local self-similarity-
+based registration of human ROIs in pairs of stereo thermal-visible videos.
+Pattern Recognition, 46(2):578–589, 2013.
+[24] Atousa Torabi and Guillaume-Alexandre Bilodeau. A LSS-based regis-
+tration of stereo thermal-visible videos of multiple people using belief
+propagation. Computer Vision and Image Understanding, 117(12):1736–
+1747, 2013.
+[25] Richard Hartley and Andrew Zisserman. Multiple View Geometry in
+Computer Vision. Cambridge University Press, second edition, 2003.
+[26] Richard Szeliski. Computer Vision: Algorithms and Applications. Springer
+Nature, 2nd edition, 2022.
+[27] Max Jaderberg, Karen Simonyan, Andrew Zisserman, and Koray
+Kavukcuoglu. Spatial transformer networks, 2016.
+[28] Xiangyu Sun, Liu Liu, Seungkwon Yang, Jingbing Han, Seungtae Nam,
+Zhizhong Su, and Eunbyung Park. Nodrift3r: Raymap-guided coupling
+for drift-robust unposed feed-forward 3d reconstruction, 2026.
+[29] Tianheng Zheng, Guanglu Dong, Pingping Zhang, Xiaohai He, and Chao
+Ren. Plug-and-play general image registration for misaligned multi-
+modal image fusion. IEEE Transactions on Circuits and Systems for
+Video Technology, 2025.
+[30] FLIR. Flir thermal dataset, 2022.
+[31] LYNRED. Lynred mobility dataset v1, 2025.
+[32] Han Xu, Jiayi Ma, Zhuliang Le, Junjun Jiang, and Xiaojie Guo. Fusiondn:
+A unified densely connected network for image fusion.
+In AAAI
+Conference on Artificial Intelligence, 2020.
+[33] Yuta Hiasa, Yoshito Otake, Masaki Takao, Takumi Matsuoka, Kazuma
+Takashima, Jerry L. Prince, Nobuhiko Sugano, and Yoshinobu Sato. Cross-
+modality image synthesis from unpaired data using cyclegan: Effects
+of gradient consistency loss and training data size. In Simulation and
+Synthesis in Medical Imaging, pages 31–41, 2018.
+[34] Lihe Yang, Bingyi Kang, Zilong Huang, Zhen Zhao, Xiaogang Xu,
+Jiashi Feng, and Hengshuang Zhao. Depth anything v2. arXiv preprint
+arXiv:2406.09414, 2024.
+10

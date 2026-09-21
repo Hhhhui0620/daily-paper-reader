@@ -1,0 +1,69 @@
+{
+  "label": "2026-09-21",
+  "date": "2026-09-21",
+  "generated_at": "2026-09-21T22:20:05",
+  "count": 4,
+  "papers": [
+    {
+      "paper_id": "202609/21/2609.21770v1-xcalib-depth-guided-geometric-optimization-for-dense-thermal-visible-video-registration",
+      "section": "quick",
+      "title_en": "XCalib Depth-Guided Geometric Optimization for Dense Thermal-Visible Video Registration",
+      "authors": "Aurelien Godet, Gabriel Jobert, Mauro Dalla Mura",
+      "date": "2026-09-18",
+      "pdf": "https://arxiv.org/pdf/2609.21770v1",
+      "score": "7.0",
+      "evidence": "针对空间失配的可见光-红外稠密配准",
+      "tldr": "在ADAS等场景中，可见光与红外相机因光轴不重合、视场不同产生非均匀视差与视觉重影，传统关键点法仅能拟合全局单应、难以应对动态深度，而无约束稠密光流缺乏结构正则、时序不稳定。本文提出无监督稠密热可见光配准框架XCalib，将虚拟针孔相机参数化作为几何约束空间，联合优化有效相对位姿、内参和单目度量深度，把位移搜索限制在物理可行的投影几何内，并提出面向跨光谱对齐的归一化边缘相关（NEC）结构相似度指标。在公开ADAS数据集上的定量与定性实验表明，其对齐精度与时序稳定性均优于无约束稠密光流基线。",
+      "tags": "query:uav-rgbt-sod",
+      "abstract_en": "Image registration is a vital preprocessing step in multimodal perception tasks, including image fusion, object detection, and semantic segmentation. In Advanced Driver- Assistance Systems (ADAS), spatial misalignment between visible (RGB) and infrared (IR) cameras -caused by non-coincident optical axes and field-of-view differences- introduces non-uniform parallax and visual ghosting. Classical keypoint-based methods are restricted to global homographies that fail under dynamic depth, while unconstrained dense flow algorithms lack structural regularization and suffer from temporal instability. In this paper, we propose XCalib, an unsupervised dense thermal-visible registration framework that bridges this gap. Rather than serving as an absolute metric calibration tool, XCalib leverages virtual pinhole camera parameterization strictly as a geometric constraint space. By optimizing effective relative pose and intrinsics alongside predicted monocular metric depth, XCalib restricts the search space of spatial displacements to physically valid projection geometries. Our key contributions are: (1) a novel registration paradigm that uses camera parameterization as an implicit regularizer for dense cross-modal warping; (2) Normalized Edges Correlation (NEC), a robust structural similarity metric tailored to cross- spectral alignment; and (3) extensive quantitative and qualitative evaluations across public ADAS datasets, demonstrating superior temporal stability and alignment accuracy over unconstrained dense flow baselines.",
+      "source": "arxiv",
+      "selection_source": "fresh_fetch"
+    },
+    {
+      "paper_id": "202609/21/2609.15227v1-closed-form-bayesian-homography-estimation-from-noisy-point-correspondences",
+      "section": "quick",
+      "title_en": "Closed-form Bayesian homography estimation from noisy point correspondences",
+      "authors": "Hanne Beuter, Sebastian Dorn",
+      "date": "2026-09-14",
+      "pdf": "https://arxiv.org/pdf/2609.15227v1",
+      "score": "6.0",
+      "evidence": "面向几何对齐的噪声对应不确定性量化",
+      "tldr": "单应性估计在医学影像、自动驾驶等场景中至关重要，但传统方法多只给点估计，无法直接量化噪声观测带来的不确定性。本文提出快速贝叶斯单应性估计框架，在齐次坐标下推导后验均值的闭式解，并用迭代贝叶斯方法处理非线性。合成实验表明其在不同噪声下精度优于DLT，图像拼接实验进一步验证了真实对应点上的适用性并能输出不确定性。该工作为后续相机标定与三维重建提供了带不确定度的快速估计方案。",
+      "tags": "query:uav-rgbt-sod",
+      "abstract_en": "While homographies are fundamental to many computer vision tasks, the majority of conventional estimation techniques provide only point estimates without directly quantifying uncertainty introduced by noisy observations. Uncertainty, though, propagates to subsequent processing steps such as camera calibration and 3D reconstruction and is particularly relevant in safety-critical and socially relevant fields including medical imaging, autonomous driving, and defense. We present a fast Bayesian formulation for homography estimation from point correspondences that explicitly incorporates measurement uncertainty and prior knowledge while providing a posterior distribution over the homography parameters. A closed-form solution of the posterior mean of the homography is derived in homogeneous coordinates and supplemented by an iterative Bayesian approach to handle non-linearities. Synthetic experiments demonstrate the applicability to projective transformations and show improved estimation accuracy over DLT under varying noise conditions. Image stitching experiments further demonstrate applicability to real image correspondences while additionally providing uncertainty information.",
+      "source": "arxiv",
+      "selection_source": "fresh_fetch"
+    },
+    {
+      "paper_id": "202609/21/2609.16811v1-hyper-red-scalable-event-pre-training-via-semantic-hypergraph-distillation",
+      "section": "quick",
+      "title_en": "Hyper-RED: Scalable Event Pre-training via Semantic Hypergraph Distillation",
+      "authors": "Meisen Wang, Zhiqiang Tian, Wei Bao, Chengjie Wang, Shaoyi Du, Siqi Li",
+      "date": "2026-09-15",
+      "pdf": "https://arxiv.org/pdf/2609.16811v1",
+      "score": "6.0",
+      "evidence": "通过高阶语义蒸馏在模态差异下进行跨模态对齐",
+      "tldr": "事件相机感知潜力大，但大规模标注事件数据稀缺，制约事件表征学习扩展。现有图像到事件预训练依赖刚性像素或 token 对齐，忽视纹理、密度与外观的模态差异，易致语义崩塌。Hyper-RED 用超图建模图像与事件多 token 的高阶语义关联，并通过跨模态关系蒸馏损失传递语义结构。实验在五个事件数据集、三类任务上从 ViT-S 到 ViT-L 稳定扩展并达 SOTA，代码已开源。",
+      "tags": "query:uav-rgbt-sod",
+      "abstract_en": "Event cameras have shown great potential for robust visual perception, yet scaling event representation learning remains challenging due to the scarcity of large-scale annotated event data. Pretrained image models provide scalable semantic supervision, but existing image-to-event methods rely on rigid pixel-wise or token-wise alignment that overlooks modality discrepancies in texture, density, and appearance, potentially causing semantic collapse and limiting transferability. To address this issue, we propose Hyper-RED, a simple, painless, and scalable image-to-event pretraining framework that transfers high-order semantic structures from images to events. Hyper-RED uses hypergraphs to model and align high-order semantic associations among multiple image and event tokens, enabling cross-modal knowledge transfer while accommodating modality-specific differences rather than enforcing rigid one-to-one correspondence. Specifically, given a paired event--image sample, Hyper-RED leverages DINOv3 to extract spatial token representations and constructs image, event, and cross-modal semantic hypergraphs, where each hyperedge connects multiple semantically correlated tokens. We further introduce a hypergraph relational distillation loss that imposes complementary intra- and cross-modal constraints, enabling the event encoder to inherit image-derived semantic organization while preserving local relational consistency and event-specific characteristics. Experiments on three tasks across five event datasets demonstrate consistent scaling from ViT-S to ViT-L and state-of-the-art performance (Fig.1). The code is available at: https://github.com/meisenwang/Hyper--RED.",
+      "source": "arxiv",
+      "selection_source": "fresh_fetch"
+    },
+    {
+      "paper_id": "202609/21/2609.18133v1-stealthy-in-semantics-antagonistic-in-space-attacking-visible-infrared-object-detectors-via-object-level-misalignment",
+      "section": "quick",
+      "title_en": "Stealthy in Semantics, Antagonistic in Space: Attacking Visible-Infrared Object Detectors via Object-Level Misalignment",
+      "authors": "Yueqi Zhu, Qi Ming, Guo Cheng, Yongkang Zhang, Feiran Liu, Juan Fang, Jiahuan Zhou, Jiangmeng Li, Yuhan Zhang",
+      "date": "2026-09-16",
+      "pdf": "https://arxiv.org/pdf/2609.18133v1",
+      "score": "6.0",
+      "evidence": "通过破坏可见光-红外跨模态空间对齐干扰融合",
+      "tldr": "可见光-红外目标检测在恶劣光照下鲁棒，但现有物理攻击多贴显眼补丁且只扰动对齐区域，易被察觉且未破坏跨模态对应。CamoShift通过语义伪装模块生成隐蔽补丁，并用RGB-IR适配器保持红外分支有效性；对象级空间解耦模块按尺度偏移红外目标证据，打破模态对齐并干扰融合。谐波对抗损失进一步平衡攻击强度与视觉隐蔽性。实验表明，该方法在攻击有效性与隐蔽性之间取得更优平衡，是首个同时关注二者可见光-红外检测攻击。",
+      "tags": "query:uav-rgbt-sod",
+      "abstract_en": "Visible-infrared object detectors are used for robust perception under challenging illumination and weather conditions. Current physical attacks apply conspicuous patches to spatially aligned target regions, which are noticeable to human observers. Meanwhile, most of these methods only perturb the appearance within the aligned region, without explicitly targeting the correspondence between modalities or the fusion process. In this paper, we propose CamoShift, an adversarial framework for visible-infrared object detection. By combining visual camouflage with object-level infrared shifting, CamoShift breaks cross-modal spatial alignment and disrupts fusion. Specifically, the Semantic Camouflage Module (SCM) generates a stealthy camouflaged patch that can be attached to the host object and maintains its effectiveness in the infrared branch through an RGB-IR adapter. The Object-level Spatial Decoupling Module (OSDM) shifts the infrared target evidence in a scale-aware manner, so as to break object-level correspondence and disrupt cross-modal fusion. Then, the Harmonic Adversarial loss (HarAdv loss) further balances attack strength and visual stealth during optimization. To the best of our knowledge, we are the first to target both visual stealthiness and attack success in visible-infrared object detection. Extensive experimental results show that CamoShift achieves a superior balance between attack effectiveness and visual stealth. Code and models will be available on GitHub.",
+      "source": "arxiv",
+      "selection_source": "fresh_fetch"
+    }
+  ],
+  "errors": []
+}
