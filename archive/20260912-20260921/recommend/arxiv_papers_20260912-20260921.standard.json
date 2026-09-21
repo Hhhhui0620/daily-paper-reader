@@ -1,0 +1,59 @@
+{
+  "mode": "standard",
+  "generated_at": "2026-09-21T02:12:22.287567+00:00",
+  "stats": {
+    "mode": "standard",
+    "tag_count": 1,
+    "deep_divecandidates": 1,
+    "deep_cap": 6,
+    "deep_selected": 1,
+    "quick_candidates": 0,
+    "quick_skim_target": 11,
+    "quick_selected": 0
+  },
+  "deep_dive": [
+    {
+      "id": "2609.18124v1",
+      "source": "arxiv",
+      "title": "Aligned Consensus Teaching for Label-Efficient Oriented Object Detection in Weakly-Aligned Visible-Infrared Imagery",
+      "abstract": "Visible-infrared object detection (VIOD) detects objects with oriented bounding boxes from paired visible and infrared images. Existing methods depend on costly dual-modality annotations. Semi-supervised learning can reduce this burden, but extending it from single-modal detection to VIOD is challenging. In the practical image-pair-level setting considered here, only a few pairs are labeled in both modalities, while the rest are completely unlabeled. This limited supervision creates three challenges: (i) too few labeled boxes for robust cross-modal alignment; (ii) pseudo-label errors caused by branch-wise misses accumulate during self-training; and (iii) tail-class annotations become critically scarce as the labeling budget decreases. We propose Aligned Consensus Teacher (ACT) for label-efficient VIOD in this setting. Its Cycle-Consistent Region Alignment (CRA) combines cycle consistency and sparse anchors with reliability-weighted regional matching. Cross-Modal Consensus Mean-Teacher (CMC-MT) forms consensus pseudo labels under pair-preserving views to recover branch-wise misses and supervise unlabeled pairs. Text-Guided Cross-Modal Instance Augmentation (TG-CMIA) uses a vision-language scene prior to compose tail-class instance pairs while preserving RGB--IR offsets. To the best of our knowledge, ACT is the first framework to study semi-supervised VIOD under this image-pair-level setting. Experiments on DroneVehicle and VEDAI show consistent gains across annotation ratios. With 10\\% labeled pairs on DroneVehicle, ACT reaches 94.3\\% of the mAP obtained by the same detector under full supervision. Code and models will be available on GitHub to facilitate future work.",
+      "authors": [
+        "Qi Ming",
+        "Xiaxin Yuan",
+        "Jiahuan Zhou",
+        "Jiangmeng Li",
+        "Xudong Zhao",
+        "Zhanchao Huang",
+        "Juan Fang",
+        "Shaoguang Huang",
+        "Aleksandra Pizurica"
+      ],
+      "primary_category": "cs.CV",
+      "categories": [
+        "cs.CV"
+      ],
+      "published": "2026-09-16T04:59:37+00:00",
+      "link": "https://arxiv.org/pdf/2609.18124v1",
+      "tags": [
+        "keyword:uav-rgbt-sod",
+        "query:uav-rgbt-sod"
+      ],
+      "llm_score": 8.0,
+      "llm_evidence_en": "weakly-aligned visible-infrared image pairs with cross-modal alignment",
+      "llm_evidence_cn": "弱配准可见光-红外图像对与跨模态对齐",
+      "llm_evidence": "弱配准可见光-红外图像对与跨模态对齐",
+      "canonical_evidence": "弱配准可见光-红外图像对与跨模态对齐",
+      "llm_tldr_en": "Visible-infrared oriented detection needs costly dual-modality labels. Under image-pair-level semi-supervision with few labeled pairs, Aligned Consensus Teaching counters scarce cross-modal alignment supervision, pseudo-label error accumulation and tail-class scarcity.",
+      "llm_tldr_cn": "针对可见光-红外目标检测中双模态标注代价高昂的问题，该文研究仅有少量图像对同时标注、其余完全无标注的半监督场景。方法提出对齐共识教学框架，缓解跨模态对齐监督不足、伪标签误差累积以及尾部类别标注稀缺三大挑战。实验在弱配准可见光-红外图像上验证了标签高效检测的有效性。该工作为弱对齐多模态检测提供了可迁移的协同训练与对齐思路。",
+      "llm_tldr": "针对可见光-红外目标检测中双模态标注代价高昂的问题，该文研究仅有少量图像对同时标注、其余完全无标注的半监督场景。方法提出对齐共识教学框架，缓解跨模态对齐监督不足、伪标签误差累积以及尾部类别标注稀缺三大挑战。实验在弱配准可见光-红外图像上验证了标签高效检测的有效性。该工作为弱对齐多模态检测提供了可迁移的协同训练与对齐思路。",
+      "llm_tags": [
+        "query:uav-rgbt-sod"
+      ],
+      "matched_query_tag": "query:uav-rgbt-sod",
+      "matched_query_text": "unregistered visible and thermal image pairs",
+      "matched_requirement_id": "req-5",
+      "selection_source": "fresh_fetch"
+    }
+  ],
+  "quick_skim": []
+}

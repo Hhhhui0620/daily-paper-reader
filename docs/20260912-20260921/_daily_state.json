@@ -1,0 +1,25 @@
+{
+  "date": "20260912-20260921",
+  "date_label": "2026-09-12 ~ 2026-09-21",
+  "generated_at": "2026-09-21 02:14:27 UTC",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2609.18124v1",
+      "route": "20260912-20260921/2609.18124v1-aligned-consensus-teaching-for-label-efficient-oriented-object-detection-in-weakly-aligned-visible-infrared-imagery",
+      "title": "Aligned Consensus Teaching for Label-Efficient Oriented Object Detection in Weakly-Aligned Visible-Infrared Imagery",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "弱配准可见光-红外图像对与跨模态对齐",
+      "first_seen_at": "2026-09-21 02:14:27 UTC",
+      "updated_at": "2026-09-21 02:14:27 UTC"
+    }
+  ]
+}

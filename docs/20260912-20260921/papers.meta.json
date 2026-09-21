@@ -1,0 +1,24 @@
+{
+  "label": "2026-09-12 ~ 2026-09-21",
+  "date": "2026-09-12 ~ 2026-09-21",
+  "generated_at": "2026-09-21T02:14:31",
+  "count": 1,
+  "papers": [
+    {
+      "paper_id": "20260912-20260921/2609.18124v1-aligned-consensus-teaching-for-label-efficient-oriented-object-detection-in-weakly-aligned-visible-infrared-imagery",
+      "section": "deep",
+      "title_en": "Aligned Consensus Teaching for Label-Efficient Oriented Object Detection in Weakly-Aligned Visible-Infrared Imagery",
+      "authors": "Qi Ming, Xiaxin Yuan, Jiahuan Zhou, Jiangmeng Li, Xudong Zhao, Zhanchao Huang, Juan Fang, Shaoguang Huang, Aleksandra Pizurica",
+      "date": "2026-09-16",
+      "pdf": "https://arxiv.org/pdf/2609.18124v1",
+      "score": "8.0",
+      "evidence": "弱配准可见光-红外图像对与跨模态对齐",
+      "tldr": "可见光-红外目标检测依赖昂贵的双模态有向框标注，半监督扩展面临跨模态对齐弱、伪标签漏检累积和尾类稀缺。本文提出 Aligned Consensus Teacher（ACT），用循环一致区域对齐、跨模态共识均值教师和文本引导实例增强利用少量配对标注。在 DroneVehicle 与 VEDAI 上各标注比例均稳定提升，10% 标注达到全监督 94.3% mAP。这是首个图像对级半监督 VIOD 框架，为低标注成本检测提供新方案。",
+      "tags": "query:uav-rgbt-sod",
+      "abstract_en": "Visible-infrared object detection (VIOD) detects objects with oriented bounding boxes from paired visible and infrared images. Existing methods depend on costly dual-modality annotations. Semi-supervised learning can reduce this burden, but extending it from single-modal detection to VIOD is challenging. In the practical image-pair-level setting considered here, only a few pairs are labeled in both modalities, while the rest are completely unlabeled. This limited supervision creates three challenges: (i) too few labeled boxes for robust cross-modal alignment; (ii) pseudo-label errors caused by branch-wise misses accumulate during self-training; and (iii) tail-class annotations become critically scarce as the labeling budget decreases. We propose Aligned Consensus Teacher (ACT) for label-efficient VIOD in this setting. Its Cycle-Consistent Region Alignment (CRA) combines cycle consistency and sparse anchors with reliability-weighted regional matching. Cross-Modal Consensus Mean-Teacher (CMC-MT) forms consensus pseudo labels under pair-preserving views to recover branch-wise misses and supervise unlabeled pairs. Text-Guided Cross-Modal Instance Augmentation (TG-CMIA) uses a vision-language scene prior to compose tail-class instance pairs while preserving RGB--IR offsets. To the best of our knowledge, ACT is the first framework to study semi-supervised VIOD under this image-pair-level setting. Experiments on DroneVehicle and VEDAI show consistent gains across annotation ratios. With 10\\% labeled pairs on DroneVehicle, ACT reaches 94.3\\% of the mAP obtained by the same detector under full supervision. Code and models will be available on GitHub to facilitate future work.",
+      "source": "arxiv",
+      "selection_source": "fresh_fetch"
+    }
+  ],
+  "errors": []
+}
