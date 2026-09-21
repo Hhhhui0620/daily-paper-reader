@@ -1,0 +1,621 @@
+Title: LER-YOLO: Reliability-Aware Expert Routing for Misaligned RGB-Infrared UAV Detection
+
+URL Source: https://arxiv.org/pdf/2605.20667v1
+
+Published Time: Thu, 21 May 2026 00:30:41 GMT
+
+Number of Pages: 17
+
+Markdown Content:
+> Received: Revised: Accepted: Published:
+> Copyright: © 2026 by the authors. Submitted to Remote Sens. for possible open access publication under the terms and conditions of the Creative Commons Attribution (CC BY) license.
+
+Article 
+
+# LER-YOLO: Reliability-Aware Expert Routing for Misaligned RGB-Infrared UAV Detection 
+
+Liming Hou 1, Yueping Peng 1, ∗, Hexiang Hao 1, Ji Wang 1, Xuekai Zhang 1, Wei Tang 1, Zecong Ye 2, Xin Ying 1 and Yubo He 1 
+
+> 1
+
+Engineering University of PAP, Xi’an 710086, China; houlimingbeijing@163.com (L.H.); percy001@163.com (Y.P.); hhx1214s@163.com (H.H.); 3202342570@qq.com (J.W.); 18510004596@163.com (X.Z.); 13414667546@163.com (W.T.); 19591587243@163.com (X.Y.); heyubo132@163.com (Y.H.)  
+
+> 2
+
+Unit Command Department, Officers College of PAP, Chengdu 610213, China; yzc6666@yeah.net (Z.Y.) 
+
+* Correspondence: percy001@163.com 
+
+Highlights What are the main findings? 
+
+• A Reliability-Guided Sparse Mixture-of-Experts (MoE) Fusion module is proposed to shift RGB-infrared feature fusion from static aggregation to dynamic top-k expert routing. • An Uncertainty-Aware Target Alignment (U-TA) module estimates a spatial reliability map, which serves as an explicit prior for selecting reliable cross-modal interaction and suppressing unreliable fusion. 
+
+What are the implications of the main findings? 
+
+• By using reliability-guided expert routing, LER-YOLO improves detection accuracy while keeping the parameter count and FLOP budget close to the static-fusion baseline. • Under the reproduced YOLOv5s-family protocol, LER-YOLO improves the static-fusion baseline from 87.8 ±0.2% to 89.7 ±0.2% AP 50 , suggesting that Reliability-Guided Sparse MoE Fusion can be more effective than static fusion for misaligned RGB-infrared UAV detection. 
+
+Abstract 
+
+Detecting small unmanned aerial vehicles from RGB infrared remote sensing pairs remains challenging due to tiny target scale, cluttered backgrounds, and spatial misalignment between heterogeneous sensors. Existing bimodal detectors often align or fuse features without assessing the reliability of local cross sensor correspondence, allowing mismatch artifacts to propagate into the detection head. To address this issue, we propose LER-YOLO, a reliability aware sparse mixture of experts framework for misaligned RGB infrared UAV detection. LER-YOLO first introduces an Uncertainty Aware Target Alignment module that resamples visible features toward the infrared reference and estimates a spatial reliability map. This reliability prior is then used by a Reliability Guided Sparse MoE Fusion module to adaptively select k experts from RGB dominant, infrared dominant, and interactive fusion experts, enabling trustworthy cross modal interaction while suppressing unreliable fusion. Experiments on the public MBU benchmark under a YOLOv5s family protocol show that LER-YOLO achieves 89.7 ±0.2% AP 50 over three independent seeds, with a best result of 89.9%. Extensive ablations, parameter matched comparisons, synthetic shift evaluations, and complexity analysis demonstrate that the gains mainly come from reliability guided expert routing rather than increased model capacity. 
+
+Version May 21, 2026 submitted to Remote Sens. https://doi.org/10.3390/rs1010000   
+
+> arXiv:2605.20667v1 [cs.CV] 20 May 2026 Version May 21, 2026 submitted to Remote Sens. 2 of 17
+
+Keywords: remote sensing; UAV target detection; RGB-infrared fusion; visible-thermal sensing; misaligned multimodal perception; reliability-aware fusion; sparse mixture-of-experts; expert routing; YOLOv5s; MBU dataset 
+
+## 1. Introduction 
+
+Small unmanned aerial vehicles (UAVs) are increasingly important targets in low altitude remote sensing, with applications in traffic monitoring, infrastructure inspection, disaster response, airspace management, and public safety surveillance. Detecting UAVs from remote sensing imagery is challenging because UAV targets are often tiny, fast mov-ing, weakly textured, and easily confused with cluttered backgrounds such as buildings, trees, clouds, birds, and strong sunlight. Similar difficulties have also been observed in infrared small object detection, where targets usually exhibit low contrast and limited spatial extent [3,4,56]. Visible images provide rich structural contours and texture details, while infrared images capture thermal responses that remain informative under low illumi-nation or nighttime conditions. Therefore, RGB infrared sensing offers a practical solution for robust UAV detection in complex remote sensing scenarios. This work focuses only on perception level UAV detection using public benchmark data and does not involve interception, engagement, or weaponized counter UAV operations. Despite its potential, RGB infrared UAV detection remains difficult because practi-cal dual sensor systems are rarely perfectly registered. Sensor baseline differences, lens distortion, platform vibration, gimbal jitter, and asynchronous exposure can all introduce spatial offsets between visible and infrared images. For small UAVs, even a displacement of a few pixels may move the target response into a different local feature region. As a result, direct feature concatenation or addition may create false cross modal correspondence and introduce mismatch artifacts into the detector. The public Misaligned Bimodal UAV (MBU) benchmark explicitly highlights this problem by constructing an RGB infrared de-tection benchmark from Anti UAV, where target offsets and modality dependent visibility variations are common [2,3]. Recent multimodal UAV detectors have made notable progress in alignment and fusion. For example, MBUDet integrates target alignment with RGB infrared detection by generating target offset labels [3]. Other UAV and multispectral remote sensing detectors employ weak alignment, transformer based interaction, dynamic fusion, or lightweight single stage detection to improve accuracy and efficiency [8,9,22–24]. However, two limita-tions remain. First, most alignment modules treat the resampled feature as reliable once alignment is completed, although local correspondence can still be uncertain around tiny targets, occlusion boundaries, motion blur, and background distractors. Second, many fusion modules rely on a fixed operator or static attention rule, which is insufficient because the reliability of RGB and infrared cues varies across scenes and spatial locations. These observations suggest that effective bimodal UAV detection should not only align features, but also estimate whether the aligned correspondence is trustworthy before fusion. To address these issues, we propose LER-YOLO (Local Reliability Expert Routing YOLO), a reliability aware RGB infrared UAV detection framework for misaligned remote sensing imagery. The core idea is to make local alignment reliability an explicit routing prior for multimodal fusion. Specifically, we introduce an Uncertainty Aware Target Alignment (U TA) module that resamples visible features toward the infrared reference and simultaneously predicts a spatial reliability map. This map estimates whether the aligned RGB feature is trustworthy at each spatial location. Based on this reliability prior, we further design a Reliability Guided Sparse MoE Fusion module, which adaptively selects   
+
+> https://doi.org/10.3390/rs1010000 Version May 21, 2026 submitted to Remote Sens. 3 of 17
+
+top k experts from three heterogeneous candidates, including an RGB dominant expert, an infrared dominant expert, and an interactive fusion expert. In this way, reliable regions can exploit cross modal interaction, while unreliable regions can rely more on modality specific evidence. Our goal is not to redesign the detection backbone, but to improve the decision mechanism of RGB infrared interaction after alignment while avoiding unnecessary dense expert execution. The main contributions are summarized as follows: • We formulate misaligned RGB infrared UAV detection as a reliability aware fusion problem, where local alignment trustworthiness explicitly controls downstream cross modal interaction. • We propose an Uncertainty Aware Target Alignment (U TA) module that jointly performs visible to infrared feature resampling and spatial reliability estimation, enabling unreliable aligned features to be identified before fusion. • We design a Reliability Guided Sparse MoE Fusion module that adaptively routes features to modality specific and interactive experts, shifting RGB infrared fusion from static aggregation to reliability guided expert selection. • We conduct a comprehensive evaluation on the public MBU protocol, including seed level analysis, ablation studies, parameter matched comparison, controlled synthetic misalignment, model complexity reporting, and supplementary log and statistics provenance. The rest of this paper is organized as follows. Section 2 reviews UAV detection, RGB infrared fusion, and reliability aware routing. Section 3 presents the proposed framework. Section 4 reports the experiments and analysis. Section 5 concludes the paper. 
+
+## 2. Related Work 
+
+2.1. UAV and Anti UAV Target Detection 
+
+Deep object detectors have been widely adopted for UAV remote sensing because they can localize small targets efficiently in complex aerial scenes. Among them, the YOLO family is particularly suitable for deployment oriented perception, since one stage de-tection avoids proposal generation and offers a favorable balance between accuracy and efficiency [1,13–15]. Recent studies on UAV and infrared remote sensing further improve lightweight detection, small target representation, and real time inference, including ITD YOLOv8, G YOLO, LRI YOLO, all time UAV detection, high altitude infrared detection, and multi scale thermal feature extraction [7–11,54]. Meanwhile, newly released UAV benchmarks have expanded the evaluation scope from single modality detection to reg-istration, tracking, condition diversity, and RGB thermal aerial perception [50–53,55,71]. These efforts show that practical UAV detection must jointly consider detection accuracy, model complexity, and robustness under diverse sensing conditions. Anti UAV detection is more challenging because targets are usually tiny, weakly textured, fast moving, and easily confused with birds or background structures [4,16,17]. 
+
+2.2. RGB Infrared and Visible Thermal Fusion 
+
+RGB infrared fusion combines visible appearance with infrared thermal responses, pro-viding complementary cues for remote sensing perception under low illumination, thermal crossover, clutter, and long range observation [5,6,18]. Existing visible thermal detectors and fusion frameworks have explored transformer interaction, prompt tuning, attention based fusion, Mamba style modeling, image registration, semantic fusion, and multimodal benchmark construction [12,19–21,49,57–64]. In a broader vision context, conditional mod-eling has also shown strong potential for preserving controllability and consistency across heterogeneous visual conditions, such as pose guided person generation, customizable   
+
+> https://doi.org/10.3390/rs1010000 Version May 21, 2026 submitted to Remote Sens. 4 of 17
+
+virtual dressing, long term talking face generation, and story visualization [30–34]. These works suggest that explicitly modeling condition dependent information is important for robust visual synthesis and perception. However, most RGB infrared detectors still assume that the two modalities are aligned or only weakly misaligned. This assumption becomes fragile in anti UAV scenarios, where even a few pixels of displacement may separate the visible and infrared responses of a tiny target. 
+
+2.3. Misaligned Multimodal Detection and Alignment 
+
+Spatial misalignment has motivated a series of feature alignment techniques, includ-ing deformable convolution, spatial transformer networks, offset prediction, correlation modeling, calibrated transformers, and cross modal calibration [25–29,65–67]. For UAV detection, MBUDet constructs a dedicated misaligned bimodal benchmark and introduces target offset label generation for supervised target level alignment [3]. Weakly alignment free adaptive feature alignment and cross modal offset guided dynamic alignment further demonstrate the importance of explicit spatial reasoning in UAV based multimodal detec-tion [22,23]. Nevertheless, most existing alignment based methods treat the aligned feature as reliable after resampling. In practice, the estimated correspondence may still be uncer-tain around tiny targets, occlusions, motion blur, depth discontinuities, and background distractors. Therefore, alignment alone is insufficient. A detector also needs to estimate whether the aligned local correspondence should be trusted before deep fusion. 
+
+2.4. Reliability Estimation and Sparse MoE Fusion 
+
+Uncertainty estimation provides a principled way to measure whether a local predic-tion or representation is trustworthy [35,36]. This is especially important for multimodal perception, since different sensors may fail under different illumination, thermal con-trast, weather, and motion conditions. Mixture of Experts (MoE) models offer a flexible mechanism for conditional computation by assigning different inputs or spatial regions to specialized experts [21,37,38]. Recent MoE based perception methods extend expert routing to adaptive object detection, multimodal 3D understanding, and all weather multimodal perception [39–41]. However, many existing routers rely mainly on semantic features or task level cues, without explicitly considering whether local cross modal correspondence is reliable. In contrast, our method uses alignment reliability as a spatial routing prior. It encourages cross modal interaction in trustworthy regions while suppressing unreliable fusion where misalignment artifacts may harm UAV localization. 
+
+## 3. Method 
+
+3.1. Problem Formulation and Overall Framework 
+
+This section describes the materials and methods used for the proposed remote-sensing detector. Let Irgb ∈ R3×H0×W0 and Iir ∈ R3×H0×W0 denote an unregistered visible image and an infrared image, respectively. The goal is to detect UAV targets from the misaligned RGB-infrared pair while preserving a practical model size and detector structure. Following MBUDet, the infrared branch is used as the spatial reference because UAV targets are usually more stable in the infrared modality under low illumination [3]. Two non-shared YOLOv5s-family branches extract multi-scale features Frgb and Fir . The visible feature is aligned to the infrared reference by U-TA, and the aligned visible feature, the infrared feature, and the reliability map are fused by the Reliability-Guided Sparse MoE Fusion module. Figure 1 summarizes the pipeline. The important design principle is that alignment quality is not discarded after resampling. Instead, it becomes an explicit routing prior that 
+
+> https://doi.org/10.3390/rs1010000
+
+Version May 21, 2026 submitted to Remote Sens. 5 of 17 Convolutional layer 
+
+ , Blue, rgb F H W C  ,ir rgb F F R ,ir rgb F F R  
+
+> Deformation Correction On Frgb
+> CSPDarknet (RGB)
+> Spatial Reliability Map MR
+
+Overall framework of the proposed reliability-aware RGB-infrared UAV detector  
+
+> Inputs Two-stream Feature Extraction Uncertainty-Aware Target Alignment(U-TA) Reliability-Guided Sparse MoE Fusion YOLOv5 Detection Head
+
+Adaptive Expert Weight Allocation Across Dynamic Scenarios 
+
+w
+
+100% Figure 1: Overall architecture of MoE-MBUDet ,a YOLOv8-based anti-drone detection framework formed        
+
+> YOLOv5 Detection Head Tiny UAV Localization & Classification
+> RL
+> Dynamic Gating Router
+> E1E2EK
+> CSPDarknet (IR)
+> P5 P4 P3 {Frgb }P5 P4 P3 {Fir }
+> …
+> MR
+> Ftr
+> F' rgb
+> Top-k Expert Fusion
+> ……
+> w1w2wK
+> Fir
+> Fir
+> Frgb
+> Frgb '
+> Aligned
+> Non-shared weights (Visible image) (Infrared image)
+> 003HWrgb
+
+I R  
+
+   
+
+> 003HWir
+
+I R  
+
+
+
+Figure 1. Overall pipeline of LER-YOLO. The framework connects Uncertainty-Aware Target Align-ment (U-TA) with Reliability-Guided Sparse MoE Fusion for misaligned RGB-infrared remote-sensing UAV detection. The diagram shows the input pair, U-TA, top-k expert fusion, and the YOLOv5 detec-tion head used in the main experiments. 
+
+controls how strongly each local remote-sensing region should use modality-specific or cross-modal processing. 
+
+3.2. Uncertainty-Aware Target Alignment (U-TA) 
+
+Given a feature pair (Frgb , Fir ), an offset predictor estimates a dense two-dimensional deformation field ∆p. For a spatial position p0 on the infrared reference grid, the aligned visible feature is computed by bilinear resampling: 
+
+eFrgb (p0) = 
+
+> K
+
+# ∑
+
+> k
+
+=1
+
+wk Frgb (p0 + pk + ∆pk) , (1) where {pk}Kk=1 is the regular sampling grid, wk is the sampling weight, and ∆pk is the learned offset. This operation pulls displaced visible responses toward the infrared target coordinate. The supervision design follows the same spirit as target-center and template-based alignment strategies used in object detection and registration, where local target response maps can provide a more stable learning signal than raw image-level registration [68–70]. Local resampling reduces spatial discrepancy but does not guarantee reliable corre-spondence. Therefore, a parallel reliability branch predicts a continuous reliability map: 
+
+R = σ
+
+
+
+ϕ
+
+
+
+[Fir , eFrgb ]
+
+ 
+
+, (2) where ϕ(·) denotes the reliability subnetwork, [·, ·] denotes channel concatenation, and σ(·)
+
+is the sigmoid function. A high value of R(x, y) indicates trustworthy local correspondence after alignment, whereas a low value indicates mismatch, occlusion, or unstable resampling. To supervise reliability estimation without pixel-level alignment annotations, a self-supervised U-TA reliability loss is used: 
+
+Luta = 1
+
+N ∑
+
+> i,j
+
+
+
+Rij Fij  
+
+> ir
+
+− eFij   
+
+> rgb 1
+
+− λ log (Rij + ϵ)
+
+
+
+, (3) where N is the number of spatial locations, λ is a balancing coefficient, and ϵ is a small constant. The first term encourages high reliability when the aligned feature is close to the infrared reference, and the logarithmic term avoids the trivial solution of assigning zero reliability everywhere. 
+
+https://doi.org/10.3390/rs1010000 Version May 21, 2026 submitted to Remote Sens. 6 of 17 Figure 2. Detailed architecture at: Mixture-of-Experts Fusion mechanism (MoEFusion)for anti-drone detection. 
+
+Feature Matching & Deformation Field Prediction Spatial Resampling Uncertainty Estimation and Mapping Conv Convolutional layer Infrared reference feature (F ir ,Orange, H×W×C)Misaligned RGB Feature 
+
+ , Blue, rgb F H W C 
+
+,ir rgb F F P  
+
+,ir rgb F F R ,ir rgb F F R 
+
+> rgb rgb
+
+F F 
+
+ Aligned RGB Feature rgb F
+
+Spatial Reliability Map(R ∈[0,1]) Low Reliability (Aligned Background)     
+
+> Jet Colormap Visualization Overlay(R F)rgb
+> 
+> 01Deformation Correction On Frgb
+> CSPDarknet (RGB) Spatial Reliability Map MR
+
+Overall framework of the proposed reliability-aware RGB-infrared UAV detector 
+
+Inputs Two-stream Feature Extraction Uncertainty-Aware Target Alignment(U-TA) Reliability-Guided Dynamic Fusion(MoE Fusion) YOLOv5 Detection Head   
+
+> YOLOv5 Detection Head Tiny UAV Localization Localization & Classification
+> RLDynamic Gating Router
+> E1E2EK
+> CSPDarknet (IR)
+
+P5 P4 P3 {Frgb }P5 P4 P3 
+
+> …
+
+MoE Fusion 
+
+MR Ftr F'rgb 
+
+> Mask Constraint Assigned Weights Weighted Expert
+
+……  
+
+> w1w2wK
+
+Fir Fir Frgb Frgb' 
+
+Aligned    
+
+> Non-shared weights (Visible image) 003HWrgb
+
+I R  
+
+Input Features Uncertainty-Aware Target Alignment(U-TA) Visualization 
+
+> High-reliability target region
+
+Figure 2. Uncertainty-Aware Target Alignment (U-TA). The module aligns visible features to the infrared reference and predicts a spatial reliability map, where higher reliability indicates more trustworthy local RGB-infrared correspondence. 
+
+3.3. Reliability-Guided Sparse MoE Fusion 
+
+A single static fusion operator is unlikely to be optimal for all regions. Reliable regions can benefit from cross-modal interaction, whereas unreliable regions should rely more on modality-specific evidence. The proposed Reliability-Guided Sparse MoE Fusion module uses three heterogeneous expert candidates: an RGB-dominant expert Ergb , an infrared-dominant expert Eir , and an interactive fusion expert Einter .Before routing, the aligned visible feature is modulated by the reliability map: 
+
+Fin = C
+
+
+
+Fir , eFrgb ⊙ R
+
+
+
+, (4) where C(·) is channel concatenation and ⊙ denotes element-wise multiplication. The router first predicts expert probabilities: 
+
+g = softmax (G(Fin )) , g = {grgb , gir , ginter } . (5) Then the top-k experts are selected according to the router probabilities: 
+
+S = TopK (g, k) . (6) The selected experts are executed, and their routing probabilities are re-normalized before aggregation: 
+
+bgi = gi
+
+∑j∈S gj
+
+, i ∈ S . (7) The final fused feature is obtained by sparse reliability-weighted expert aggregation: 
+
+Fout = ∑
+
+i∈S
+
+bgi Ei(Fin ) . (8) In the main implementation, the router predicts content-adaptive weights over the expert pool and aggregates the selected top-k experts during training and inference. With the current default setting of k = 3 and three available experts, all experts are active, but their contributions remain conditionally weighted rather than fixed. This design preserves an extensible sparse-selection mechanism for future larger expert pools while already enabling scene-dependent expert emphasis in the present model. 
+
+https://doi.org/10.3390/rs1010000 Version May 21, 2026 submitted to Remote Sens. 7 of 17 Reliability-Guided Sparse MoE Fusion Module 
+
+> Gating Router
+> (Conv+ Softmax)
+> Infrared reference feature
+> Aligned visible light feature Spatial Reliability Map
+> Figure 2. Detailed architecture at: Mixture-of-Experts Fusion mechanism (MoEFusion)for anti-drone detection.
+> R
+> Suppress alignment artifacts
+> C
+> (Robust Fused Feature)
+
+Fout 
+
+Fin 
+
+Fir 
+
+w2
+
+w1
+
+w3
+
+Eir 
+
+> (IR-dominant Expert)
+
+Ergb 
+
+> (RGB-dominant Expert)
+
+Einter                       
+
+> (Interactive Fusion Expert)
+> rgb FR
+> rgb F
+> 003 H W
+> R
+> 003 H W
+> R003 H W
+> R
+> 003 H W
+> R
+> 003 H W
+> R
+
+ Aligned RGB Feature F  
+
+> Input Features Uncertainty-Aware Target Alignment(U-TA) Visualization
+
+Figure 3. Reliability-Guided Sparse MoE Fusion. The gating router uses the reliability prior to select top-k experts from RGB-dominant, infrared-dominant, and interactive fusion candidates for remote-sensing feature fusion. 
+
+3.4. Optimization 
+
+The detector is optimized end-to-end with detection, target-alignment, and U-TA reliability losses: 
+
+L = Ldet + αLta + βLuta , (9) where Ldet is the standard YOLO detection loss, Lta denotes target-alignment supervision derived from target-offset pseudo labels, and Luta is the reliability-aware alignment loss. The coefficients α and β balance detection and alignment-related objectives. 
+
+3.5. Dataset and Implementation Details 
+
+Experiments are conducted on the public MBU dataset following the MBUDet protocol [3]. The MBU benchmark is derived from the public Anti-UAV bimodal tracking dataset [2] by extracting one frame every 40 frames and removing watermark regions. Anti-UAV contains 318 RGB-infrared video pairs, with 160 pairs for training, 67 pairs for validation, and 91 pairs for testing. The resulting MBU benchmark contains 14,946 images: 7530 training images with 7309 targets, 3122 validation images with 2983 targets, and 4294 test images with 4127 targets. The same split and preprocessing protocol are used to ensure direct comparison with MBUDet. This study does not create a new dataset; all dataset images are from public benchmarks, and the generated seed-level summaries, routing-statistics summaries, and synthetic-shift evaluation records are prepared as supplementary material. All main experiments use YOLOv5s as the base detector, matching the detector family used by MBUDet. The input image size is 320, the batch size is 16, and the main training schedule is 80 epochs. Unless otherwise specified, all main Reliability-Guided Sparse MoE Fusion experiments use k = 3 over the current three-expert pool, and top-k routing is applied during both training and inference. In the present implementation, k = 3 activates all currently available experts, but the fusion remains routing-based rather than static because the router still generates input-dependent normalized weights. More importantly, the top-k formulation defines an extensible expert pool: if additional experts such as radar-specific, weather-specific, or platform-specific branches are introduced in future work, the same k = 3 policy naturally becomes a sparse selective activation strategy. Precision (P), recall (R), F1-score, AP 50 , AP 50:95 , parameter count and FLOPs are reported when available. Since MBUDet and many public baselines mainly report AP 50 , AP 50 is used as the primary comparison metric. Three independent training seeds of LER-YOLO produce test-set AP 50 values of 0.895, 0.898, and 0.899. The main tables use mean ±standard deviation across independent seeds when the corresponding logs are available; for LER-YOLO, the three seed-level AP 50 values yield 89.7 ±0.2%, with the best run reaching 89.9%. Seed-
+
+> https://doi.org/10.3390/rs1010000
+
+Version May 21, 2026 submitted to Remote Sens. 8 of 17 
+
+Table 1. Controlled reproduced comparison on the MBU dataset under the YOLOv5s-family setting. Runtime metrics are omitted because speed is not used as an advantage claim.                                                                                                                                 
+
+> Method Modality P (%) R (%) F1 (%) AP 50 (%) AP 50:95 (%) Params (M)
+> YOLOv5s-RGB [13] RGB 90.6 ±1.5 76.1 ±1.6 82.7 ±1.2 80.7 ±0.9 35.0 ±0.8 7.1 YOLOv5s-IR [13] IR 91.1 ±1.5 76.5 ±1.6 83.2 ±1.2 81.2 ±0.7 35.2 ±0.8 7.1 Early-Concat [3] RGB+IR 95.5 ±1.3 82.1 ±2.5 88.3 ±2.0 86.7 ±1.6 41.1 ±0.4 13.6 Channel Add. [3] RGB+IR 94.7 ±1.3 82.7 ±2.0 88.3 ±0.7 86.8 ±0.8 41.2 ±1.0 12.9 U-TA Static RGB+IR 95.5 ±1.5 83.6 ±1.3 89.1 ±0.2 87.8 ±0.2 42.1 ±0.5 12.205 PM Static RGB+IR 95.4 ±1.1 83.0 ±1.0 88.7 ±0.5 87.5 ±0.7 42.2 ±0.6 12.7 LER-YOLO RGB+IR 96.9 ±0.5 86.5 ±0.5 91.4 ±0.3 89.7 ±0.2 43.5 ±1.0 12.21
+
+Note: Metrics are reported as mean ±standard deviation over three reproduced runs; Channel Add., U-TA Static, and PM Static denote channel addition, U-TA with static fusion, and parameter-matched static fusion, respectively. 
+
+Table 2. Component ablation under the YOLOv5s-family setting.                                                                                 
+
+> Variant RGB IR U-TA Static fusion Sparse MoE RG AP 50 (%)
+> YOLOv5s-RGB [13] ✓×××××80.7 ±0.9 YOLOv5s-IR [13] ×✓××××81.2 ±0.7 Early-Concat [3] ✓✓××××86.7 ±1.6 U-TA Static ✓✓✓✓××87.8 ±0.2 Unguided MoE ✓✓✓×✓×89.2 ±0.6 RG Static ✓✓✓✓×✓87.2 ±0.5 PM Static ✓✓✓✓××87.5 ±0.7 LER-YOLO ✓✓✓×✓✓89.7 ±0.2
+
+Note: U-TA and RG denote Uncertainty-Aware Target Alignment and reliability guidance, respectively; U-TA Static, Unguided MoE, RG Static, and PM Static denote the corresponding ablation variants. 
+
+level summaries, routing-statistics summaries, and synthetic-shift details are prepared as supplementary material to make the reported results auditable. 
+
+## 4. Experiments and Analysis 
+
+4.1. Main Comparison on the MBU Benchmark 
+
+For context, the original MBUDet study reports a two-stage training recipe with visible-branch load-and-freeze pretraining, obtaining 90.1% AP 50 on the MBU benchmark [3]. It also compares with representative fusion and detection methods, including SuperYOLO, DEYOLO, CDC-YOLOFusion, CFT, ICAFusion, ProbEn3, and FBRT-YOLO [42–48]. Be-cause these published results may use different training recipes, reporting conventions, or profiling environments, they are treated only as background context rather than included in the controlled comparison table. The main evidence in this paper is the reproduced comparison under the same YOLOv5s-family setting. 
+
+4.2. Controlled Comparison under the Reproduced Protocol 
+
+Table 1 compares the proposed method with controlled reproduced baselines under the YOLOv5s-family setting. The corrected U-TA static-fusion baseline obtains 87.8 ±0.2% AP 50 ,while LER-YOLO obtains 89.7 ±0.2% AP 50 . Therefore, within the reproduced protocol, the improvement is evaluated against the controlled static-fusion baseline rather than presented as a universal best-performing result. 
+
+4.3. Component Ablation 
+
+Table 2 evaluates the contribution of the sparse MoE structure and reliability guid-ance using clearer variant names. The static-fusion baseline uses U-TA but does not use expert routing. Unguided Sparse MoE Fusion removes reliability-guided routing, and Reliability-Guided Static Fusion keeps the reliability cue but removes MoE specialization. These comparisons are intended to isolate the roles of expert specialization and reliability guidance without overstating the strength of any single component. 
+
+https://doi.org/10.3390/rs1010000 Version May 21, 2026 submitted to Remote Sens. 9 of 17 
+
+Table 3. Sensitivity analysis of the number of active experts k in Reliability-Guided Sparse MoE Fusion.                                         
+
+> kAP 50 (%) AP 75 (%) AP 50:95 (%) Active Params (M)
+> 187.59 ±1.38 30.34 ±3.00 41.93 ±1.44 12.2059 287.32 ±0.13 29.85 ±2.50 41.44 ±1.17 12.2061 387.62 ±1.13 30.43 ±1.63 41.70 ±0.84 12.2063
+> Note: Mean AP 50 is highlighted; close results indicate low sensitivity to k.
+
+Table 4. Parameter-matched static-fusion comparison under the same test protocol.                                
+
+> Method Params (M) FLOPs (G) AP 50 (%) AP 50:95 (%)
+> U-TA + Static Fusion 12.205 7.4 87.8 ±0.2 42.1 ±0.5 Parameter-Matched Static Fusion 12.7 8.1 87.5 ±0.7 42.2 ±0.6 LER-YOLO 12.21 7.5 89.7 ±0.2 43.5 ±1.0
+> Note: This capacity-control baseline removes sparse expert routing.
+
+4.4. Top-k Sensitivity of Expert Routing 
+
+Because the number of activated experts directly affects routing behavior, we evaluate 
+
+k ∈ { 1, 2, 3 } in Table 3. The three settings produce comparable results, indicating that the proposed routing mechanism is not highly sensitive to k. Among them, k = 3 gives the highest mean AP 50 and AP 75 , although the margin over k = 1 is small. Since AP 50 is the primary metric used for the MBU benchmark comparison, the final reported model adopts k = 3 as the default configuration. This experiment is therefore used for sensitivity checking and configuration selection, not as a strong statistical superiority claim. In the current three-expert implementation, k = 3 activates the full expert set, but the fusion is still routing-based rather than static because the RGB-dominant, infrared-dominant, and interactive experts receive input-dependent weights. When future experts such as radar-specific, weather-specific, or platform-specific branches are added, keeping k = 3 will naturally become selective sparse activation over a larger candidate pool while preserving the same dynamic-routing rule. 
+
+4.5. Parameter-Matched Static-Fusion Comparison 
+
+A potential concern for MoE-style fusion is that improvement may come from in-creased capacity. To address this, Table 4 uses a Parameter-Matched Static Fusion baseline, which widens the static fusion branch to approach the parameter count of LER-YOLO while removing sparse expert routing. This comparison is kept separate from the main comparison because it is a capacity-control variant rather than a standard baseline. 
+
+4.6. Hyperparameter Sensitivity 
+
+Table 5 reports the sensitivity analysis of the alignment and reliability-related loss weights under the 80-epoch hyperparameter-sweep protocol. The sweep changes one coef-ficient at a time around the default sweep setting while keeping the remaining coefficients fixed. Across the tested range, AP 50 varies from 87.1% to 88.1%, indicating that moderate changes in α, β, and λ do not lead to large performance fluctuations. A smaller β slightly improves AP 50 , whereas the default setting achieves the highest AP 50:95 within this sweep. Therefore, the default configuration is retained as a balanced setting rather than claimed to be the unique optimum. 
+
+4.7. Robustness to Synthetic Cross-Modal Misalignment 
+
+To evaluate spatial-mismatch robustness, the RGB branch is shifted during testing while the infrared branch and labels are unchanged. This perturbation simulates sensor-baseline variation and platform jitter. For each nonzero shift magnitude s, the four directions   
+
+> https://doi.org/10.3390/rs1010000 Version May 21, 2026 submitted to Remote Sens. 10 of 17
+
+Table 5. Sensitivity analysis of loss-balancing hyperparameters under the 80-epoch hyperparameter-sweep protocol.           
+
+> Sweep αβλAP 50 (%) AP 50:95 (%)
+> α0.5 1.0 1.0
+
+×10 −4 87.6 ± 0.3 41.7 ± 1.2 Default † 1.0 1.0 1.0 ×10 −4 87.8 ± 0.6 43.0 ± 1.1    
+
+> α1.5 1.0 1.0
+
+×10 −4 87.2 ± 0.8 41.9 ± 2.2    
+
+> β1.0 0.5 1.0
+
+×10 −4 88.1 ± 0.3 42.2 ± 1.4    
+
+> β1.0 1.5 1.0
+
+×10 −4 87.2 ± 0.7 41.2 ± 0.8    
+
+> λ1.0 1.0 5.0
+
+×10 −5 87.4 ± 0.6 42.2 ± 0.4    
+
+> λ1.0 1.0 1.5
+
+×10 −4 87.1 ± 0.5 41.3 ± 1.8  
+
+> Note: One factor is varied at a time; the default row is shared across sweeps.
+
+Table 6. Robustness under synthetic RGB-to-IR misalignment. The 0 px row uses the aligned-test summary for LER-YOLO; nonzero-shift rows are averaged over available shift directions at each magnitude.                                                                           
+
+> Shift U-TA + Static AP 50
+> Ours AP 50 Gain U-TA + Static AP 50:95
+> Ours AP 50:95 Gain
+> 0 px 87.8 ±0.2 89.7 ±0.2 +1.9 42.1 ±0.5 43.5 ±1.0 +1.4 5 px 87.3 ±0.2 87.3 ±0.3 −0.1 41.3 ±0.3 41.9 ±0.4 +0.6 10 px 87.2 ±0.6 87.0 ±0.4 −0.2 41.1 ±0.3 41.9 ±0.4 +0.7 20 px 86.4 ±0.5 86.2 ±0.6 −0.2 41.1 ±0.4 41.5 ±0.7 +0.4 40 px 85.8 ±0.5 85.8 ±0.4 +0.0 40.6 ±1.0 40.9 ±0.8 +0.3
+
+(s, 0 ), (−s, 0 ), (0, s), and (0, −s) are averaged. Table 6 reports the aligned condition using the same three-seed summary as Table 1, and the shifted conditions using the available repeated evaluations for the U-TA static-fusion baseline and LER-YOLO. Under the aligned condition, LER-YOLO improves both AP 50 and AP 50:95 . Under synthetic shifts, LER-YOLO maintains positive AP 50:95 gains, while AP 50 becomes comparable to the static baseline as the shift increases. We therefore interpret the robustness results conservatively: reliability-aware routing provides a clear aligned-condition gain and maintains positive AP 50:95 gains under synthetic shifts, while AP 50 becomes comparable to the static baseline as the shift increases. 
+
+4.8. Qualitative and Interpretability Analysis 
+
+Figure 4 illustrates the expected expert-allocation tendency under representative degra-dation conditions. This figure is used as a conceptual illustration of the routing mechanism rather than as a statistical claim: in well-aligned daytime scenes, the interaction expert is expected to contribute more; in dark or strongly backlit scenes, the infrared-dominant expert becomes more important; and under severe jitter or misalignment, the router sup-presses risky cross-modal interaction and relies more on modality-specific evidence. The corresponding routing-log summaries and seed-level statistics are treated as supplementary evidence rather than as unverified claims in the main text. The conceptual routing behavior in Figure 4 is complemented by qualitative detection examples in Figure 5. These examples focus on visually challenging anti-UAV cases rather than on easy scenes. In these representative examples, the LER-YOLO prediction shows fewer missed detections, false alarms, and duplicate detections than the static-fusion baseline in low-illumination, bird-interference, and severe-jitter scenes. This qualitative evidence is consistent with the quantitative ablation and robustness analyses, which suggest that explicitly modeling alignment reliability can help reduce harmful fusion when cross-modal correspondence is unreliable. To further examine real routing behavior, we summarize the actual scene-wise rout-ing weights under daytime, dark, and strong-backlight scenes using the adopted k = 3setting. Table 7 reports the mean expert weights and target reliability scores for these 
+
+> https://doi.org/10.3390/rs1010000
+
+Version May 21, 2026 submitted to Remote Sens. 11 of 17 Extremely Dark Lighting Background Bird Interference Severe Jitter and Misalignment Scenarios Baseline Prediction Boxes Proposed (MoE-MBUDet) Prediction Boxes Ground Truth 
+
+> Missed Detection False Alarm False Alarm
+> （Bird ）
+> Missed Detection Double Detection
+
+Figure 5: Qualitative Detection Box Comparison. In the Baseline Prediction Boxes column, dashed red circles severe false alarms (e.g, s (e.g., misidentifying a bird as a UAV in the Background Bird row, or ghostings in the Jitter row). 
+
+> Visualization of causal routing strategy adaptation to dynamic environment degradation:Active fusion in ideal conditions,robust IR focus at night,and single-modality selection during jitter prevent feature contamination and close system fault-tolerance loop.
+
+Adaptive Expert Weight Allocation Across Dynamic Scenarios 
+
+wrgb 
+
+wir 
+
+winter 
+
+wrgb 
+
+wir 
+
+winter 
+
+wrgb 
+
+wir 
+
+winter 
+
+Daytime Well-Aligned Dark Night Strong Backlight Severe Jitter Misalignment 
+
+# wrgb 
+
+# wir 
+
+# winter 
+
+(RGB-dominant Expert) (IR-dominant Expert) (Interactive Fusion Expert) 
+
+> Weight Percentage(%)
+
+0% 20% 40% 60% 80% 100% 
+
+Figure 4. Conceptual illustration of adaptive expert-weight allocation under representative UAV remote-sensing scenarios. The diagram summarizes the intended behavior of reliability-guided routing: stronger interactive fusion in reliable daytime scenes, stronger infrared-dominant processing under dark or backlit conditions, and reduced risky interaction under severe jitter or misalignment. Extremely Dark Lighting Background Bird Interference Severe Jitter and Misalignment Scenarios Baseline Prediction Boxes LER-YOLO Prediction Ground Truth 
+
+> Missed Detection False Alarm False Alarm
+> （Bird ）
+> Missed Detection Duplicate Detection
+
+Figure 5: Qualitative Detection Box Comparison. In the Baseline Prediction Boxes column, dashed red circles severe false alarms (e.g, s (e.g., misidentifying a bird as a UAV in the Background Bird row, or ghostings in the Jitter row). 
+
+> Visualization of causal routing strategy adaptation to dynamic environment degradation:Active fusion in ideal conditions,robust IR focus at night,and single-modality selection during jitter prevent feature contamination and close system fault-tolerance loop.
+
+winter winter 
+
+Daytime Well-Aligned Dark Night Strong Backlight Severe Jitter Misalignment 
+
+# winter 
+
+(Interactive Fusion Expert) 
+
+> Weight Percentage(%)
+
+0% 20% 
+
+Figure 5. Qualitative detection comparison under challenging anti-UAV remote-sensing scenes. The baseline prediction column shows representative missed detection, false alarm, and duplicate detection cases, while the LER-YOLO prediction column shows more reliable localization under low illumination, bird-like clutter, and severe jitter or misalignment. 
+
+three scene types, and Figure 6 shows representative RGB-infrared examples with the measured weights. The interaction expert receives the largest average weight in all three groups, while the infrared-dominant expert consistently obtains a slightly larger weight than the RGB-dominant expert. This trend is consistent with the role of infrared sensing under difficult illumination conditions, and the non-identical weights across scenes indicate adaptive rather than fixed routing. 
+
+4.9. Model Complexity 
+
+Table 8 reports model size and FLOPs under the reproduced profiling setting. The adopted final implementation uses top-k routing with k = 3 over the current three-expert pool; therefore, the present complexity is close to full-expert execution while retaining content-adaptive routing weights and an extensible top-k formulation. Runtime metrics are not included in the main tables because the current implementation has routing overhead and speed is not used as an advantage claim. 
+
+https://doi.org/10.3390/rs1010000 Version May 21, 2026 submitted to Remote Sens. 12 of 17 
+
+Table 7. Scene-wise actual routing weights of the Reliability-Guided Sparse MoE Fusion module under three representative scene types.                          
+
+> Scene NRtarget wrgb wir winter
+> Daytime 1393 0.3272 0.2917 0.3301 0.3782 Dark 242 0.3053 0.2891 0.3319 0.3790 Backlight 39 0.3439 0.2884 0.3266 0.3850
+> Note: Rtarget is the average target-region reliability from the adopted k=3 model.
+
+Figure 6. Representative RGB-infrared examples and measured expert weights under daytime, dark, and strong-backlight scenes. 
+
+4.10. Discussion and Limitations 
+
+The experimental results support three observations. First, RGB-only and infrared-only detection both provide useful single-modality evidence on the MBU benchmark, with infrared remaining slightly stronger under the infrared-reference protocol. This is consistent with UAV infrared remote-sensing studies, where thermal imagery remains useful under low illumination, cluttered backgrounds, and long-range observation. Second, naive fusion improves over single-modality detection, and alignment-aware plus reliability-aware fusion further improves the results. Third, the parameter-matched comparison shows that additional parameters alone do not explain the gain; routing decisions based on alignment reliability are important. The method also has limitations. In the current three-expert implementation, the final default setting k = 3 does not reduce execution to a strict sparse subset, so the computational advantage of sparse activation will become more meaningful after the expert pool is extended. The routing branch also introduces implementation overhead, and further kernel-level optimization may be required for embedded deployment. The synthetic-shift analysis is a controlled stress test rather than a complete replacement for real sensor-calibration changes. Moreover, the evaluation follows the public MBU protocol, and broader validation on additional airborne, ground-to-air, and UAV-mounted RGB-infrared remote-sensing platforms would further test generalization. These limitations   
+
+> https://doi.org/10.3390/rs1010000 Version May 21, 2026 submitted to Remote Sens. 13 of 17
+
+Table 8. Model complexity and detection performance under the reproduced profiling protocol.                                                               
+
+> Method Params (M) FLOPs (G) P (%) R (%) AP 50 (%)
+> YOLOv5s-RGB 7.1 4.1 90.6 ±1.5 76.1 ±1.6 80.7 ±0.9 YOLOv5s-IR 7.1 4.1 91.1 ±1.5 76.5 ±1.6 81.2 ±0.7 U-TA Static 12.205 7.4 95.5 ±1.5 83.6 ±1.3 87.8 ±0.2 PM Static 12.7 8.1 95.4 ±1.1 83.0 ±1.0 87.5 ±0.7 LER-YOLO 12.21 7.5 96.9 ±0.5 86.5 ±0.5 89.7 ±0.2
+> Note: FLOPs are measured under the reproduced profiling setting; U-TA Static and PM Static denote U-TA with static fusion and parameter-matched static fusion, respectively.
+
+motivate future work on richer expert pools, lighter routing networks, hardware-aware sparse execution, and broader cross-platform validation. 
+
+## 5. Conclusion 
+
+This paper presents LER-YOLO, a reliability-aware sparse MoE fusion framework for misaligned RGB-infrared remote-sensing UAV target detection. The method connects Uncertainty-Aware Target Alignment (U-TA) with Reliability-Guided Sparse MoE Fusion, allowing the detector to decide when aligned RGB features should be trusted for cross-modal interaction and when modality-specific evidence should dominate. On the public MBU benchmark, LER-YOLO achieves 89.7 ±0.2% AP 50 across three independent seeds, with a best run of 89.9%. Ablation, parameter-matched comparison, synthetic-shift testing, qualitative visualization, and model-complexity reporting suggest that the improvement is mainly associated with reliability-aware multimodal interaction rather than parameter growth alone. Future work will investigate richer expert pools, lighter routing networks, hardware-aware sparse execution, and broader validation on additional airborne, ground-to-air, and UAV-mounted RGB-infrared remote-sensing platforms. 
+
+Supplementary Materials: The following supporting information is prepared for submission with the manuscript: Table S1, seed-level AP 50 results and training-log provenance; Table S2, synthetic-shift results by direction; Table S3, routing-weight or reliability-statistics summaries; and representative reliability-map or detection-case provenance used for the qualitative figures. 
+
+Author Contributions: Conceptualization, L.H.; methodology, L.H.; software, L.H.; validation, H.H.; formal analysis, L.H.; investigation, J.W.; resources, Y.H.; data curation, X.Z.; writing—original draft preparation, L.H.; writing—review and editing, Z.Y.; visualization, W.T.; supervision, Y.P.; project administration, X.Y.; funding acquisition, Y.P. All authors have read and agreed to the published version of the manuscript. 
+
+Funding: This research was funded by the 2025 Equipment Comprehensive Research Project, grant number WJ2025C0401013, January 2026–December 2026; the 2025 Basic Frontier Innovation Project, grant number WJY202509, June 2025–May 2027; and the 2024 Second Batch Scientific Research Project entitled “Research on Airborne-Vision-Based Counter Low-Slow-Small UAV Systems”, July 2024–June 2029. 
+
+Institutional Review Board Statement: Not applicable. This study uses a public UAV image benchmark and does not involve human participants, animals, or personally identifiable private data. 
+
+Informed Consent Statement: Not applicable. 
+
+Data Availability Statement: The data analyzed in this study are from the public Misaligned Bimodal UAV (MBU) benchmark introduced with MBUDet [3]. The MBU benchmark is derived from the public Anti-UAV RGB-infrared tracking dataset [2] through frame extraction and watermark removal. The MBUDet project and dataset information are available at https://github.com/Yipzcc/ MBUDet. No new image dataset was created in this study. Supplementary files include seed-level summaries, routing-statistics summaries, and synthetic-shift evaluation records. Additional training   
+
+> https://doi.org/10.3390/rs1010000 Version May 21, 2026 submitted to Remote Sens. 14 of 17
+
+logs and checkpoints are available from the corresponding author upon reasonable request, subject to repository and storage limitations. 
+
+Acknowledgments: The authors thank the providers of the Anti-UAV and MBU benchmarks for making the RGB-infrared UAV data available for academic research. The authors also thank the Engineering University of PAP for research support. 
+
+Conflicts of Interest: The authors declare no conflicts of interest. 
+
+## The following abbreviations are used in this manuscript: AP Average precision IR Infrared LER Local-reliability expert routing MBU Misaligned Bimodal UAV MoE Mixture of experts Sparse MoE Sparse mixture of experts RGB Red-green-blue visible imagery RG Reliability guidance TA Target alignment UAV Unmanned aerial vehicle U-TA Uncertainty-aware target alignment References 
+
+1. Redmon, J.; Divvala, S.; Girshick, R.; Farhadi, A. You Only Look Once: Unified, Real-Time Object Detection. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR) , Las Vegas, NV, USA, 27–30 June 2016; pp. 779–788. 2. Jiang, N.; Wang, K.; Peng, X.; Yu, X.; Wang, Q.; Xing, J.; Li, G.; Zhao, J.; Guo, G.; Han, Z.; et al. Anti-UAV: A Large Multi-Modal Benchmark for UAV Tracking. arXiv 2021 , arXiv:2101.08466. 3. Ye, Z.; Hao, H.; Peng, Y.; Tang, W.; Zhang, X.; Han, B.; Zhai, H. MBUDet: Misaligned Bimodal UAV Target Detection via Target Offset Label Generation. Inf. Fusion 2026 , 127 , 103756. https://doi.org/10.1016/j.inffus.2025.103756. 4. Dong, Y.; Wu, F.; Zhang, S.; Chen, G.; Hu, Y.; Yano, M.; Sun, J.; Huang, S.; Liu, F.; Dai, Q.; et al. Securing the Skies: A Comprehensive Survey on Anti-UAV Methods, Benchmarking, and Future Directions. arXiv 2025 , arXiv:2504.11967. 5. Pereira, A.; Warwick, S.; Moutinho, A.; Suleman, A. Infrared and Visible Camera Integration for Detection and Tracking of Small UAVs: Systematic Evaluation. Drones 2024 , 8, 650. https://doi.org/10.3390/drones8110650. 6. Svanstrom, F.; Alonso-Fernandez, F.; Englund, C. Drone Detection and Tracking in Real-Time by Fusion of Different Sensing Modalities. Drones 2022 , 6, 317. https://doi.org/10.3390/drones6110317. 7. Zhao, X.; Zhang, W.; Zhang, H.; Zheng, C.; Ma, J.; Zhang, Z. ITD-YOLOv8: An Infrared Target Detection Model Based on YOLOv8 for Unmanned Aerial Vehicles. Drones 2024 , 8, 161. https://doi.org/10.3390/drones8040161. 8. Zhao, X.; Zhang, W.; Xia, Y.; Zhang, H.; Zheng, C.; Ma, J.; Zhang, Z. G-YOLO: A Lightweight Infrared Aerial Remote Sensing Target Detection Model for UAVs Based on YOLOv8. Drones 2024 , 8, 495. https://doi.org/10.3390/drones8090495. 9. Ding, B.; Zhang, Y.; Ma, S. A Lightweight Real-Time Infrared Object Detection Model Based on YOLOv8 for Unmanned Aerial Vehicles. Drones 2024 , 8, 479. https://doi.org/10.3390/drones8090479. 10. Huang, Y.; Qu, J.; Wang, H.; Yang, J. An All-Time Detection Algorithm for UAV Images in Urban Low Altitude. Drones 2024 , 8,332. https://doi.org/10.3390/drones8070332. 11. Wang, Z.; Dang, C.; Zhang, R.; Wang, L.; He, Y.; Wu, R. MDDFA-Net: Multi-Scale Dynamic Feature Extraction from Drone-Acquired Thermal Infrared Imagery. Drones 2025 , 9, 224. https://doi.org/10.3390/drones9030224. 12. Chen, R.; Li, D.; Gao, Z.; Kuai, Y.; Wang, C. Drone-Based Visible-Thermal Object Detection with Transformers and Prompt Tuning. 
+
+Drones 2024 , 8, 451. https://doi.org/10.3390/drones8090451. 13. Dadboud, F.; Patel, V.; Mehta, V.; Bolic, M.; Mantegh, I. Single-Stage UAV Detection and Classification with YOLOv5: Mosaic Data Augmentation and PANet. In Proceedings of the 17th IEEE International Conference on Advanced Video and Signal Based Surveillance (AVSS) , Washington, DC, USA, 16–19 November 2021; pp. 1–8. 14. Tang, G.; Ni, J.; Zhao, Y.; Gu, Y.; Cao, W. A Survey of Object Detection for UAVs Based on Deep Learning. Remote Sens. 2024 , 16 ,149.   
+
+> https://doi.org/10.3390/rs1010000 Version May 21, 2026 submitted to Remote Sens. 15 of 17
+
+15. Dai, J.; Wu, L.; Wang, P. Overview of UAV Target Detection Algorithms Based on Deep Learning. In Proceedings of the 2021 IEEE 2nd International Conference on Information Technology, Big Data and Artificial Intelligence (ICIBA) , Chongqing, China, 17–19 December 2021; pp. 736–745. 16. Lyu, Y.; Liu, Z.; Li, H.; Guo, D.; Fu, Y. A Real-Time and Lightweight Method for Tiny Airborne Object Detection. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition Workshops (CVPRW) , Vancouver, BC, Canada, 18–22 June 2023; pp. 3016–3025. 17. Munir, A.; Siddiqui, A.J.; Anwar, S. Investigation of UAV Detection in Images with Complex Backgrounds and Rainy Artifacts. In 
+
+Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision Workshops (WACVW) , Waikoloa, HI, USA, 3–8 January 2024; pp. 232–241. 18. El Ahmar, W.; Massoud, Y.; Kolhatkar, D.; AlGhamdi, H.; Alja’Afreh, M.; Laganiere, R.; Hammoud, R. Enhanced Thermal-RGB Fusion for Robust Object Detection. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition Workshops (CVPRW) , Vancouver, BC, Canada, 18–22 June 2023; pp. 365–374. 19. Park, S.; Vien, A.G.; Lee, C. Cross-Modal Transformers for Infrared and Visible Image Fusion. IEEE Trans. Circuits Syst. Video Technol. 2024 , 34 , 770–785. 20. Wang, F.; Su, Y.; Wang, R.; Sun, J.; Sun, F.; Li, H. Cross-Modal and Cross-Level Attention Interaction Network for Salient Object Detection. IEEE Trans. Artif. Intell. 2024 , 5, 2907–2920. 21. Zhu, P.; Sun, Y.; Cao, B.; Hu, Q. Task-Customized Mixture of Adapters for General Image Fusion. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , Seattle, WA, USA, 17–21 June 2024; pp. 7099–7108. 22. Chen, C.; Qi, J.; Liu, X.; Bin, K.; Fu, R.; Hu, X.; Zhong, P. Weakly Misalignment-Free Adaptive Feature Alignment for UAVs-Based Multimodal Object Detection. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , Seattle, WA, USA, 17–21 June 2024; pp. 26826–26835. 23. Liu, Z.; Luo, H.; Wang, Z.; Wei, Y.; Zuo, H.; Zhang, J. Cross-Modal Offset-Guided Dynamic Alignment and Fusion for Weakly Aligned UAV Object Detection. arXiv 2025 , arXiv:2506.16737. 24. Xiao, Y.; Meng, F.; Wu, Q.; Xu, L.; He, M.; Li, H. GM-DETR: Generalized Multispectral Detection Transformer with Efficient Fusion Encoder for Visible-Infrared Detection. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition Workshops (CVPRW) , Seattle, WA, USA, 17–21 June 2024; pp. 5541–5549. 25. Dai, J.; Qi, H.; Xiong, Y.; Li, Y.; Zhang, G.; Hu, H.; Wei, Y. Deformable Convolutional Networks. In Proceedings of the IEEE International Conference on Computer Vision (ICCV) , Venice, Italy, 22–29 October 2017; pp. 764–773. 26. Jaderberg, M.; Simonyan, K.; Zisserman, A.; Kavukcuoglu, K. Spatial Transformer Networks. In Proceedings of the Advances in Neural Information Processing Systems (NeurIPS) , Montreal, QC, Canada, 7–12 December 2015; pp. 2017–2025. 27. He, M.; Wu, Q.; Ngan, K.N.; Jiang, F.; Meng, F.; Xu, L. Misaligned RGB-Infrared Object Detection via Adaptive Dual-Discrepancy Calibration. Remote Sens. 2023 , 15 , 4887. 28. Tu, Z.; Li, Z.; Li, C.; Tang, J. Weakly Alignment-Free RGBT Salient Object Detection with Deep Correlation Network. IEEE Trans. Image Process. 2022 , 31 , 3752–3764. 29. Song, K.; Wen, H.; Xue, X.; Huang, L.; Ji, Y.; Yan, Y. Modality Registration and Object Search Framework for UAV-Based Unregistered RGB-T Image Salient Object Detection. IEEE Trans. Geosci. Remote Sens. 2023 , 61 , 1–15. 30. Shen, F.; Wang, C.; Gao, J.; Guo, Q.; Dang, J.; Tang, J.; Chua, T.-S. Long-Term TalkingFace Generation via Motion-Prior Conditional Diffusion Model. In Proceedings of the Forty-Second International Conference on Machine Learning (ICML) , 2025. 31. Shen, F.; Tang, J. ImagPose: A Unified Conditional Framework for Pose-Guided Person Generation. Advances in Neural Information Processing Systems 2024 , 37 , 6246–6266. 32. Shen, F.; Jiang, X.; He, X.; Ye, H.; Wang, C.; Du, X.; Li, Z.; Tang, J. ImagDressing-v1: Customizable Virtual Dressing. In Proceedings of the AAAI Conference on Artificial Intelligence , 2025; Volume 39, Number 7, pp. 6795–6804. 33. Shen, F.; Ye, H.; Zhang, J.; Wang, C.; Han, X.; Wei, Y. Advancing Pose-Guided Image Synthesis with Progressive Conditional Diffusion Models. In Proceedings of the International Conference on Learning Representations (ICLR) , 2024. 34. Shen, F.; Ye, H.; Liu, S.; Zhang, J.; Wang, C.; Han, X.; Wei, Y. Boosting Consistency in Story Visualization with Rich-Contextual Conditional Diffusion Models. In Proceedings of the AAAI Conference on Artificial Intelligence , 2025; Volume 39, Number 7, pp. 6785–6794. 35. Kendall, A.; Gal, Y. What Uncertainties Do We Need in Bayesian Deep Learning for Computer Vision? In Proceedings of the Advances in Neural Information Processing Systems (NeurIPS) , Long Beach, CA, USA, 4–9 December 2017; pp. 5574–5584. 36. Cho, M.; Cao, Y.; Sun, J.; Zhang, Q.; Pavone, M.; Park, J.J.; Yang, H.; Mao, Z.M. Cocoon: Robust Multi-Modal Perception with Uncertainty-Aware Sensor Fusion. arXiv 2024 , arXiv:2410.12592. 37. Shazeer, N.; Mirhoseini, A.; Maziarz, K.; Davis, A.; Le, Q.; Hinton, G.; Dean, J. Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer. In Proceedings of the International Conference on Learning Representations (ICLR) , Toulon, France, 24–26 April 2017.   
+
+> https://doi.org/10.3390/rs1010000 Version May 21, 2026 submitted to Remote Sens. 16 of 17
+
+38. Chen, T.; Chen, X.; Du, X.; Rashwan, A.; Yang, F.; Chen, H.; Wang, Z.; Li, Y. AdaMV-MoE: Adaptive Multi-Task Vision Mixture-of-Experts. In Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV) , Paris, France, 2–6 October 2023; pp. 17300–17311. 39. Meiraz, O.; Shalev, S.; Weizman, A. YOLO Meets Mixture-of-Experts: Adaptive Expert Routing for Robust Object Detection. arXiv 
+
+2025 , arXiv:2511.13344. 40. Li, Y.; Hou, Y.; Wei, Y.; Zhu, X.; Ma, Y.; Shao, W.; Guo, Y. MoE3D: Mixture of Experts Meets Multi-Modal 3D Understanding. arXiv 
+
+2025 , arXiv:2511.22103. 41. Lin, H.; Huang, X.; Wen, C.; Wang, C. AW-MoE: All-Weather Mixture of Experts for Robust Multi-Modal 3D Object Detection. 
+
+arXiv 2026 , arXiv:2603.16261. 42. Zhang, J.; Lei, J.; Xie, W.; Fang, Z.; Li, Y.; Du, Q. SuperYOLO: Super Resolution Assisted Object Detection in Multimodal Remote Sensing Imagery. IEEE Trans. Geosci. Remote Sens. 2023 , 61 , 1–15. 43. Chen, Y.; Wang, B.; Guo, X.; Zhu, W.; He, J.; Liu, X.; Yuan, J. DEYOLO: Dual-Feature-Enhancement YOLO for Cross-Modality Object Detection. In Proceedings of the International Conference on Pattern Recognition , Kolkata, India, 1–5 December 2024; pp. 236–252. 44. Wang, Z.; Liao, X.; Yuan, J.; Yao, Y.; Li, Z. CDC-YOLOFusion: Leveraging Cross-Scale Dynamic Convolution Fusion for Visible-Infrared Object Detection. IEEE Trans. Intell. Veh. 2024 , 10 , 2080–2093. 45. Qingyun, F.; Dapeng, H.; Zhaokui, W. Cross-Modality Fusion Transformer for Multispectral Object Detection. arXiv 2021 ,arXiv:2111.00273. 46. Shen, J.; Chen, Y.; Liu, Y.; Zuo, X.; Fan, H.; Yang, W. ICAFusion: Iterative Cross-Attention Guided Feature Fusion for Multispectral Object Detection. Pattern Recognit. 2024 , 145 , 109913. 47. Chen, Y.T.; Shi, J.; Ye, Z.; Mertz, C.; Ramanan, D.; Kong, S. Multimodal Object Detection via Probabilistic Ensembling. In 
+
+Proceedings of the European Conference on Computer Vision (ECCV) , Tel Aviv, Israel, 23–27 October 2022; pp. 139–158. 48. Xiao, Y.; Xu, T.; Xin, Y.; Li, J. FBRT-YOLO: Faster and Better for Real-Time Aerial Image Detection. In Proceedings of the AAAI Conference on Artificial Intelligence , Philadelphia, PA, USA, 25 February–4 March 2025; pp. 8673–8681. 49. Guo, J.; Gao, C.; Liu, F.; Meng, D. DPDETR: Decoupled Position Detection Transformer for Infrared-Visible Object Detection. 
+
+arXiv 2025 , arXiv:2408.06123. 50. Qin, H.; Xu, T.; Li, T.; Chen, Z.; Feng, T.; Li, J. MUST: The First Dataset and Unified Framework for Multispectral UAV Single Object Tracking. arXiv 2025 , arXiv:2503.17699. 51. Lee, C.; Anderson, M.; Raganathan, N.; Zuo, X.; Do, K.; Gkioxari, G.; Chung, S.J. Caltech Aerial RGB-Thermal Dataset in the Wild. 
+
+arXiv 2024 , arXiv:2403.08997. 52. Bin, K.; Chen, C.; Hu, T.; Qi, J.; Zhong, P. ATR-UMMIM: A Benchmark Dataset for UAV-Based Multimodal Image Registration under Complex Imaging Conditions. arXiv 2025 , arXiv:2507.20764. 53. Chen, C.; Bin, K.; Hu, T.; Qi, J.; Liu, X.; Liu, T.; Liu, Z.; Liu, Y.; Zhong, P. Fusion Meets Diverse Conditions: A High-Diversity Benchmark and Baseline for UAV-Based Multimodal Object Detection with Condition Cues. arXiv 2025 , arXiv:2510.13620. 54. Huang, L.; Li, Y.; Zhang, S. High-Altitude Infrared Thermal Object Detection for UAVs Based on an Improved RT-DETR. In 
+
+Proceedings of the 2025 International Conference on Computer and Information Processing Technology , 2025; pp. 316–321. 55. Xie, B.; Zhang, C.; Wang, F.; Liu, P.; Lu, F.; Chen, Z.; Hu, W. CST Anti-UAV: A Thermal Infrared Benchmark for Tiny UAV Tracking in Complex Scenes. arXiv 2025 , arXiv:2507.23473. 56. Yang, Z.; Yu, H.; Zhang, J.; Tang, Q.; Mian, A. Deep Learning Based Infrared Small Object Segmentation: Challenges and Future Directions. Inf. Fusion 2025 , 118 , 103007. 57. Ying, X.; Xiao, C.; An, W.; Li, R.; He, X.; Li, B.; Cao, X.; Li, Z.; Wang, Y.; Hu, M.; et al. Visible-Thermal Tiny Object Detection: A Benchmark Dataset and Baselines. IEEE Trans. Pattern Anal. Mach. Intell. 2025 , 47 , 6088–6096. 58. Li, S.; Liu, Z.; Hong, Z.; Zhou, Z.; Cao, X. DEPFusion: Dual-Domain Enhancement and Priority-Guided Mamba Fusion for UAV Multispectral Object Detection. arXiv 2025 , arXiv:2509.07327. 59. Liu, C.; Ma, X.; Yang, X.; Zhang, Y.; Dong, Y. COMO: Cross-Mamba Interaction and Offset-Guided Fusion for Multimodal Object Detection. arXiv 2024 , arXiv:2412.18076. 60. Nguyen, T.L.; Tran, C.T.; Nguyen Thi, H.V. Cf-Yolo: Cross-Modal Fusion for Weakly Aligned RGB-IR UAV Object Detection. In 
+
+Proceedings of the 2025 International Symposium on Communications and Information Technologies , 2025; pp. 254–259. 61. Zuo, X.; Qu, C.; Zhan, H.; Shen, J.; Yang, W. SFFR: Spatial-Frequency Feature Reconstruction for Multispectral Aerial Object Detection. arXiv 2025 , arXiv:2511.06298. 62. Li, H.; Liu, J.; Zhang, Y.; Liu, Y. A Deep Learning Framework for Infrared and Visible Image Fusion without Strict Registration. 
+
+Int. J. Comput. Vis. 2024 , 132 , 1625–1644. 63. Tang, L.; Deng, Y.; Ma, Y.; Huang, J.; Ma, J. SuperFusion: A Versatile Image Registration and Fusion Network with Semantic Awareness. IEEE/CAA J. Autom. Sin. 2022 , 9, 2121–2137.   
+
+> https://doi.org/10.3390/rs1010000 Version May 21, 2026 submitted to Remote Sens. 17 of 17
+
+64. Xie, H.; Zhang, Y.; Qiu, J.; Zhai, X.; Liu, X.; Yang, Y.; Zhao, S.; Luo, Y.; Zhong, J. Semantics Lead All: Towards Unified Image Registration and Fusion from a Semantic Perspective. Inf. Fusion 2023 , 98 , 101835. 65. Yuan, M.; Wei, X.; Xingxing. C2Former: Calibrated and Complementary Transformer for RGB-Infrared Object Detection. IEEE Trans. Geosci. Remote Sens. 2024 , 62 , 1–12. 66. Yuan, M.; Shi, X.; Wang, N.; Wang, Y.; Wei, X. Improving RGB-Infrared Object Detection with Cascade Alignment-Guided Transformer. Inf. Fusion 2024 , 105 , 102246. 67. Yuan, M.; Wang, Y.; Wei, X. Translation, Scale and Rotation: Cross-Modal Alignment Meets RGB-Infrared Vehicle Detection. In 
+
+Proceedings of the European Conference on Computer Vision (ECCV) , Tel Aviv, Israel, 23–27 October 2022; pp. 509–525. 68. Law, H.; Deng, J. CornerNet: Detecting Objects as Paired Keypoints. In Proceedings of the European Conference on Computer Vision (ECCV) , Munich, Germany, 8–14 September 2018; pp. 734–750. 69. Duan, K.; Bai, S.; Xie, L.; Qi, H.; Huang, Q.; Tian, Q. CenterNet: Keypoint Triplets for Object Detection. In Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV) , Seoul, Republic of Korea, 27 October–2 November 2019; pp. 6569–6578. 70. Hashemi, N.S.; Aghdam, R.B.; Ghiasi, A.S.B.; Fatemi, P. Template Matching Advances and Applications in Image Analysis. arXiv 
+
+2016 , arXiv:1610.07231. 71. Gross, M.; Matha, S.B.; Song, R.; Muthuveerappan, V.; Christoph, C.; Huber, J.; Cremers, D. SegFly: A 2D-3D-2D Paradigm for Aerial RGB-Thermal Semantic Segmentation at Scale. arXiv 2026 , arXiv:2603.17920. 
+
+Disclaimer/Publisher’s Note: The statements, opinions and data contained in all publications are solely those of the individual author(s) and contributor(s) and not of MDPI and/or the editor(s). MDPI and/or the editor(s) disclaim responsibility for any injury to people or property resulting from any ideas, methods, instructions or products referred to in the content.

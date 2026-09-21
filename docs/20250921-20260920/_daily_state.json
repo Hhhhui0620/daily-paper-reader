@@ -1,0 +1,329 @@
+{
+  "date": "20250921-20260920",
+  "date_label": "2025-09-21 ～ 2026-09-20",
+  "generated_at": "2026-09-21T02:03:51.841782+00:00",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2605.20667v1",
+      "route": "20250921-20260920/2605.20667v1",
+      "title": "LER-YOLO: Reliability-Aware Expert Routing for Misaligned RGB-Infrared UAV Detection",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "面向RGB-红外无人机小目标检测，用可靠性感知稀疏专家路由处理跨模态空间错位。",
+      "first_seen_at": "2026-09-21T02:03:51.714281+00:00",
+      "updated_at": "2026-09-21T02:03:51.714281+00:00"
+    },
+    {
+      "paper_id": "2512.21856v1",
+      "route": "20250921-20260920/2512.21856v1",
+      "title": "Breaking Alignment Barriers: TPS-Driven Semantic Correlation Learning for Alignment-Free RGB-T Salient Object Detection",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "面向UAV-RGBT显著目标检测，解决无对齐跨模态图像的空间错位与语义关联问题。",
+      "first_seen_at": "2026-09-21T02:03:51.710499+00:00",
+      "updated_at": "2026-09-21T02:03:51.710499+00:00"
+    },
+    {
+      "paper_id": "2609.12622v1",
+      "route": "20250921-20260920/2609.12622v1",
+      "title": "RA-SOD: Reliability-Aware RGB-T Salient Object Detection under Modality Degradation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.741645+00:00",
+      "updated_at": "2026-09-21T02:03:51.741645+00:00"
+    },
+    {
+      "paper_id": "2608.27971v2",
+      "route": "20250921-20260920/2608.27971v2",
+      "title": "GAAT: Geometry-Aware Alignment Transformer for Multimodal UAV Perception",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.737039+00:00",
+      "updated_at": "2026-09-21T02:03:51.737039+00:00"
+    },
+    {
+      "paper_id": "2604.26893v2",
+      "route": "20250921-20260920/2604.26893v2",
+      "title": "Graph-based Semantic Calibration Network for Unaligned UAV RGBT Image Semantic Segmentation and A Large-scale Benchmark",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.732834+00:00",
+      "updated_at": "2026-09-21T02:03:51.732834+00:00"
+    },
+    {
+      "paper_id": "2603.12685v1",
+      "route": "20250921-20260920/2603.12685v1",
+      "title": "RSONet: Region-guided Selective Optimization Network for RGB-T Salient Object Detection",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.729047+00:00",
+      "updated_at": "2026-09-21T02:03:51.729047+00:00"
+    },
+    {
+      "paper_id": "2608.29235v1",
+      "route": "20250921-20260920/2608.29235v1",
+      "title": "Uncertainty-Aware Multimodal Anti-UAV Detection via Evidential Fusion and Conflict-Discounted Belief Aggregation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.841782+00:00",
+      "updated_at": "2026-09-21T02:03:51.841782+00:00"
+    },
+    {
+      "paper_id": "2608.17475v1",
+      "route": "20250921-20260920/2608.17475v1",
+      "title": "S$^3$AM: A Single-Stream SAM with Reliability-Calibrated Frequency Adapter for Multi-modal Salient Object Detection",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.832456+00:00",
+      "updated_at": "2026-09-21T02:03:51.832456+00:00"
+    },
+    {
+      "paper_id": "2608.11685v1",
+      "route": "20250921-20260920/2608.11685v1",
+      "title": "EGM-Det: Entropy-Guided Multimodal Adaptive Fusion for UAV RGB-IR Object Detection",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.822851+00:00",
+      "updated_at": "2026-09-21T02:03:51.822851+00:00"
+    },
+    {
+      "paper_id": "2608.10680v1",
+      "route": "20250921-20260920/2608.10680v1",
+      "title": "Bridging Severe Cross-Modal Misalignment: End-to-End Visible-Infrared Object Detection via Explicit Feature-Domain Affine Registration",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.814201+00:00",
+      "updated_at": "2026-09-21T02:03:51.814201+00:00"
+    },
+    {
+      "paper_id": "2607.15628v1",
+      "route": "20250921-20260920/2607.15628v1",
+      "title": "MSTF-Net: A UAV-Oriented Multi-Spectral Video Segmentation Method via Modality-Robust, Scale-Adaptive, and Consistent Fusion",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.805924+00:00",
+      "updated_at": "2026-09-21T02:03:51.805924+00:00"
+    },
+    {
+      "paper_id": "2606.24092v1",
+      "route": "20250921-20260920/2606.24092v1",
+      "title": "Progressive Pixel-Neighborhood Deformable Cross-Attention for Multispectral Object Detection",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.797879+00:00",
+      "updated_at": "2026-09-21T02:03:51.797879+00:00"
+    },
+    {
+      "paper_id": "2606.01173v2",
+      "route": "20250921-20260920/2606.01173v2",
+      "title": "Bridging Multimodal Fusion and Expert Routing via Spectral Reliability Descriptors for Robust Object Detection",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.790061+00:00",
+      "updated_at": "2026-09-21T02:03:51.790061+00:00"
+    },
+    {
+      "paper_id": "2605.26273v1",
+      "route": "20250921-20260920/2605.26273v1",
+      "title": "Frequency-Guided Fusion For RGB-Thermal Semantic Segmentation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.782819+00:00",
+      "updated_at": "2026-09-21T02:03:51.782819+00:00"
+    },
+    {
+      "paper_id": "2604.17585v1",
+      "route": "20250921-20260920/2604.17585v1",
+      "title": "DGSSM: Diffusion guided state-space models for multimodal salient object detection",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.775816+00:00",
+      "updated_at": "2026-09-21T02:03:51.775816+00:00"
+    },
+    {
+      "paper_id": "2604.05689v1",
+      "route": "20250921-20260920/2604.05689v1",
+      "title": "CRFT: Consistent-Recurrent Feature Flow Transformer for Cross-Modal Image Registration",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.769255+00:00",
+      "updated_at": "2026-09-21T02:03:51.769255+00:00"
+    },
+    {
+      "paper_id": "2603.06925v1",
+      "route": "20250921-20260920/2603.06925v1",
+      "title": "Small Target Detection Based on Mask-Enhanced Attention Fusion of Visible and Infrared Remote Sensing Images",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.763025+00:00",
+      "updated_at": "2026-09-21T02:03:51.763025+00:00"
+    },
+    {
+      "paper_id": "2511.10046v2",
+      "route": "20250921-20260920/2511.10046v2",
+      "title": "FreDFT: Frequency Domain Fusion Transformer for Visible-Infrared Object Detection",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.757150+00:00",
+      "updated_at": "2026-09-21T02:03:51.757150+00:00"
+    },
+    {
+      "paper_id": "2510.03689v1",
+      "route": "20250921-20260920/2510.03689v1",
+      "title": "SAMSOD: Rethinking SAM Optimization for RGB-T Salient Object Detection",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.751679+00:00",
+      "updated_at": "2026-09-21T02:03:51.751679+00:00"
+    },
+    {
+      "paper_id": "2509.18738v1",
+      "route": "20250921-20260920/2509.18738v1",
+      "title": "HyPSAM: Hybrid Prompt-driven Segment Anything Model for RGB-Thermal Salient Object Detection",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-09-21T02:03:51.746476+00:00",
+      "updated_at": "2026-09-21T02:03:51.746476+00:00"
+    }
+  ]
+}
