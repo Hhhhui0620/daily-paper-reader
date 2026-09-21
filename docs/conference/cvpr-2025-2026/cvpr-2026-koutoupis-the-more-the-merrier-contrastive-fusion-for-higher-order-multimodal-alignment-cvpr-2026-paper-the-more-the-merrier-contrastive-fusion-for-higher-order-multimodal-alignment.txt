@@ -1,0 +1,296 @@
+Title: THE MORE, THE MERRIER: CONTRASTIVE FUSION FOR HIGHER-ORDER MULTIMODAL ALIGNMENT
+
+URL Source: https://openaccess.thecvf.com/content/CVPR2026/papers/Koutoupis_THE_MORE_THE_MERRIER_CONTRASTIVE_FUSION_FOR_HIGHER-ORDER_MULTIMODAL_ALIGNMENT_CVPR_2026_paper.pdf
+
+Published Time: Sat, 16 May 2026 16:47:16 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+# THE MORE, THE MERRIER: CONTRASTIVE FUSION FOR HIGHER-ORDER MULTIMODAL ALIGNMENT 
+
+## Stefanos Koutoupis 1,2,*, Michaela Areti Zervou 1,2, Konstantinos Kontras 3,Maarten De Vos 3, Panagiotis Tsakalides 1,2, Grigorios Tsagkatakis 1,21Foundation for Research and Technology-Hellas, 
+
+> 2
+
+## University of Crete, 3KU Leuven 
+
+## Abstract 
+
+Learning joint representations across multiple modalities remains a central challenge in multimodal machine learn-ing. Prevailing approaches predominantly operate in pair-wise settings, aligning two modalities at a time. While some recent methods aim to capture higher-order interactions among multiple modalities, they often overlook or insuf fi -ciently preserve pairwise relationships, limiting their effec-tiveness on single-modality tasks. In this work, we intro-duce Contrastive Fusion (ConFu), a framework that jointly embeds both individual modalities and their fused combi-nations into a uni fi ed representation space, where modal-ities and their fused counterparts are aligned. ConFu ex-tends traditional pairwise contrastive objectives with an ad-ditional fused-modality contrastive term, encouraging the joint embedding of modality pairs with a third modality. This formulation enables ConFu to capture higher-order dependencies, such as XOR-like relationships, that cannot be recovered through pairwise alignment alone, while still maintaining strong pairwise correspondence. We evalu-ate ConFu on synthetic and real-world multimodal bench-marks, assessing its ability to exploit cross-modal comple-mentarity, capture higher-order dependencies, and scale with increasing multimodal complexity. Across these set-tings, ConFu demonstrates competitive performance on re-trieval and classi fi cation tasks, while supporting uni fi ed one-to-one and two-to-one retrieval within a single con-trastive framework. We release our code and dataset at 
+
+https://github.com/estafons/confu .
+
+## 1. Introduction 
+
+Learning joint representations across multiple modalities is a fundamental goal in multimodal machine learning [44]. Contrastive frameworks such as CLIP [26] and ALIGN [16] *Corresponding author: skoutoupis@ics.forth.gr 
+
+> Figure 1. ConFu uni fi es direct (1 →1) and compositional (2 →1) alignment within a single embedding space, utilizing two modali-ties for improved performance and adapting seamlessly when only one modality is available.
+
+have demonstrated that aligning paired modalities, such as images and text, enables powerful zero-shot transfer and retrieval. However, these approaches remain intrin-sically pairwise, capturing only correlations between two modalities while overlooking the higher-order dependen-cies that emerge when three or more modalities inter-act [10, 11, 16, 34–36, 41, 42, 46–48]. Beyond this lim-itation, multimodal models often exhibit modality compe-tition [14], where one modality dominates and suppresses others when signal strength or reliability differs. For in-stance, strong visual cues may overshadow weaker auditory ones, biasing the joint representation toward a single source. Yet many real-world settings require reasoning over com-plementary cues: a song emerges from melody and lyrics, a 3D design from sketch and text, and a scene from both visual and auditory signals. These challenges motivate a broader question: Can a contrastive learning framework capture not only pairwise alignments but also higher-order, syn-ergistic dependencies among modalities? This CVPR paper is the Open Access version, provided by the Computer Vision Foundation. Except for this watermark, it is identical to the accepted version; the final published version of the proceedings is available on IEEE Xplore. 8825 To address this, we propose Contrastive Fusion (ConFu), a framework that uni fi es pairwise and higher-order mul-timodal supervision within a single contrastive objective. ConFu constructs fused representations of all subsets of modalities and aligns all combinations of unimodal and fused representations (Fig. 2). Unlike previous methods that primarily target speci fi c one-to-one (1 →1) [10, 11], two-to-one (2 →1) [6, 27], or both within predominantly text-centered objectives [4, 5], ConFu accounts for all pair-wise and higher-order modality combinations within a uni-
+
+fi ed objective (Fig. 1). Evaluating such models is further complicated by the scarcity of publicly available datasets that naturally include three or more co-occurring modalities. To address this, we construct a bird-centric dataset where image, audio, and text provide complementary but related information. This set-ting enables a systematic examination of higher-order align-ment under zero-shot and few-shot regimes. Overall, our main contributions are as follows: • We introduce a uni fi ed contrastive framework that gener-alizes CLIP-like pairwise multimodal alignment to cap-ture higher-order dependencies among three modalities. • We construct Bird-MML, a synthetic dataset of arti fi cial triplets that serves as a pretraining resource to evaluate whether models capture multimodal complementarity. • We demonstrate that ConFu achieves competitive per-formance in retrieval and classi fi cation tasks, supporting both one-to-one and two-to-one retrieval within a single contrastive framework. • We show that ConFu exhibits greater robustness than pre-vious methods when faced with distracting modalities (Table 4) and noise-induced distribution shifts (Table 6), showing greater stability even when fusion involves cor-rupted or non-informative inputs. 
+
+## 2. Related Work Jointly-aligned models. Methods such as AudioCLIP [11], VALOR [3], and VAST [4] extend CLIP-style contrastive learning to three or more modalities by training on datasets where all signals co-occur. AudioCLIP employs indepen-dent contrastive objectives for each modality pair, while VALOR introduces a multimodal grouping alignment loss coupled with caption generation to connect multiple modal-ities through text. VAST combines contrastive and gener-ative losses to unify video, audio, and subtitles in a shared representation. Other architectures such as mPLUG-2 [40], UMT [22], and the Everything-at-Once Fusion Trans-former [21] employ modular decoders or fusion transform-ers for multimodal understanding and generation. While these methods learn representations across multiple modal-ities, their objectives are typically limited to pairwise align-ments or remain primarily text-centric, with broader multi-modal relationships emerging implicitly from shared train-ing signals rather than through explicit higher-order align-ment. 
+
+Pivot-aligned models. An alternative strategy uses a pivot modality as a common reference space. Each non-pivot modality is aligned to this anchor, enabling scalable training without requiring full multimodal co-occurrence. For example, ImageBind [10] aligns diverse modalities (au-dio, depth, IMU) to an image-based embedding space, while LanguageBind [48] uses text as the pivot. Later variants such as OmniBind [36], FreeBind [35], and Ex-MCR [46] extend this paradigm through pseudo-pair gener-ation, offering an alternate data-ef fi cient mechanism. Simi-larly, Uni3D [47], ULIP [41], and ULIP-2 [42] project new modalities into a frozen CLIP embedding space,mapping new modalities to CLIP’s pretrained space without updat-ing its parameters. While this pivot-based design improves scalability, it remains inherently pairwise: all interactions are mediated through the pivot, preventing direct modeling of dependencies among non-pivot modalities. As a result, the learned embedding space captures independent pairwise relations rather than true higher-order structure. 
+
+Modeling Higher-Order Dependencies. Recent work in self-supervised representation learning has attempted to model relationships between more than two modalities through specialized loss formulations. Symile [27] lever-ages total correlation to integrate complementary cues, TRI-ANGLE [6] uses the area spanned by three embedding vec-tors as a measure of similarity, and GRAM [5] measures cross-modal similarity for M ≥ 2 modalities through the Gramian volume spanned by their vectors. While these methods jointly model multiple modalities, Symile and TRIANGLE require all modalities to be present at infer-ence time, making them incompatible with standard 1 →1retrieval. In contrast, our framework explicitly models both pair-wise and higher-order alignments within a single contrastive objective. It provides a simple, architecture-agnostic for-mulation that uni fi es pairwise and higher-order multimodal interactions, enabling scalable and expressive cross-modal representation learning, with the only additional computa-tional cost coming from lightweight MLP layers. 
+
+## 3. Method 3.1. Proposed Multimodal Contrastive Framework 
+
+We propose a new framework for contrastive learning with 
+
+M = 3 modalities (Fig. 2) that uni fi es pairwise and higher-order contrastive objectives into a single multimodal train-ing process that maximizes a lower bound on the total cor-relation among modalities (Sec. 3.2). Each modality Xi is mapped into a feature space by a modality-speci fi c encoder fθi : Xi → Hi and then projected 8826 Figure 2. Overview of ConFu. The framework aligns all modality pairs through pairwise contrastive objectives while also aligning each modality with the fused representation of the remaining ones. The  fi nal loss ( L) combines both objectives ( Lpair , Lf used ), bal-anced by a weighting factor λ.into a shared latent space Z by a projector pϕi : Hi → Z:
+
+hi = fθi(Xi), zi = pϕi(hi), i ∈ {1, 2, 3}. (1) The encoder parameters θi and projector parameters ϕi are learned jointly through contrastive optimization. 
+
+Pairwise Contrastive Objectives (1→1). For each modality pair (Xi, X j), we estimate their MI I(Xi; Xj) via the InfoNCE lower bound Eq. 2. Let sωij : Z × Z →
+
+R denote a density ratio function parameterized by ωij ,which models the likelihood of joint co-occurrence over independence. Given a minibatch of N paired samples 
+
+{(z(m) 
+
+> i
+
+, z (m) 
+
+> j
+
+)}Nm=1 , the empirical loss is 
+
+bL(i,j )InfoNCE = 1
+
+> N
+
+PNm=1 − log exp {sωij (z(m)       
+
+> i,z (m)
+> j)}
+> PNn=1 exp {sωij (z(m)
+> i,z (n)
+> j)}
+
+. (2) Summing over all ordered modality pairs yields 
+
+Lpair = bL(1 ,2) InfoNCE + bL(1 ,3) InfoNCE + bL(2 ,3) InfoNCE . (3) 
+
+Higher-Order Contrastive Objectives ( 2→1). To model higher-order dependencies I(Xk; Xi, X j), we introduce a fusion network gψij : Hi×H j → Z with encoded features: 
+
+zij = gψij (hi, h j), (i, j ) ∈ {(1 , 2) , (1 , 3) , (2 , 3) }, (4) where ψij are trainable fusion parameters. In our experi-ments, we have maintained g to be a small-scale network (e.g., a shallow MLP) to capture cross-modal interactions without signi fi cantly increasing model complexity. Each fused representation zij is then aligned with the remain-ing modality Xk, using the ratio density estimation function 
+
+tηk,ij : Z ×Z → R parameterized by ηk,ij :
+
+bL(k,ij )InfoNCE = 1
+
+> N
+
+PNm=1 − log exp {tηk,ij (z(m)       
+
+> k,z (m)
+> ij )}
+> PNn=1 exp {tηk,ij (z(m)
+> k,z (n)
+> ij )}
+
+. (5) In practice, both density ratio estimators s in Eq. 2 and t in Eq. 5 are implemented as temp.-scaled dot-product similari-ties. The higher-order objective aggregates all such triplets: 
+
+Lfused = bL(3 ,{1,2})InfoNCE + bL(2 ,{1,3})InfoNCE + bL(1 ,{2,3})InfoNCE . (6) 
+
+Combined Objective. The total training loss jointly max-imizes both pairwise and fused MI lower bounds: 
+
+L = (1 − λ) Lpair + λ Lfused , (7) where λ ∈ [0 , 1] controls the relative contribution of pair-wise versus higher-order supervision (See Appendix B.1 for analysis of λ’s impact). Minimizing Eq. 7 corre-sponds to maximizing the contrastive lower bound on 
+
+TC( X1, X 2, X 3) (Eq. 13), thus promoting both (i) pairwise alignment and (ii) cross-modal consistency through fused interactions. 
+
+3.2. Theoretical Motivation 
+
+The total correlation (TC) [37], also known as multi-information [28], quanti fi es the joint statistical depen-dency among multiple random variables as the Kull-back–Leibler divergence between their joint distribu-tion and the product of marginals, TC( X1, X 2, X 3) =
+
+DKL 
+
+�p(x1, x 2, x 3) ∥ p(x1)p(x2)p(x3). Equivalently, 
+
+TC( X1, X 2, X 3) = Ep(x1,x 2,x 3)
+
+h
+
+log p(x1,x 2,x 3)
+
+> p(x1)p(x2)p(x3)
+
+i
+
+, (8) and vanishes if and only if the variables are mutually inde-pendent ( X1 ⊥ X2 ⊥ X3). Using the chain rule of MI, it decomposes as 
+
+TC( X1, X 2, X 3) = I(X1; X2) + I(X3; X1, X 2). (9) Averaging over all permutations yields the symmetric form 
+
+TC( X1, X 2, X 3) = 13
+
+P
+
+> (i,j,k )∈perm {1,2,3}
+
+I(Xi; Xj) + I(Xk; Xi, X j), (10) where perm {1, 2, 3} denotes the set of all six permutations of the index triplet (1 , 2, 3) . This interpretation of TC sepa-rates pairwise and higher-order dependencies. 
+
+Contrastive Lower Bound. Each MI term in Eq. 10 is ap-proximated using the InfoNCE lower bounds [23]. Speci fi -cally, the pairwise and higher-order terms satisfy 
+
+I(Xi; Xj) ≥ log N − bL(i,j )InfoNCE , (11) 
+
+I(Xk; Xi, X j) ≥ log N − bL(k,ij )InfoNCE . (12) 8827 Substituting these inequalities into Eq. 10 yields the tractable contrastive lower bound on TC ,       
+
+> TC ≥ − 13
+> X
+> (i,j,k )∈perm {1,2,3}
+> h bL(i,j )InfoNCE +bL(k,ij )InfoNCE
+> i
+> + 2 log N+const.
+
+(13) so that maximizing total correlation reduces to minimiz-ing the InfoNCE losses across all pairwise and higher-order relations. When each density ratio function sωij or tηk,ij 
+
+is suf fi ciently expressive and approximates the optimal In-foNCE critic [23] (i.e., the log–density ratio between the joint and the product of marginals) the bound becomes tight as N → ∞ , recovering the true TC .
+
+Interpretation. Eq. 13 shows that the proposed training objective (Eq. 7) maximizes a contrastive lower bound on total correlation, thereby promoting both (i) pairwise align-ment across modalities through I(Xi; Xj) and (ii) higher-order consistency via I(Xk; Xi, X j).
+
+3.3. Compare with other higher-order methods 
+
+Recent approaches such as Symile, GRAM, and TRIAN-GLE adopt a single joint alignment objective across all modalities, without separating pairwise from higher-order dependencies. Symile maximizes a total-correlation bound using a multilinear similarity ⟨x1, x 2, x 3⟩, GRAM enforces global alignment via the parallelotope volume induced by the Gram matrix, and TRIANGLE specializes this idea by introducing a triangle-area–based measure of three-way similarity. In contrast, our method decomposes total corre-lation into interpretable information-theoretic factors, aver-aging over modality permutations the sum of pairwise and higher-order dependencies, thus preserving holistic expres-sivity while enabling structured optimization and reliable performance with any subset of modalities. Unlike prior approaches that use a single critic to implicitly model de-pendencies, we factorize them at the loss level, enabling in-dependent control of pairwise and higher-order supervision while preserving InfoNCE stability and achieving balanced performance within a single model. 
+
+3.4. Motivating higher-order dependencies 
+
+To illustrate the reasons that modeling higher-order (syn-ergistic) dependencies is crucial, we consider the XOR task introduced in Symile. Three binary variables X1,
+
+X2, and X3 are sampled with x1j, x 2j ∼ Bernoulli(0 .5) ,
+
+i ∼ Bernoulli(ˆ p), and the relationship: 
+
+x3j = ( x1j ⊕ x2j)ix1(1 −i) 
+
+> j
+
+. (14) The task is to predict the representation z2 from the pair 
+
+(z1, z 3). The parameter ˆp controls the level of synergy: for ˆp = 0, x2 is independent of (x1, x 3), while in-creasing ˆp raises the conditional MI I(X1; X2|X3) and           
+
+> Figure 3. Results on the synthetic XOR task. Our model’s ac-curacy in predicting z2from (z1, z 3)is plotted against the mix-ing parameter ˆp. Our model captures the synergistic information, showing a positive trend in performance as ˆpincreases. Trimodal pairwise CLIP remains on chance ( ∼3% ) while both GRAM and TRIANGLE fail to reach above 15% accuracy. More details are provided in Appendix B.2.
+
+I(X3; X2|X1) without introducing any pairwise depen-dence ( I(X1; X2) = I(X2; X3) = 0 ). Thus, only mod-els capturing joint interactions, rather than pairwise corre-lations, can solve the task. Zero-shot retrieval at varying levels of ˆp (Fig. 3) con fi rms that ConFu and Symile can successfully solve the task. 
+
+## 4. Bird-MML: A Multimodal Dataset for Audio-Visual Complementarity 
+
+Despite substantial progress in multimodal learning, there remains a lack of standardized and publicly available real-istic datasets that capture cross-modal relationships that are suitable for evaluating both pairwise and higher-order mul-timodal alignment. Bird species provide an ideal testbed for such multimodal evaluation, as their identity and behav-ior are naturally expressed through both visual and acoustic cues. In many cases,  fi ne-grained recognition further de-pends on complementary information such as visual appear-ance for morphology and audio for vocalization, making the domain well suited for studying multimodal interaction. 
+
+Existing Bird Datasets. SSW60 [30] offers unaligned images and audio as well as video for 60 species, VB100 [9] focuses on  fi ne-grained video recognition for 100 species. Moreover, iNatSounds [2] contains large-scale bioacous-tic recordings without visual counterparts, and lastly, BioTrove-Train [43] includes millions of images across di-verse species with uneven per-class distributions. Although those datasets provide valuable resources, a joint combina-tion of images, audio, and text in a form suitable for multi-modal pretraining and evaluation is missing. 
+
+Dataset Overview. To bridge this gap, we construct Bird-MML, a synthetic multimodal bird dataset integrating 8828 Table 1. Zero-shot classi fi cation accuracy on AV-MNIST (mean  
+
+> ±std over 5 runs). A = Audio, V = Vision, A+V = Audio–Visual fusion. Best performance is reported in bold.
+
+Method A V A+V 
+
+CLIP 41.1 ± 0.3 63.0 ± 0.4 -Tri-CLIP 40.0 ± 0.4 62.5 ± 0.4 -Symile [27] - - 70.9 ± 0.3 GRAM [5] 9.8 ± 0.4 63.9 ± 0.8 64.4 ± 0.5 TRIANGLE [6] - - 64.9 ± 0.3 
+
+ConFu 39.7 ± 0.1 64.6 ± 0.3 71.2 ± 0.2 
+
+arti fi cially paired images, audio, and text for 150 species, including all those present in SSW60 and VB100. The dataset is designed for scalable pretraining and cross-modal learning, with balanced representation across species. A de-tailed overview of the data generation pipeline is provided in Appendix D.1. Images are sourced from the iNatural-ist open dataset, restricted to research-grade, Creative Com-mons–licensed observations. For each species, 1,000 sam-ples are randomly selected. 
+
+Audio and Text Generation. Audio recordings are col-lected from Xeno-Canto [39], segmented into 10-second clips, and zero-padded when necessary. In cases of lim-ited availability, existing clips are reused to maintain uni-form sample counts. Metadata such as call type, sex, and life stage are preserved. Text descriptions are generated by combining three complementary sources: image captions from InstructBLIP2 [7], audio metadata, and short sum-maries from corresponding Wikipedia entries. These ele-ments are fused using google/gemma-2-2b-it [29] to yield a single multimodal caption per instance. 
+
+Dataset Characteristics. While generated captions may contain minor factual noise, they effectively capture species-relevant attributes and contextual cues useful for representation learning. The resulting dataset contains 149,681 triplets (image, audio, text), each grounded by species identity and visual–acoustic correspondence. Ap-proximately 43% of species required limited audio reuse due to data scarcity. Examples of arti fi cially aligned triplets are shown in Appendix D.1.The dataset maintains balanced per-species coverage and is well-suited for multimodal pre-training. Downstream evaluations are performed on nat-urally paired video-audio data to assess real-world cross-modal performance. 
+
+Ethical Considerations. All data were collected from publicly available sources under Creative Commons li-censes. Ownership and attribution remain with original con-tributors. Automatically generated captions may contain minor factual errors or biases and should not be interpreted as veri fi ed biological information. The dataset is released solely for non-commercial research use. 
+
+## 5. Experimental Results 
+
+Our evaluation covers multimodal benchmarks across bio-diversity (SSW60 [30], VB100 [9]), affective (MOSI [45], UR-FUNNY [12], and MUStARD [1] included in Multi-Bench [19]), and multimedia (AV-MNIST [31]) domains, encompassing both real-world and synthetic datasets. These datasets present different levels of cross-modal dif fi culty, enabling holistic evaluation of alignment, rep-resentation quality, and scalability. We compare against representative contrastive and higher-order multimodal ap-proaches: (i) a Bi-modal CLIP (referenced as CLIP from now on) trained with standard two-modality con-trastive loss, (ii) a Tri-modal CLIP (referenced as Tri-CLIP from now on) trained with pairwise objectives across all modalities, (iii) Symile [27] which models higher-order dependencies via total correlation, (iv) TRIANGLE [6] and GRAM [5], which use geometric similarity mea-sures among 2 or more modalities. Experiments cover (i) zero-shot classi fi cation, (ii) 1 →1 and 2 →1 retrieval, and (iii) linear-probe classi fi cation under few-shot and full-data regimes. Details about the experimental setup and evalua-tion can be found in Appendix A. 
+
+5.1. AV-MNIST 
+
+We evaluate our framework on the AV-MNIST dataset, which contains paired audio spectrograms augmented with randomly sampled background noise from ESC-50 [25] and images of MNIST digits with degraded visual fea-tures. We additionally introduce a text modality derived from class labels using natural language templates such as 
+
+‘the digit is a {class }”, ‘a photo of a {class }”, and ‘a pic-ture of a {class }”. As provided in Table 1, our approach achieves the highest performance across all baselines, with Symile trailing closely behind. Fusing audio and visual in-puts yields an 8% improvement over the strongest unimodal baseline, demonstrating the bene fi t of complementary mul-timodal supervision. Moreover, even when evaluated on a single modality (vision), our model surpasses the corre-sponding unimodal baseline by 1.5%, indicating that mul-timodal training enhances individual modality representa-tions. 
+
+5.2. Affective Computing Benchmarks 
+
+We next evaluate on the MOSI, UR-FUNNY, and MUS-tARD datasets, which involve text, audio, and video for multimodal affect understanding. We assess (i) 1 →1 re-trieval, (ii) 2 →1 retrieval, and (iii) multimodal classi fi ca-tion via a linear probe. Table 2 shows that ConFu consis-tently improves cross-modal retrieval performance. In par-ticular, the 2 →1 retrieval setting surpasses 1 →1 retrieval on UR-FUNNY and MUStARD, suggesting that combin-ing two input modalities provides richer and more discrim-inative cues. Notably, GRAM, the only baseline support-8829 Table 2. Recall@10 (%) for Target across query modalities and datasets (mean ± std over 5 runs). The last two columns show mean retrieval accuracy for 1 →1 and 2 →1 retrieval, respectively. Best performance is reported in bold, second best is underlined. Target M1 M2 M3 Mean 
+
+Query M2 M3 M23 M1 M3 M13 M1 M2 M12 1→1 2→1MOSI  Trimodal CLIP 22.9 ± 1.9 20.5 ± 1.6 – 23.5 ± 3.6 23.3 ± 1.8 – 20.9 ± 2.0 24.3 ± 2.1 – 22.6 –Symile [27] - - 16.3 ± 0.9 - - 18.1 ± 2.4 - - 17.1 ± 1.7 – 17.2 GRAM [5] 6.0 ± 3.1 10.3 ± 2.9 16.3 ± 2.5 7.7 ± 2.3 0.3 ± 0.6 7.9 ± 3.4 12.2 ± 4.1 0.2 ± 0.2 12.0 ± 4.2 6.1 12.1 TRIANGLE [6] - - 8.3 ± 1.3 - - 4.9 ± 0.7 - - 8.8 ± 1.4 – 7.3 
+
+ConFu 21.0 ± 1.7 16.4 ± 2.3 16.7 ± 1.8 19.2 ± 1.4 21.0 ± 2.4 21.6 ± 1.9 16.1 ± 1.7 23.5 ± 2.7 20.5 ± 2.9 19.5 19.6 UR-FUNNY  Trimodal CLIP 3.7 ± 0.6 4.0 ± 0.6 – 3.8 ± 0.5 16.2 ± 1.6 – 4.0 ± 0.4 16.8 ± 1.2 – 8.1 –Symile [27] - - 3.7 ± 0.5 - - 15.4 ± 0.9 - - 16.5 ± 0.6 – 11.9 GRAM [5] 3.2 ± 0.5 3.0 ± 0.9 3.9 ± 0.8 3.2 ± 0.9 0.1 ± 0.2 3.1 ± 0.4 3.9 ± 0.4 0.1 ± 0.0 3.3 ± 0.5 2.3 3.4 TRIANGLE [6] - - 4.2 ± 0.4 - - 3.3 ± 0.7 - - 3.6 ± 0.9 – 3.7 
+
+ConFu 3.2 ± 0.3 3.5 ± 0.3 3.6 ± 0.3 3.5 ± 0.2 15.1 ± 0.8 16.9 ± 0.9 3.5 ± 0.4 15.6 ± 0.8 20.3 ± 1.1 7.4 13.6 MUStARD  Trimodal CLIP 70.7 ± 4.1 29.1 ± 3.6 – 70.5 ± 4.3 26.5 ± 3.2 – 30.4 ± 3.4 24.6 ± 2.8 – 42.0 –Symile [27] - - 61.5 ± 6.3 - - 57.0 ± 3.0 - - 21.3 ± 4.4 – 46.6 GRAM [5] 61.7 ± 8.0 24.8 ± 5.3 81.0 ± 4.1 67.2 ± 5.4 24.8 ± 5.3 67.8 ± 5.4 27.9 ± 8.7 5.1 ± 2.1 31.2 ± 9.2 35.2 60.0 TRIANGLE [6] - - 68.7 ± 4.2 - - 59.9 ± 3.7 - - 21.9 ± 5.0 – 50.2 
+
+ConFu 73.8 ± 3.2 33.6 ± 3.1 79.6 ± 3.6 74.4 ± 2.7 28.1 ± 3.2 74.6 ± 4.1 33.9 ± 4.2 28.0 ± 2.9 33.5 ± 3.2 45.3 62.6 
+
+Table 3. Multimodal classi fi cation accuracy (%) (mean ± std over 5 runs). Tri-CLIP refers to CLIP trained with pairwise contrastive losses. Best performance is reported in bold. 
+
+Method MOSI UR-FUNNY MUStARD 
+
+Tri-CLIP 63.5 ± 2.1 64.0 ± 0.9 62.1 ± 3.8 Symile [27] 67.5 ± 1.3 64.7 ± 1.0 60.5 ± 5.0 GRAM [5] 65.5 ± 2.5 64.8 ± 0.9 64.7 ± 2.3 
+
+TRIANGLE [6] 65.0 ± 2.8 64.5 ± 0.4 64.6 ± 2.5 
+
+ConFu 66.7 ± 2.1 64.9 ± 1.0 64.1 ± 2.5 ing both retrieval con fi gurations, struggles with 1 →1 align-ments in general and fails for modalities M2 and M3 on MOSI and UR-FUNNY, suggesting that balancing 2 →1 and 1→1 alignment is non-trivial. Furthermore, methods such as TRIANGLE and Symile, which focus on trimodal align-ment without explicitly modeling pairwise relations, per-form consistently worse than ConFu. Overall, ConFu ranks 
+
+fi rst or second across nearly all query →target retrieval set-tings, in both 1 →1 and 2 →1 con fi gurations, demonstrat-ing robust and consistent cross-modal alignment. Moreover, Table 3 reports linear-probe classi fi cation results, showing that ConFu attains the highest accuracy on UR-FUNNY and remains competitive on MUStARD and MOSI. 
+
+5.3. Fine-Grained Bird Classi fi cation 
+
+ConFu is further evaluated on  fi ne-grained bird classi fi ca-tion using the VB100 and SSW60 datasets. Models are pretrained on Bird-MML, our curated dataset of 150K au-dio–image–text triplets and assessed under zero-shot and few-shot regimes. We consider two evaluation settings: (1) the multi-frame protocol from [30], where each video clip is divided into eight segments, the middle frame of each Table 4. Zero-shot classi fi cation accuracy (%) on SSW60 and VB100 datasets. A = Audio, V = Vision, A+V = Audio-Visual fusion. Best performance is reported in bold. 
+
+SSW60 Acc. (%) VB100 Acc. (%) Method A V A+V A V A+V 
+
+CLIP 29.9 70.1 – 4.2 20.6 –Tri-CLIP 31.1 69.0 – 3.9 20.7 –Symile [27] - - 60.2 - - 13.4 TRIANGLE [6] - - 64.1 - - 12.1 GRAM [5] 0.7 66.6 56.9 1.3 13.7 8.0 
+
+ConFu 30.3 69.4 71.4 3.4 19.3 18.1 segment is sampled, and the mean embedding of the eight frames is used as the visual representation; and (2) a single-frame setting, providing a more constrained visual input per video. Table 4 reports zero-shot results in the multi-frame setting. ConFu achieves the highest accuracy on SSW60 (71.4%), con fi rming that multimodal fusion improves  fi ne-grained discrimination when both modalities are informa-tive. On VB100, where the audio modality is largely un-informative ( ∼4% unimodal accuracy), the fused model (A+V) maintains performance close to the best visual-only baseline (18.15% vs. 20.69%), demonstrating robustness to distracting modalities. In contrast, GRAM, Symile, and TRIANGLE exhibit a notable decline in accuracy (5–10%) relative to ConFu. Few-shot trends in Fig. 4 mirror these 
+
+fi ndings. Fusion offers clear advantages on SSW60 and sta-ble performance on VB100, showing that ConFu general-izes well even when one modality is weak. In the single-frame setting, designed to evaluate perfor-mance with limited visual information, we averaged clas-si fi cation results across 19 uniformly sampled frames to 8830 Figure 4. Few-shot linear probing results on the SSW60 (top) and VB100 (bottom) datasets. Performance is shown as the number of labeled examples increases. Zero-shot performance is indicated with a star. Prediction is done in the 8-frame average embedding setting. Table 5. Average zero-shot classi fi cation accuracy (%) on SSW60 and VB100 datasets (mean ± std over 19 uniformly sampled frames). The full 10-second audio is used; therefore, its accuracy remains constant across samples, and no std is reported. A = Au-dio, V = Vision, A+V = Audio–Visual fusion. Best performance is reported in bold.                                                                            
+
+> SSW60 Acc. (%) VB100 Acc. (%) Method AVA+V AVA+V
+> CLIP 29.9 60.3 ±3.4 –4.2 18.2 ±0.5 –Tri-CLIP 31.1 59.7 ±3.2 –3.9 17.7 ±0.5 –Symile [27] --61.4 ±0.2 --13.2 ±0.4 TRIANGLE [6] --58.6 ±3.3 --8.7 ±0.4 GRAM [5] 0.7 59.0 ±3.3 54.9 ±3.2 1.3 12.9 ±0.4 7.6 ±0.3
+> ConFu 30.3 59.8 ±3.3 65.5 ±2.5 3.4 16.7 ±0.5 16.4 ±0.4
+
+reduce bias. As provided in Table 5, the fused (A+V) model exceeds the best baseline by roughly 4% on SSW60 and complementary audio–visual cues when visual input is sparse. On VB100, performance drops slightly (by 2–3%) due to the weaker audio modality ( ∼ 4% accuracy). Over-all, ConFu bene fi ts from richer multimodal supervision, maintaining strong robustness under modality degradation while preserving scalability and simplicity. Additional re-sults on a few-shot adaptation are in the Appendix C.1. 
+
+Figure 5. Aggregated modality overlap proportions across all classes in the SSW60 dataset. The chart shows the overall fraction of correctly predicted samples belonging to each overlap category: 
+
+Audiovisual Only (AV) , Vision Only (V) , Audio Only (A) , Audiovi-sual & Vision (AV / V) , Audiovisual & Audio (AV / A) , Vision & Audio (V / A) , All , and None .
+
+## 6. Ablation Modality competition. Although multimodal learning seeks to combine complementary cues, models often show modality dominance, where stronger signals suppress weaker ones [14]. To assess how our fusion is affected by this effect, we analyze in Fig. 5 the overlap of prediction errors across modalities and fusion. Results reveal visual dominance: The larger portion of correct samples (39%) are predicted by both the fusion and vision models, while the datapoints that only audio predicts correctly or fusion-audio overlap remain small (5–6%), and purely audio-driven suc-cesses are rare (2%). Nevertheless, about 5% of samples are uniquely solved by the audiovisual model, indicating that fusion captures complementary information beyond either modality alone. Finally, some classes bene fi t substantially from fusion (e.g., Label 31 see Appendix B.5), while others remain uniformly dif fi cult. 
+
+Ablation on Noise-Induced Distribution Shift. To ex-amine the sensitivity of each model to distribution shift, we introduced Gaussian noise to the image modalitiy only during testing, with a standard deviation of 0.05 corre-sponding to roughly 20dB SNR. This perturbation simu-lates a mismatch between the training and test distribu-tions without retraining the models. As shown in Ta-ble 6, ConFu achieves the highest accuracy (45.4%) under these conditions. In contrast, the unimodal baseline (Tri-CLIP), exhibits a sharper performance drop, while Symile shows moderate robustness. Interestingly, TRIANGLE and GRAM perform even worse compared to Tri-CLIP un-der visual degradation. Overall, these results indicate that 8831 Table 6. Accuracy (%) under Gaussian noise-induced distribution shift (mean ± std over 5 runs). Noise was applied to the Vision                          
+
+> modality (SNR ∼20 dB ) at test time. A = Audio, V = Vision, A+V = Audio–Visual fusion. Best performance is reported in bold.
+> Method Mod. V noise
+> Tri-CLIP (V) V35.4 ±0.4 Symile [27] A+V 40.9 ±0.3 GRAM [5] A+V 25.9 ±0.1 TRIANGLE [6] A+V 26.5 ±0.2
+> ConFu A+V 45.4 ±0.1
+
+ConFu’s fusion strategy improves stability under distribu-tion shifts affecting the image modality. Regarding more experiments in noise induced distribution shifts see Ap-pendix B.4. 
+
+## 7. Discussion 
+
+Empirical results across synthetic and real-world datasets demonstrate that ConFu effectively captures complemen-tary cross-modal structure. On the synthetic XOR bench-mark, ConFu successfully models the underlying multi-modal dependencies that pairwise and geometric baselines miss even with higher-dimensional representations (Ap-pendix B.2). In AV-MNIST, ConFu dominates unimodal approaches in zero-shot classi fi cation, indicating success-ful utilization of both modalities. The 2 →1 retrieval eval-uations on UR-FUNNY, and MUStARD further con fi rm that combining two query modalities provides richer se-mantic grounding than either considered in isolation. An interesting observation in the 2 →1 case on the MOSI dataset is that fusion slightly underperforms compared to the pairwise baseline. Remarkably, this issue is substan-tially alleviated by introducing partial modality masking (Appendix B.3), supporting the hypothesis that suboptimal performance stems from shortcut learning in cases where redundant information dominates. In  fi ne-grained bird classi fi cation, ConFu maintains or slightly exceeds unimodal baselines. On SSW60, where both modalities contribute meaningfully, fusion achieves the best accuracy, on VB100, where acoustic information is limited, performance remains close to the visual baseline. Moreover, modality overlap analyses indicates that a subset of samples is correctly resolved only when both modalities are utilized, re fl ecting the model’s ability to integrate com-plementary evidence. Finally, under visual perturbations, ConFu degrades more gracefully, outperforming all base-lines by a clear margin. SYMILE ranks second, remain-ing above unimodal performance, while TRIANGLE and GRAM drop below the single-modality baseline. 
+
+Limitations and Future Work. ConFu is well-positioned to scale to any number of modalities, offering 
+
+fl exibility for diverse multimodal tasks. However, as the number of modalities increases, computational demands may also rise. Depending on the task, selectively prun-ing certain alignment terms, shown in Appendix E, can help maintain ef fi ciency. For example, omitting many-to-many alignments, when assuming that only single-modality queries or targets will be needed, opens a promising avenue for future adaptation and research. ConFu currently relies on fully aligned modalities dur-ing training, and exploring ways to relax or bypass this re-quirement remains crucial for many applications. In par-ticular, enabling ConFu to handle partially missing modal-ities, such as training with incomplete triplets or drawing on ideas related to pseudopair construction [34, 36, 46], could potentially make the framework more robust and broadly applicable across real-world multimodal settings. Further prospective directions could include extending ConFu to incorporate factorized representations inspired by recent factorization-based and redundancy-reduction ap-proaches [8, 20, 33], developing adaptive mechanisms to regulate modality competition [13, 17, 18, 24, 38], and in-vestigating how ConFu can enhance robustness in multi-modal retrieval, particularly when one or more modalities are noisy, incomplete, or severely corrupted. 
+
+## 8. Conclusion 
+
+We presented ConFu, a uni fi ed contrastive framework that jointly optimizes pairwise and higher-order alignments to capture pairwise and synergistic relationships across modal-ities. The method supports both 1 →1 and 2 →1 retrieval, improving multimodal alignment and robustness without modifying encoder architectures. Overall, ConFu demon-strates strong adaptability across diverse datasets, domains, and challenging conditions such as noise-induced distri-bution shifts, modality degradation, and missing modal-ities, while introducing only minimal overhead through lightweight MLPs atop the encoders, establishing it as a ro-bust and scalable solution for multimodal alignment in real-world applications. The accompanying Bird-MML dataset establishes a controlled setup for studying multimodal com-plementarity under realistic audio–visual conditions. 8832 9. Acknowledgments 
+
+This work was supported by the HARSH project (project no. YΠ3TA - 0560901) within the framework of the Na-tional Recovery and Resilience Plan–Greece 2.0–with fund-ing from the European Union–NextGenerationEU; the Hel-lenic Foundation for Research and Innovation (H.F.R.I.) un-der the “3rd Call for H.F.R.I.’s Research Projects to Support Faculty Members & Researchers” (H.F.R.I. Project Num-ber: 26302); by the TITAN ERA Chair project (contract no. 101086741) within the Horizon Europe Framework Pro-gram of the European Commission; the METHUSALEM program (METH/26/003, “Methusalem-BioMedAI”); the Flemish Government AI Research Program (Leuven.AI – KU Leuven); the FWO project “Task- and Device-Agnostic Arti fi cial Intelligence for EEG Analysis” (G046925N); and the Horizon Europe project “AI-PROGNOSIS” (Grant Agreement No. 101080581). 
+
+## References 
+
+[1] Santiago Castro, Devamanyu Hazarika, Ver´ onica P´ erez-Rosas, Roger Zimmermann, Rada Mihalcea, and Sou-janya Poria. Towards multimodal sarcasm detec-tion (an obviously perfect paper). arXiv preprint arXiv:1906.01815 , 2019. 5 [2] Mustafa Chasmai, Alexander Shepard, Subhransu Maji, and Grant Van Horn. The inaturalist sounds dataset. Advances in Neural Information Processing Systems , 37:132524– 132544, 2024. 4 [3] Sihan Chen, Xingjian He, Longteng Guo, Xinxin Zhu, Wein-ing Wang, Jinhui Tang, and Jing Liu. Valor: Vision-audio-language omni-perception pretraining model and dataset. 
+
+arXiv preprint arXiv:2304.08345 , 2023. 2 [4] Sihan Chen, Handong Li, Qunbo Wang, Zijia Zhao, Mingzhen Sun, Xinxin Zhu, and Jing Liu. Vast: Avision-audio-subtitle-text omni-modality foundation model and dataset. Advances in Neural Information Processing Sys-tems , 36:72842–72866, 2023. 2 [5] Giordano Cicchetti, Eleonora Grassucci, Luigi Sigillo, and Danilo Comminiello. Gramian multimodal representation learning and alignment. arXiv preprint arXiv:2412.11959 ,2024. 2, 5, 6, 7, 8, 3 [6] Giordano Cicchetti, Eleonora Grassucci, and Danilo Com-miniello. A triangle enables multimodal alignment beyond cosine similarity. arXiv preprint arXiv:2509.24734 , 2025. 2, 5, 6, 7, 8, 3 [7] Wenliang Dai, Junnan Li, Dongxu Li, Anthony Tiong, Junqi Zhao, Weisheng Wang, Boyang Li, Pascale N Fung, and Steven Hoi. Instructblip: Towards general-purpose vision-language models with instruction tuning. Advances in neural information processing systems , 36:49250–49267, 2023. 5 [8] Benoit Dufumier, Javiera Castillo-Navarro, Devis Tuia, and Jean-Philippe Thiran. What to align in multimodal con-trastive learning? arXiv preprint arXiv:2409.07402 , 2024. 8[9] ZongYuan Ge, Chris McCool, Conrad Sanderson, Peng Wang, Lingqiao Liu, Ian Reid, and Peter Corke. Exploit-ing temporal information for dcnn-based  fi ne-grained object classi fi cation. In 2016 International Conference on Digital Image Computing: Techniques and Applications (DICTA) ,pages 1–6. IEEE, 2016. 4, 5, 6, 7 [10] Rohit Girdhar, Alaaeldin El-Nouby, Zhuang Liu, Mannat Singh, Kalyan Vasudev Alwala, Armand Joulin, and Ishan Misra. Imagebind: One embedding space to bind them all. In Proceedings of the IEEE/CVF conference on computer vi-sion and pattern recognition , pages 15180–15190, 2023. 1, 2[11] Andrey Guzhov, Federico Raue, J¨ orn Hees, and Andreas Dengel. Audioclip: Extending clip to image, text and au-dio. In ICASSP 2022-2022 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP) , pages 976–980. IEEE, 2022. 1, 2 [12] Md Kamrul Hasan, Wasifur Rahman, Amir Zadeh, Jianyuan Zhong, Md Iftekhar Tanveer, Louis-Philippe Morency, et al. Ur-funny: A multimodal language dataset for understanding humor. arXiv preprint arXiv:1904.06618 , 2019. 5 [13] Cong Hua, Qianqian Xu, Shilong Bao, Zhiyong Yang, and Qingming Huang. Reconboost: boosting can achieve modal-ity reconcilement. In Proceedings of the 41st International Conference on Machine Learning . JMLR.org, 2024. 8 [14] Yu Huang, Junyang Lin, Chang Zhou, Hongxia Yang, and Longbo Huang. Modality competition: What makes joint training of multi-modal network fail in deep learn-ing?(provably). In International Conference on Machine Learning , pages 9226–9259. PMLR, 2022. 1, 7 [15] Zoran Jackson. Free spoken digit dataset. https : / / github . com / Jakobovski / free - spoken -digit-dataset , 2017. Accessed: YYYY-MM-DD. 6 [16] Chao Jia, Yinfei Yang, Ye Xia, Yi-Ting Chen, Zarana Parekh, Hieu Pham, Quoc Le, Yun-Hsuan Sung, Zhen Li, and Tom Duerig. Scaling up visual and vision-language representa-tion learning with noisy text supervision. In International conference on machine learning , pages 4904–4916. PMLR, 2021. 1 [17] Konstantinos Kontras, Thomas Strypsteen, Christos Chatzichristos, Paul Pu Liang, Matthew B Blaschko, and Maarten De Vos. Balancing multimodal training through game-theoretic regularization. In The Thirty-ninth Annual Conference on Neural Information Processing Systems . 8 [18] Konstantinos Kontras, Christos Chatzichristos, Matthew B. Blaschko, and Maarten De Vos. Improving multimodal learning with multi-loss gradient modulation. In 35th British Machine Vision Conference 2024, BMVC 2024, Glasgow, UK, November 25-28, 2024 . BMVA, 2024. 8 [19] Paul Pu Liang, Yiwei Lyu, Xiang Fan, Zetian Wu, Yun Cheng, Jason Wu, Leslie Yufan Chen, Peter Wu, Michelle A Lee, Yuke Zhu, et al. Multibench: Multiscale benchmarks for multimodal representation learning. In Thirty-fi fth Con-ference on Neural Information Processing Systems Datasets and Benchmarks Track (Round 1) , 2021. 5, 6 [20] Paul Pu Liang, Zihao Deng, Martin Q Ma, James Y Zou, Louis-Philippe Morency, and Ruslan Salakhutdinov. Factor-8833 ized contrastive learning: Going beyond multi-view redun-dancy. Advances in Neural Information Processing Systems ,36:32971–32998, 2023. 8, 1 [21] Bryan Lim, Sercan ¨ O Ar ık, Nicolas Loeff, and Tomas P fi ster. Temporal fusion transformers for interpretable multi-horizon time series forecasting. International journal of forecasting ,37(4):1748–1764, 2021. 2 [22] Ye Liu, Siyuan Li, Yang Wu, Chang-Wen Chen, Ying Shan, and Xiaohu Qie. Umt: Uni fi ed multi-modal transformers for joint video moment retrieval and highlight detection. In Pro-ceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 3042–3051, 2022. 2 [23] Aaron van den Oord, Yazhe Li, and Oriol Vinyals. Repre-sentation learning with contrastive predictive coding. arXiv preprint arXiv:1807.03748 , 2018. 3, 4 [24] Xiaokang Peng, Yake Wei, Andong Deng, Dong Wang, and Di Hu. Balanced multimodal learning via on-the-fl y gradient modulation. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 8238– 8247, 2022. 8 [25] Karol J. Piczak. ESC: Dataset for Environmental Sound Classi fi cation. In Proceedings of the 23rd Annual ACM Con-ference on Multimedia , pages 1015–1018. ACM Press. 5, 6 [26] Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sastry, Amanda Askell, Pamela Mishkin, Jack Clark, et al. Learning transferable visual models from natural language supervi-sion. In International conference on machine learning , pages 8748–8763. PmLR, 2021. 1 [27] Adriel Saporta, Aahlad Manas Puli, Mark Goldstein, and Ra-jesh Ranganath. Contrasting with symile: Simple model-agnostic representation learning for unlimited modalities. 
+
+Advances in Neural Information Processing Systems , 37: 56919–56957, 2024. 2, 5, 6, 7, 8, 3 [28] Milan Studen` y and Jirina Vejnarov´ a. The multiinforma-tion function as a tool for measuring stochastic dependence. In Learning in graphical models , pages 261–297. Springer, 1998. 3 [29] Gemma Team. Gemma. 2024. 5 [30] Grant Van Horn, Rui Qian, Kimberly Wilber, Hartwig Adam, Oisin Mac Aodha, and Serge Belongie. Exploring  fi ne-grained audiovisual categorization with the ssw60 dataset. In 
+
+European Conference on Computer Vision , pages 271–289. Springer, 2022. 4, 5, 6 [31] Valentin Vielzeuf, Alexis Lechervy, St´ ephane Pateux, and Fr´ ed´ eric Jurie. Centralnet: a multilayer approach for mul-timodal fusion. In Proceedings of the European conference on computer vision (ECCV) workshops , pages 0–0, 2018. 5 [32] Catherine Wah, Steve Branson, Peter Welinder, Pietro Per-ona, and Serge Belongie. The caltech-ucsd birds-200-2011 dataset. 2011. 4, 7 [33] Yi Wang, Conrad M Albrecht, Nassim Ait Ali Braham, Chenying Liu, Zhitong Xiong, and Xiao Xiang Zhu. Decou-pling common and unique representations for multimodal self-supervised learning. In European Conference on Com-puter Vision , pages 286–303. Springer, 2024. 8 [34] Zehan Wang, Yang Zhao, Haifeng Huang, Jiageng Liu, Aox-iong Yin, Li Tang, Linjun Li, Yongqi Wang, Ziang Zhang, and Zhou Zhao. Connecting multi-modal contrastive repre-sentations. Advances in Neural Information Processing Sys-tems , 36:22099–22114, 2023. 1, 8 [35] Zehan Wang, Ziang Zhang, Xize Cheng, Rongjie Huang, Luping Liu, Zhenhui Ye, Haifeng Huang, Yang Zhao, Tao Jin, Peng Gao, et al. Freebind: Free lunch in uni fi ed multimodal space via knowledge fusion. arXiv preprint arXiv:2405.04883 , 2024. 2 [36] Zehan Wang, Ziang Zhang, Hang Zhang, Luping Liu, Rongjie Huang, Xize Cheng, Hengshuang Zhao, and Zhou Zhao. Omnibind: Large-scale omni multimodal representa-tion via binding spaces. arXiv preprint arXiv:2407.11895 ,2024. 1, 2, 8 [37] Satosi Watanabe. Information theoretical analysis of multi-variate correlation. IBM Journal of research and develop-ment , 4(1):66–82, 1960. 3 [38] Yake Wei, Siwei Li, Ruoxuan Feng, and Di Hu. Diagnos-ing and re-learning for balanced multimodal learning. In 
+
+European Conference on Computer Vision , pages 71–86. Springer, 2024. 8 [39] Xeno-canto Foundation for Nature Sounds. Xeno-canto: Sharing wildlife sounds from around the world. https: //www.xeno-canto.org/ , 2008. 5 [40] Haiyang Xu, Qinghao Ye, Ming Yan, Yaya Shi, Jiabo Ye, Yuanhong Xu, Chenliang Li, Bin Bi, Qi Qian, Wei Wang, et al. mplug-2: A modularized multi-modal foundation model across text, image and video. In International Con-ference on Machine Learning , pages 38728–38748. PMLR, 2023. 2 [41] Le Xue, Mingfei Gao, Chen Xing, Roberto Mart´ ın-Mart´ ın, Jiajun Wu, Caiming Xiong, Ran Xu, Juan Carlos Niebles, and Silvio Savarese. Ulip: Learning a uni fi ed representation of language, images, and point clouds for 3d understanding. In Proceedings of the IEEE/CVF conference on computer vi-sion and pattern recognition , pages 1179–1189, 2023. 1, 2 [42] Le Xue, Ning Yu, Shu Zhang, Artemis Panagopoulou, Jun-nan Li, Roberto Mart´ ın-Mart´ ın, Jiajun Wu, Caiming Xiong, Ran Xu, Juan Carlos Niebles, et al. Ulip-2: Towards scalable multimodal pre-training for 3d understanding. In Proceed-ings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 27091–27101, 2024. 1, 2 [43] Chih-Hsuan Yang, Benjamin Feuer, Talukder Jubery, Zi Deng, Andre Nakkab, Md Zahid Hasan, Shivani Chiranjeevi, Kelly Marshall, Nirmal Baishnab, Asheesh Singh, et al. Biotrove: A large curated image dataset enabling ai for bio-diversity. Advances in Neural Information Processing Sys-tems , 37:102101–102120, 2024. 4 [44] Yuan Yuan, Zhaojian Li, and Bin Zhao. A survey of mul-timodal learning: Methods, applications, and future. ACM Computing Surveys , 57(7):1–34, 2025. 1 [45] Amir Zadeh, Rowan Zellers, Eli Pincus, and Louis-Philippe Morency. Mosi: multimodal corpus of sentiment intensity and subjectivity analysis in online opinion videos. arXiv preprint arXiv:1606.06259 , 2016. 5 [46] Ziang Zhang, Zehan Wang, Luping Liu, Rongjie Huang, Xize Cheng, Zhenhui Ye, Huadai Liu, Haifeng Huang, Yang Zhao, Tao Jin, et al. Extending multi-modal contrastive rep-8834 resentations. Advances in Neural Information Processing Systems , 37:91880–91903, 2024. 1, 2, 8 [47] Junsheng Zhou, Jinsheng Wang, Baorui Ma, Yu-Shen Liu, Tiejun Huang, and Xinlong Wang. Uni3d: Exploring uni fi ed 3d representation at scale. arXiv preprint arXiv:2310.06773 ,2023. 2 [48] Bin Zhu, Bin Lin, Munan Ning, Yang Yan, Jiaxi Cui, HongFa Wang, Yatian Pang, Wenhao Jiang, Junwu Zhang, Zongwei Li, et al. Languagebind: Extending video-language pretrain-ing to n-modality by language-based semantic alignment. 
+
+arXiv preprint arXiv:2310.01852 , 2023. 1, 2 8835

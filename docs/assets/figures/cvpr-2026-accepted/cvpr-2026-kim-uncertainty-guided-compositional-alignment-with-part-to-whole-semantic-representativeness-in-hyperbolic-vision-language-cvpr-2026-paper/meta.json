@@ -1,0 +1,398 @@
+{
+  "version": 2,
+  "extractor": "pymupdf-images",
+  "figures": [
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-001.webp",
+      "caption": "",
+      "page": 2,
+      "index": 1,
+      "width": 3072,
+      "height": 5071
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-002.webp",
+      "caption": "",
+      "page": 2,
+      "index": 2,
+      "width": 3072,
+      "height": 5071
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-003.webp",
+      "caption": "",
+      "page": 4,
+      "index": 3,
+      "width": 3675,
+      "height": 2397
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-004.webp",
+      "caption": "",
+      "page": 4,
+      "index": 4,
+      "width": 1198,
+      "height": 772
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-005.webp",
+      "caption": "",
+      "page": 4,
+      "index": 5,
+      "width": 3000,
+      "height": 2400
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-006.webp",
+      "caption": "",
+      "page": 4,
+      "index": 6,
+      "width": 763,
+      "height": 871
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-007.webp",
+      "caption": "",
+      "page": 4,
+      "index": 7,
+      "width": 926,
+      "height": 1170
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-008.webp",
+      "caption": "",
+      "page": 4,
+      "index": 8,
+      "width": 745,
+      "height": 996
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-009.webp",
+      "caption": "",
+      "page": 4,
+      "index": 9,
+      "width": 598,
+      "height": 598
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-010.webp",
+      "caption": "",
+      "page": 4,
+      "index": 10,
+      "width": 892,
+      "height": 1312
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-011.webp",
+      "caption": "",
+      "page": 4,
+      "index": 11,
+      "width": 840,
+      "height": 735
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-012.webp",
+      "caption": "",
+      "page": 4,
+      "index": 12,
+      "width": 876,
+      "height": 1001
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-013.webp",
+      "caption": "",
+      "page": 4,
+      "index": 13,
+      "width": 2961,
+      "height": 1974
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-014.webp",
+      "caption": "",
+      "page": 4,
+      "index": 14,
+      "width": 636,
+      "height": 1279
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-015.webp",
+      "caption": "",
+      "page": 4,
+      "index": 15,
+      "width": 552,
+      "height": 552
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-016.webp",
+      "caption": "",
+      "page": 4,
+      "index": 16,
+      "width": 703,
+      "height": 680
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-017.webp",
+      "caption": "",
+      "page": 4,
+      "index": 17,
+      "width": 709,
+      "height": 856
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-018.webp",
+      "caption": "",
+      "page": 4,
+      "index": 18,
+      "width": 636,
+      "height": 1048
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-019.webp",
+      "caption": "",
+      "page": 4,
+      "index": 19,
+      "width": 588,
+      "height": 988
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-020.webp",
+      "caption": "",
+      "page": 4,
+      "index": 20,
+      "width": 592,
+      "height": 1140
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-021.webp",
+      "caption": "",
+      "page": 4,
+      "index": 21,
+      "width": 761,
+      "height": 1265
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-022.webp",
+      "caption": "",
+      "page": 4,
+      "index": 22,
+      "width": 533,
+      "height": 532
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-023.webp",
+      "caption": "",
+      "page": 4,
+      "index": 23,
+      "width": 829,
+      "height": 1503
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-024.webp",
+      "caption": "",
+      "page": 4,
+      "index": 24,
+      "width": 5921,
+      "height": 3947
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-025.webp",
+      "caption": "",
+      "page": 4,
+      "index": 25,
+      "width": 724,
+      "height": 673
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-026.webp",
+      "caption": "",
+      "page": 4,
+      "index": 26,
+      "width": 718,
+      "height": 1381
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-027.webp",
+      "caption": "",
+      "page": 4,
+      "index": 27,
+      "width": 640,
+      "height": 274
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-028.webp",
+      "caption": "",
+      "page": 4,
+      "index": 28,
+      "width": 641,
+      "height": 289
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-029.webp",
+      "caption": "",
+      "page": 4,
+      "index": 29,
+      "width": 559,
+      "height": 247
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-030.webp",
+      "caption": "",
+      "page": 4,
+      "index": 30,
+      "width": 723,
+      "height": 1264
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-031.webp",
+      "caption": "",
+      "page": 4,
+      "index": 31,
+      "width": 662,
+      "height": 1529
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-032.webp",
+      "caption": "",
+      "page": 4,
+      "index": 32,
+      "width": 869,
+      "height": 789
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-033.webp",
+      "caption": "",
+      "page": 4,
+      "index": 33,
+      "width": 593,
+      "height": 593
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-034.webp",
+      "caption": "",
+      "page": 4,
+      "index": 34,
+      "width": 621,
+      "height": 273
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-035.webp",
+      "caption": "",
+      "page": 4,
+      "index": 35,
+      "width": 564,
+      "height": 564
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-036.webp",
+      "caption": "",
+      "page": 4,
+      "index": 36,
+      "width": 621,
+      "height": 273
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-037.webp",
+      "caption": "",
+      "page": 4,
+      "index": 37,
+      "width": 498,
+      "height": 498
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-038.webp",
+      "caption": "",
+      "page": 4,
+      "index": 38,
+      "width": 621,
+      "height": 275
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-039.webp",
+      "caption": "",
+      "page": 4,
+      "index": 39,
+      "width": 587,
+      "height": 586
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-040.webp",
+      "caption": "",
+      "page": 4,
+      "index": 40,
+      "width": 681,
+      "height": 1528
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-041.webp",
+      "caption": "",
+      "page": 4,
+      "index": 41,
+      "width": 594,
+      "height": 594
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-042.webp",
+      "caption": "",
+      "page": 5,
+      "index": 42,
+      "width": 2945,
+      "height": 2812
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-043.webp",
+      "caption": "",
+      "page": 5,
+      "index": 43,
+      "width": 576,
+      "height": 579
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-044.webp",
+      "caption": "",
+      "page": 5,
+      "index": 44,
+      "width": 526,
+      "height": 529
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-045.webp",
+      "caption": "",
+      "page": 6,
+      "index": 45,
+      "width": 2000,
+      "height": 1000
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-046.webp",
+      "caption": "",
+      "page": 6,
+      "index": 46,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-047.webp",
+      "caption": "",
+      "page": 6,
+      "index": 47,
+      "width": 2800,
+      "height": 2000
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-048.webp",
+      "caption": "",
+      "page": 8,
+      "index": 48,
+      "width": 1369,
+      "height": 651
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-kim-uncertainty-guided-compositional-alignment-with-part-to-whole-semantic-representativeness-in-hyperbolic-vision-language-cvpr-2026-paper/fig-049.webp",
+      "caption": "",
+      "page": 8,
+      "index": 49,
+      "width": 1369,
+      "height": 651
+    }
+  ]
+}

@@ -1,0 +1,271 @@
+Title: 3M-TI: High-Quality Mobile Thermal Imaging via Calibration-free Multi-Camera Cross-Modal Diffusion
+
+URL Source: https://openaccess.thecvf.com/content/CVPR2026/papers/Chen_3M-TI_High-Quality_Mobile_Thermal_Imaging_via_Calibration-free_Multi-Camera_Cross-Modal_Diffusion_CVPR_2026_paper.pdf
+
+Published Time: Sat, 16 May 2026 16:46:51 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+# 3M-TI: High-Quality Mobile Thermal Imaging via Calibration-free Multi-Camera Cross-Modal Diffusion 
+
+# Minchong Chen 1,2,† Xiaoyun Yuan 1,2,†,∗ Junzhe Wan 1 Jianing Zhang 3,4 Jun Zhang 41MoE Key Lab of Artificial Intelligence, AI Institute, Shanghai Jiao Tong University 
+
+> 2
+
+# School of Computer Science, Shanghai Jiao Tong University 3Fudan University 4Tsinghua University 
+
+yuanxiaoyun@sjtu.edu.cn SwinPaste SeeSR 3M-TI (Ours) Mobile system & Captured images 
+
+> RGB camera
+> Thermal camera
+> Calibration-free Synchronization-free
+> 64 ×64 512 ×512
+> CoReFusion
+
+Figure 1. A smartphone-based mobile imaging system integrating calibration-free and synchronization-free RGB and thermal cameras. The proposed 3M-TI method delivers superior thermal image quality compared with state-of-the-art restoration approaches. 
+
+# Abstract 
+
+The miniaturization of thermal sensors for mobile platforms inherently limits their spatial resolution and textural fi-delity, leading to blurry and less informative images. Exist-ing thermal super-resolution (SR) methods can be grouped into single-image and RGB-guided approaches: the former struggles to recover fine structures from limited informa-tion, while the latter relies on accurate and laborious cross-camera calibration, which hinders practical deployment and robustness. Here, we propose 3M-TI, a calibration-free Multi-camera cross-Modality diffusion framework for Mobile Thermal Imaging. At its core, 3M-TI integrates a cross-modal self-attention module (CSM) into the diffusion UNet, replacing the original self-attention layers to adap-tively align thermal and RGB features throughout the de-noising process, without requiring explicit camera calibra-tion. This design enables the diffusion network to lever-age its generative prior to enhance spatial resolution, struc-tural fidelity, and texture detail in the super-resolved ther-mal images. Extensive evaluations on real-world mobile  
+
+> †These authors have contributed equally to this work. * Corresponding author. Mail: yuanxiaoyun@sjtu.edu.cn.
+
+thermal cameras and public benchmarks validate our supe-rior performance, achieving state-of-the-art results in both visual quality and quantitative metrics. More importantly, the thermal images enhanced by 3M-TI lead to substan-tial gains in critical downstream tasks like object detec-tion and segmentation, underscoring its practical value for robust mobile thermal perception systems. Project page: 
+
+https://github.com/work-submit/3MTI 
+
+# 1. Introduction 
+
+Thermal imaging detects infrared radiation emitted by ob-jects, extending perception beyond the visible spectrum for enhanced scene understanding. It is particularly effec-tive under challenging conditions such as darkness, fog, or smoke, providing reliable scene information that comple-ments RGB imaging for multimodal perception and fusion [31, 32, 44]. Owing to its robustness, thermal imaging has become increasingly valuable in safety-critical applications, such as autonomous driving, robotic navigation, and situa-tional awareness [41, 42, 45]. Despite rapid advances in infrared sensing, mobile ther-mal imaging remains fundamentally constrained by hard-ware. Miniaturization for compact devices reduces aperture This CVPR paper is the Open Access version, provided by the Computer Vision Foundation. Except for this watermark, it is identical to the accepted version; the final published version of the proceedings is available on IEEE Xplore. 5659 size, lowering spatial resolution and textural detail. In ad-dition, the long wavelength of thermal radiation limits the minimum pixel size, while the high cost of infrared sensors further restricts pixel counts compared with RGB cameras. These factors jointly result in blurry and less informative thermal images on mobile platforms, motivating extensive efforts to enhance their resolution and perceptual quality through computational reconstruction. A representative example of such computational recon-struction is thermal image super-resolution (SR), which aims to reconstruct high-resolution spatial details from low-resolution thermal observations [50]. However, the inher-ently limited information in low-resolution observations, aggravated by the lack of large-scale thermal datasets, makes thermal super-resolution highly underconstrained and hinders network training and generalization compared with RGB-based tasks. To compensate for this deficiency, RGB-guided SR methods exploit cross-modal cues to en-hance reconstruction [1, 12, 17]. Nevertheless, due to the fundamental differences in imaging principles, thermal and RGB images often exhibit substantial discrepancies, and di-rectly merging their features may introduce unrealistic de-tails [30, 60, 63]. Moreover, most existing methods rely on pixel-level aligned RGB-thermal pairs, requiring laborious calibration, which severely limits robustness and scalability in practical deployment. To address these challenges, we propose 3M-TI, a calibration-free Multi-camera cross-Modal diffusion framework for Mobile Thermal Imaging. Firstly, rather than relying on pixel-level calibration between RGB and thermal cameras, 3M-TI performs alignment in the latent space of a variational autoencoder (VAE) [19], where con-tinuous and disentangled representations facilitate robust cross-modal correspondence. An attention-based fusion module further integrates RGB and thermal representations in this latent domain, achieving reliable alignment and fu-sion without explicit registration. Secondly, because ex-isting RGB–thermal datasets are typically small, homoge-neous, and strictly aligned [16, 29], we design a data aug-mentation strategy that intentionally offsets RGB–thermal pairs to simulate real-world conditions. This encourages the attention module to learn robust cross-modal correspon-dence and fusion without relying on explicit pixel-level alignment. Furthermore, we incorporate a one-step latent-space diffusion [40] to suppress fusion artifacts, enhance visual fidelity, and improve robustness under limited-data conditions. Finally, we validate the proposed 3M-TI framework on a real mobile thermal imaging system. Experiments show that it significantly outperforms existing state-of-the-art meth-ods, highlighting both its effectiveness and practical poten-tial. The main contributions of 3M-TI can be summarized as follows: • Calibration-free Fusion : Fully automatic alignment and fusion of uncalibrated RGB–thermal pairs via a cross-modal self-attention module, without requiring pixel-level image registration. • Misalignment Augmentation : Camera-pose augmenta-tion that generates intentionally misaligned RGB coun-terparts, enabling the cross-modal self-attention module to handle multi-camera parallax and unsynchronized cap-tures. • Cross-modal Diffusion : Integration of latent-space dif-fusion to suppress fusion artifacts, enhance detail realism, and leverage pretrained priors to compensate for limited thermal data. • Practical Validation : Evaluation on both public datasets and a real mobile thermal imaging system, demonstrating effectiveness and practical potential. 
+
+# 2. Related Work 
+
+Computational thermal imaging intersects several areas of computer vision and image processing. In this section, we review the most relevant work in three directions: classical and learning-based image restoration, reference-guided image super-resolution, and recent diffusion-based approaches. 
+
+2.1. Image Restoration 
+
+Image restoration seeks to recover a high-quality image from a degraded observation by inverting an imaging model. Classical image restoration methods are typically model-based, formulated as inverse problems with explicit priors. Variational methods regularize the solution with smoothness or edge-preserving constraints [39]. Sparse rep-resentation approaches exploit dictionary learning and spar-sity priors to recover fine details [10, 33]. Non-local self-similarity models, such as non-local means [3] and BM3D [8], leverage the redundancy of similar patches across the image for collaborative filtering. Deep learning has funda-mentally reshaped image restoration by learning powerful data-driven priors directly from large-scale datasets. CNN-based models (e.g., SRCNN[9], EDSR[27]) pioneered end-to-end restoration pipelines, while recent Transformer ar-chitectures such as SwinIR[26] further improved long-range dependency modeling. These advances have led to state-of-the-art performance in denoising [25, 26, 46], de-blurring [20, 28], and super-resolution [5, 6, 9, 21, 26]. Nev-ertheless, single-image restoration remains challenging un-der severe degradation or large upscaling factors, due to the limited high-frequency information in a single observation, motivating approaches that leverage additional cues. 
+
+2.2. Reference-Guided Image Restoration 
+
+Reference-guided image restoration leverages an auxiliary high-resolution modality (typically RGB) to recover fine 5660 details lost in degraded observations. This paradigm has been explored across multiple tasks, including RGB im-age super-resolution [11, 43, 59, 62], hyperspectral im-age super-resolution [12, 58], and thermal image enhance-ment [1, 64]. Early approaches, such as CoReFusion [17], employ a dual-encoder UNet to jointly extract and fuse RGB–thermal features. A contrastive loss is further in-troduced to improve cross-modal consistency and over-all restoration quality. With the advent of Transform-ers [47], attention-based fusion has become the dominant paradigm. MGNet [61] mines multi-level cues (appear-ance, edge, and semantics) from RGB guidance to enhance UAV thermal super-resolution. SwinFuSR [1] introduces a lightweight Swin-Transformer backbone with robust train-ing under missing guidance, and SwinPaste [64] further improves it via data mixing and multi-scale supervision. MSFFCT [36] combines channel-based Transformers with multi-scale feature fusion to capture long-range dependen-cies and rich thermal-RGB correlations. However, the large domain shift between RGB and thermal images poses a significant challenge to establishing reliable cross-modal alignment, especially under uncalibrated conditions. 
+
+2.3. Diffusion-Powered Image Restoration 
+
+Diffusion models have recently demonstrated remarkable capabilities in image restoration and super-resolution by learning powerful generative priors that capture rich tex-tures and structural details [13]. This generative nature allows diffusion models to recover fine structures and high-frequency details that are challenging for CNN- and Transformer-based approaches. However, the original dif-fusion model is computationally expensive due to its long iterative denoising process, limiting practical deployment. To address this, several efficient variants have been pro-posed: latent-space diffusion methods [48, 52, 53, 55] per-form denoising within the compact latent representation of a VAE, reducing computation overhead while preserving high-fidelity reconstructions; distillation-based approaches [15, 34, 40] transfer the generative ability of a large teacher model to a lightweight student, enabling faster inference with minimal quality loss. Diffusion models have also been applied to thermal image super-resolution [7, 24]. DifIISR [24] incorpo-rates gradient-based priors and a thermal spectrum distri-bution regulation into the diffusion process, guiding the model to capture the unique frequency characteristics of infrared images and achieving strong visual quality and downstream task performance. [7] adapts the ResShift dif-fusion model[54] to thermal imaging with an uncertainty-aware approach. This method produces a confidence map that evaluates the reliability of each reconstructed region, thereby enhancing pixel-level fidelity and facilitating tex-ture reconstruction. However, existing methods still rely on strictly pixel-aligned datasets and explicit calibration between cameras, making them sensitive to spatial and temporal misalign-ment and difficult to generalize to real-world mobile sce-narios. These limitations motivate our design of 3M-TI, a calibration-free latent-space diffusion framework that lever-ages multi-modal information for robust mobile thermal imaging. 
+
+# 3. Method 
+
+We propose 3M-TI, a cross-modal diffusion frame, for high-quality thermal image reconstruction from uncalibrated RGB-thermal image pairs (Fig. 2). 3M-TI specifically ad-dresses three key challenges: (1) uncalibrated and unsyn-chronized RGB-thermal captures, (2) fusion of heteroge-neous RGB-thermal representations, and (3) limited data scale and diversity of RGB-thermal datasets. Section 3.1 provides an overview of the 3M-TI frame-work. Section 3.2 introduces the cross-modal self-attention (CSA) module, which performs automatic alignment and fusion within the VAE latent space. Section 3.3 presents a misalignment augmentation strategy that simulates realis-tic inter-camera parallax and temporal offset to improve the robustness of CSA. Finally, Section 3.4 details the practical implementation and validation of 3M-TI on a smartphone-based multi-camera thermal imaging system. 
+
+3.1. 3M-TI Framework Overview 
+
+The 3M-TI framework reconstructs a high-resolution ther-mal image from a low-resolution thermal input and an un-calibrated high-resolution RGB reference, as illustrated in Fig. 2(a). Our approach is built upon the one-step diffu-sion model, SD-Turbo [40], to ensure efficient inference. The process begins by encoding the thermal and RGB im-ages into latent representations using the frozen VAE en-coder. To establish cross-modal correspondence and fu-sion in the latent space, we introduce the cross-modal self-attention module (CSM). This module replaces the original self-attention layers in the diffusion UNet with our cross-modal self-attention layers, which are designed to learn multiscale correspondences between the RGB and thermal latents (Fig. 2(b)). During training, we apply misalign-ment augmentation to the RGB images to enhance robust-ness against uncalibration and temporal unsynchronization (Fig. 2(c)). Furthermore, a skip connection [35] is incor-porated to enhance structural consistency and mitigate geo-metric distortions. Specifically, the feature maps from 4 en-coder downsampling blocks are passed through a  1×1 zero-initialized convolutional layer before being added to the corresponding decoder upsampling blocks. Since extract-ing reliable semantics directly from low-resolution thermal images is suboptimal, we generate text prompts from the corresponding RGB images using the Recognize Anything 5661 C Latent image 
+
+> concatenation
+> Trainable
+> Frozen
+> (c) Misalignment Augmentation
+
+Enc 
+
+Enc  
+
+> Shared weights
+
+C
+
+𝑧𝑧𝑡𝑡𝑡 0
+
+𝑧𝑧𝑅𝑅𝑅𝑅𝑅𝑅 0
+
+> ℝ𝐶𝐶 ×𝐻𝐻 ×𝑊𝑊
+> ℝ𝑀𝑀 ×𝐶𝐶 ×𝐻𝐻 ×𝑊𝑊
+
+Dec 
+
+𝑧𝑧𝑡𝑡𝑡 𝑡𝑡 
+
+𝑧𝑧𝑅𝑅𝑅𝑅𝑅𝑅 𝑡𝑡 
+
+𝐼𝐼𝑡𝑡𝑡 
+
+𝐼𝐼𝑅𝑅𝑅𝑅𝑅𝑅 
+
+𝐼𝐼𝑡𝑡𝑡 ∗Zero Conv  
+
+> LoRA LoRA
+> CSM
+> CSM
+> CSM
+> CSM
+> CSM
+> CSM
+> Text prompt
+> Augmentation
+
+𝑧𝑧𝑡𝑡𝑡 0 , 𝑧𝑧𝑅𝑅𝑅𝑅𝑅𝑅 0
+
+> (b) Cross-Modal Self-Attention Module (CSM)
+
+ℝ(𝑅𝑅 ×𝑀𝑀 )× 𝐶𝐶 ×𝐻𝐻 ×𝑊𝑊 
+
+𝑧𝑧𝑡𝑡𝑡 𝑘𝑘 , 𝑧𝑧𝑅𝑅𝑅𝑅𝑅𝑅 𝑘𝑘 
+
+> Rearrangement
+
+ℝ𝑅𝑅 ×( 𝑀𝑀 ×𝐻𝐻 ×𝑊𝑊 )× 𝐶𝐶 
+
+> Rearrangement
+
+Q
+
+K
+
+V 𝑧𝑧𝑡𝑡𝑡 𝑘𝑘+1 , 𝑧𝑧𝑅𝑅𝑅𝑅𝑅𝑅 𝑘𝑘+1 
+
+ℝ(𝑅𝑅 ×𝑀𝑀 )× 𝐶𝐶 ×𝐻𝐻 ×𝑊𝑊 
+
+> LoRA
+> Attention layer
+
+𝐼𝐼𝑅𝑅𝑅𝑅𝑅𝑅   
+
+> (a) 3M-TI: High-Quality Mobile Thermal Imaging via Calibration-free Multi-Camera Cross-Modal Diffusion
+> Shift
+> Scale
+> Rotate
+> Project
+> Augmentation Shift & Scale Rotate & Scale
+
+𝐼𝐼𝑡𝑡𝑡  
+
+> Project & Scale Project & Rotate
+
+…
+
+…Figure 2. Overview of the 3M-TI architecture. (a) 3M-TI framework. The core of 3M-TI is a one-step diffusion-based model equipped with a cross-modal self-attention module (CSM) and a misalignment augmentation strategy. LoRA fine-tuning is applied to both the UNet and the VAE decoder. (b) Cross-modal self-attention module (CSM). Two rearrangement layers are inserted before and after the original self-attention layers to capture cross-modal correspondences. (c) Misalignment augmentation. A data augmentation strategy designed to enhance model robustness against camera parallax and temporal misalignment between RGB and thermal inputs. 
+
+Model (RAM) [57]. Finally, we employ low-rank adapta-tion (LoRA) [14] to fine-tune both the UNet and the VAE decoder. 
+
+3.2. Cross-Modal Self-Attention Module 
+
+To establish cross-modal correspondence between uncali-brated RGB and thermal images, we introduce the cross-modal self-attention module (CSM). Inspired by video- and multi-view diffusion models [2, 51], our key idea is to re-purpose the transformer blocks within the pretrained dif-fusion UNet for cross-modal RGB-thermal correspondence and fusion. The RGB and thermal inputs are first en-coded into a concatenated latent tensor  {z0 
+
+> RGB
+
+, z 0
+
+> th
+
+} ∈
+
+RB×M ×C×H×W , where  B is the batch size,  M = 2  de-notes the number of images (RGB and thermal, can be ex-tended to multiple RGB images), and  C, H, W  are the chan-nel and spatial dimensions. For non-transformer blocks in the diffusion UNet, the image-number dimension  M is folded into the batch dimen-sion so that RGB and thermal images are processed inde-pendently. Within the transformer blocks (Fig. 2b), two ten-sor rearrangements are applied. Before entering a block, the latent tensor is reshaped to  RB×(M ×H×W )×C , treating each pixel as a token and merging all pixels from both modalities into a single sequence with a length of  M × H × W . Self-attention then computes pairwise dependencies among all RGB and thermal pixels, naturally enabling the transformer to learn cross-modal correspondences and integrate comple-mentary cues. After the block, the latent tensor is reshaped back to  R(B×M )×C×H×W for subsequent layers. At the output stage, the refined thermal latent is merged with the initial latent in the VAE encoder via a zero-initialized skip connection, producing the final high-fidelity thermal image. The cross-modal self-attention module in-troduces no additional parameters, allowing the UNet and VAE decoder to be efficiently fine-tuned using LoRA [14]. 
+
+3.3. Misalignment Augmentation 
+
+Existing RGB-thermal datasets are typically small and strictly pixel-aligned, limiting generalization to practical multi-camera configurations. In practice, spatial misalign-ment arise from camera parallax and temporal unsynchro-nization: parallax varies with scene depth and baseline, while temporal offsets are determined by object motion and capture delay. Since our goal is to learn a model that is robust to these geometric variations, rather than overfitting to a specific calibrated setup, we propose a misalignment augmenta-tion strategy without physical simulation. 3M-TI applies a set of controlled spatial transformations to the RGB im-5662 ages, including translation, scaling, rotation, and perspec-tive warping. The transformation parameters are chosen to reflect typical deviations encountered in handheld and multi-camera scenarios (see Figure 2(c)). This misalignment augmentation encourages the CSM to learn robust cross-modal correspondences under uncal-ibrated and unsynchronized conditions, effectively bridging the gap between constrained training data and diverse de-ployment environments. 
+
+3.4. Practical Multi-Camera System 
+
+To validate our method under realistic conditions, we con-structed a multi-camera system comprising a HIKVISION P09 thermal camera module (costing less than 100 US Dol-lars) and a Xiaomi 15 smartphone, connected via a Type-C interface (Fig. 1). The thermal module provides a native res-olution of  96 × 96 , which is resized to  64 × 64  in this work, with a  50 ◦ × 50 ◦ field of view (FOV) and a pixel pitch of 12 μm. For the RGB reference, we utilize the primary cam-era of the Xiaomi 15, which is equipped with an OV50H sensor and captures images at a resolution of  4096 × 3072 .This RGB camera has an equivalent focal length of 23 mm, yielding a FOV of  74 ◦ × 59 ◦, slightly wider than that of the thermal module. This system offers a realistic platform to evaluate the performance of 3M-TI under practical, uncali-brated mobile imaging conditions. 
+
+# 4. Experiments 
+
+4.1. Experimental Setup 
+
+Datasets Preparation. Our training and test sets are com-piled from four public RGB-thermal datasets: IRVI [22], LLVIP [16], M 3FD [29], and the PBVS 2025 TISR Chal-lenge Track 2 [38]. Among them, IRVI, LLVIP, and PBVS 2025 provide official training-validation/test splits, while M3FD does not. To ensure a balanced and diverse dataset, we sample images from each source as follows: 3,200 pairs from IRVI, 3,200 from LLVIP, 3,822 from M 3FD, and 700 from the PBVS 2025 training split, forming a combined training set of 10,922 image pairs. For evaluation, we con-struct a test set of 1,176 pairs by sampling 300 pairs from the IRVI test set, 300 from LLVIP, 376 from M 3FD, and 200 from the PBVS 2025 validation set. Since the origi-nal datasets contain strictly aligned image pairs, we further augment the test set by applying controlled spatial trans-formations to simulate camera parallax and temporal offset. All thermal images are center-cropped to a square aspect ra-tio and resized to  64 ×64  pixels. To better mimic real sensor noise, we add Gaussian noise. Corresponding RGB images are cropped identically and resized to  512 × 512  pixels to serve as high-resolution references. 
+
+Smartphone Dataset. For real-world evaluation, we col-lected 300 image pairs across 100 diverse scenes using our smartphone-based multi-camera system, including 200 nighttime and the remaining daytime captures. Similarly, all thermal images are resized to  64 × 64 . The correspond-ing RGB images are center-cropped to a square aspect ratio and resized to  512 × 512  as high-resolution references. 
+
+Implementation Details . The model is trained with the loss in Eq. (1), combining L2 and learned perceptual im-age patch similarity (LPIPS) [56] terms with λ = 1 :
+
+L = L2 + λ · L LPIPS . (1) Training is performed using the Adam optimizer [18] with a learning rate of 2 × 10 −5 and a batch size of 4 on a single NVIDIA A800 (80 GB) GPU for about 4 hours (8000 iter-ations). LoRA is applied with ranks of 16 for the UNet and 4 for the VAE decoder. 
+
+Comparative Methods . We compare our model against 7 representative baselines: CoReFusion [17], CoRPLE [23], SwinFuSR [1], SwinPaste [64], SeeSR [53], OSEDiff [52], and DifIISR [24]. CoReFusion is an RGB-guided super-resolution model built upon the UNet architecture. Swin-FuSR employs a Swin Transformer backbone with RGB guidance, while SwinPaste is an enhanced variant. SeeSR, OSEDiff, and DifIISR are diffusion-based image super-resolution methods without reference guidance. Among them, DifIISR is specifically designed for infrared images. CoRPLE is a hybrid framework combining contourlet resid-ual and prompt learning for infrared image enhancement. For fair comparison, all baseline models except DifIISR are retrained on our dataset using their publicly released codes, while DifIISR is evaluated directly since its training code is unavailable. 
+
+Evaluation Metrics . We evaluate model performance us-ing reference metrics, including PSNR and SSIM [49] for reconstruction fidelity and LPIPS [56] for perceptual qual-ity. We also report no-reference metrics, MUSIQ [4] and MANIQA [4], to quantify overall image quality. 
+
+4.2. Image Quality Assesment 
+
+Table 1 summarizes the quantitative results. Our 3M-TI achieves the best performance on perceptual metrics, in-cluding LPIPS, MANIQA, and MUSIQ. For the reference-based LPIPS metric, 3M-TI, OSEDiff, and SeeSR outper-form non-diffusion methods (CoReFusion, CoRPLE, Swin-FuSR, and SwinPaste), highlighting the power of diffusion priors for perceptual enhancement. In terms of fidelity met-rics (PSNR, SSIM), 3M-TI demonstrate better structural preservation than OSEDiff, SeeSR, DifIISR, SwinFuSR, and SwinPaste. The proposed misalignment augmentation significantly improves 3M-TI, particularly on perceptual metrics, while other methods see only marginal gains. This indicates that 3M-TI effectively learns cross-modal corre-spondences and generalizes well to diverse uncalibrated conditions. As shown in Fig. 3, qualitative results reveal a key trend: non-diffusion methods tend to achieve high PSNR/SSIM 5663 Input Thermal  Reference RGB  CoReFusion  SwinFuSR  SwinPaste  SeeSR  (3M-TI) Ours  GT OSEDiff Figure 3. Qualitative comparison on our test set (zoom in for details). 3M-TI achieves the most faithful and visually consistent results, exhibiting sharp structures and accurate thermal patterns that best align with the GT. 
+
+yet produce overly smooth reconstructions that miss fine high-frequency structures. OSEDiff and SeeSR can synthe-size high-frequency content but often introduces details that are inconsistent with the ground truth. In contrast, 3M-TI reconstructs fine details that are both visually plausible and closely aligned with the ground truth. For example, 3M-TI faithfully transfers geometric details such as partially con-structed buildings (Row 1), road markings (Row 2), win-dows and wires (Row 5), and tree branches and utility poles (Row 6) from the RGB references to the thermal outputs, whereas other methods either miss these structures or re-produce them inaccurately. 3M-TI also yields more natural object contours (e.g., cyclists and cars in the Row 3 and Row 4), resulting in visually realistic thermal images. Figure 4 presents qualitative results on our smartphone dataset, confirming 3M-TI’s robustness to real-world, un-calibrated pairs. While CoReFusion, SwinFuSR, and Swin-Paste yield blurry outputs; OSEDiff and SeeSR introduce unrealistic artifacts, our method produces geometrically consistent and visually plausible details. A key example is the bicycle wheels (Row 3), where 3M-TI accurately re-constructs their circular shape despite significant positional misalignment between the RGB and thermal captures due to unsynchronization. Moreover, 3M-TI can leverage weak cues from degraded references, as shown by its ability to recover the railing structure (Row 5) from an RGB im-age heavily corrupted by light flare. Table 2 reports no-reference evaluation on the captured smartphone dataset, where 3M-TI achieves the highest scores. More results and technical details are given in the supplementary material. 
+
+4.3. Downstream Applications 
+
+The high-fidelity outputs of 3M-TI provide structurally and semantically rich representations that directly benefit down-stream vision tasks. To validate this claim, we evaluate two representative tasks: open-vocabulary object detection and semantic segmentation. In these experiments, we apply the pretrained Grounded-SAM model [37] in a zero-shot man-ner (no fine-tuning) and use identical text prompts for all methods to ensure fair comparisons. 
+
+Object detection. For the examples in Fig. 5, the text prompts are “automobile” and “person”. 3M-TI demon-strates superior detection robustness and object discovery capability compared to SwinPaste and SeeSR. Table 3 sum-5664 Input Thermal  Reference RGB  CoReFusion  SwinFuSR  SwinPaste  SeeSR  (3M-TI) Ours OSEDiff Figure 4. Qualitative comparison on our real-world smartphone dataset (zoom in for details). 3M-TI exhibits remarkable generalization capability, producing sharp and faithful thermal details that closely align with RGB images. 
+
+Methods Metrics PSNR ↑ SSIM ↑ LPIPS ↓ MANIQA ↑ MUSIQ ↑
+
+CoReFusion [17] 30.11 0.8588 0.3214 0.2771 28.35 CoReFusion w/ Augment 30.30 0.8634 0.3174 0.2748 28.95 CoRPLE [23] 30.47 0.8642 0.3206 0.2833 30.46 SwinFuSR [1] 29.85 0.8549 0.3085 0.2740 29.86 SwinFuSR w/ Augment 29.98 0.8581 0.3134 0.2753 30.33 SwinPaste [64] 29.83 0.8545 0.3075 0.2719 29.63 SwinPaste w/ Augment 29.91 0.8575 0.3084 0.2745 30.66 SeeSR [53] 29.41 0.8495 0.1828 0.4278 35.22 OSEDiff [52] 28.05 0.8422 0.2113 0.4014 36.30 DifIISR [24] 27.48 0.7905 0.3484 0.4214 36.74 
+
+Ours w/o Augment 30.04 0.8597 0.1917 0.4265 34.94 Ours w/ Augment 30.09 0.8610 0.1787 0.4443 36.66 
+
+Table 1. Performance comparison of different methods on public datasets. Gray cells indicate the best result, and light gray cells indicate the second-best result for each metric. 
+
+marizes detection performance (Precision, Recall, F1-score, and IoU) on the test set (LLVIP and M 3FD with GT an-notations). 3M-TI achieves the best overall detection per-formance, marginally surpassing the reference RGB results and closely approaching the scores obtained on GT thermal             
+
+> Metrics Methods CoReFusion SwinFuSR SwinPaste SeeSR OSEDiff 3M-TI MUSIQ ↑25.74 25.99 26.17 30.15 29.85 30.62
+> MANIQA ↑0.2701 0.2754 0.2749 0.3454 0.3285 0.3589
+
+Table 2. Performance comparison on real-world smartphone dataset. Gray cells indicate the best. 
+
+images. 
+
+Semantic segmentation. For the examples in Fig. 6, the prompts are “sky, tree, automobile, window” and “wheel, automobile, rider”. 3M-TI produces more accurate and co-herent segmentation maps than other methods, while com-plementing the RGB reference. In the first example, com-pared with the RGB results, 3M-TI segments trees more precisely though it misses a small automobile in the bottom-left. In the second low-light example, 3M-TI even outper-forms the RGB reference (e.g., wheels and the upper auto-mobile). Overall, these results confirm that 3M-TI generates se-mantically meaningful details that enhance performance in critical vision tasks, demonstrating its practical utility be-5665 SwinPaste  SeeSR  (3M-TI) Ours  Reference RGB 
+
+> Best detection
+> -
+> Best detection
+> -
+> Mistaking:
+> 1 automobile
+> Missing:
+> 3 automobiles
+> Best detection
+> -
+> Best detection
+> -
+> Missing:
+> 2 persons
+> Missing:
+> 3 persons
+
+Figure 5. Visualization of detection results, where green bounding boxes indicate the correct detection, red bounding boxes indicate the wrong detection. 
+
+yond perceptual quality.                         
+
+> Methods Metrics Precision ↑Recall ↑F1-score ↑IoU ↑
+> Thermal (SwinPaste) 0.1800 0.2109 0.1765 0.1941 Thermal (SeeSR) 0.3832 0.4637 0.3849 0.3022 Thermal (3M-TI) 0.4565 0.5455 0.4724 0.3427
+> Reference RGB 0.4322 0.5708 0.4643 0.3359 Thermal (GT) 0.4582 0.5793 0.4887 0.3494
+
+Table 3. Detection performance comparison across different meth-ods, reference RGB, and GT, evaluated by Precision, Recall, F1-score, and IoU.                                     
+
+> Methods Metrics PSNR ↑SSIM ↑LPIPS ↓MUSIQ ↑
+> w/o Reference 29.97 0.8592 0.2106 32.85 w/o RAM prompt 30.09 0.8616 0.1805 36.20 w/o Augmentation 30.04 0.8597 0.1917 34.94 w/o Skip 29.86 0.8572 0.1795 36.58 w/ Self-Attn 30.03 0.8591 0.1954 34.47 w/ Feature Concat 29.60 0.8481 0.2164 32.12 w/ Cross-Attn 29.86 0.8555 0.1953 34.32 w/ All (w/ CSM) 30.09 0.8610 0.1787 36.66
+
+Table 4. Ablation study of 3M-TI components. Gray cells indicate the best result for each metric. 
+
+4.4. Ablation Study 
+
+We conduct an ablation study to investigate the contribu-tions of each component. Table 4 and Fig. S5 in the supple-mentary material report quantitative drops and representa-tive visual examples when individual modules are removed. Removing the RGB reference produces markedly blurrier reconstructions (e.g., bicycle spokes and shrub textures), in-dicating the importance of cross-modal cues. Removing the misalignment augmentation reduces robustness to geomet-ric and temporal offsets, leading to visibly degraded high-frequency details. Removing the skip connection degrades structural fidelity: circular wheels become distorted and ge-ometric consistency is lost. Removing the semantic guid-ance of RAM hardly impairs reference metrics yet brings a SwinPaste  SeeSR  (3M-TI) Ours  Reference RGB     
+
+> Tree Sky Window Automobile Wheel Rider
+
+Figure 6. Visualization of segmentation results, where different colors represent different object categories. 
+
+drop in perceptual quality. With all components enabled (w/ All), 3M-TI attains the best balance of fidelity and percep-tual quality, producing sharp, semantically consistent ther-mal reconstructions. We further compared CSM (w/ CSM) against: 1) Origi-nal Self-Attn (intra-modal attention only); 2) Feature Con-cat + FC (static projection w/o attention); 3) Standard Cross-Attn (inter-modal attention only). The lower half of Table 4 show that CSM outperforms all variants. Original Self-Attn is incapable of fusing RGB cues. Feature Concat relies on static weights, lacking content-adaptive capabili-ties. Standard Cross-Attn neglects the internal spatial con-text within the thermal modality itself. In contrast, CSM concatenates tokens to perform joint Self-Attn. This en-ables the model to capture both inter-modal (RGB-thermal) guidance and intra-modal (thermal-thermal) structural de-pendencies, which is vital for integrating complementary RGB details while preserving thermal structures. 
+
+# 5. Conclusion 
+
+We proposed 3M-TI, a cross-modal diffusion framework that integrates calibration-free RGB guidance to enhance thermal image reconstruction. With the cross-modal self-attention module and misalignment augmentation, 3M-TI effectively aligns and fuses information across modalities, producing thermal images with sharper, more realistic, and semantically consistent details. Comprehensive experi-ments and real-system evaluations demonstrate that 3M-TI not only achieves superior perceptual quality but also sig-nificantly benefits downstream machine vision tasks. 5666 Acknowledgments 
+
+This work is supported in part by the National Nat-ural Science Foundation of China (NSFC) under Grant No. 62271283, and in part by the Shang-hai Jiao Tong University Medical-Engineering Cross Research Fund under Grant No. YG2026QNB50. 
+
+# References 
+
+[1] Cyprien Arnold, Philippe Jouvet, and Lama Seoud. Swin-fusr: an image fusion-inspired model for rgb-guided thermal image super-resolution. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 3027–3036, 2024. 2, 3, 5, 7 [2] Andreas Blattmann, Tim Dockhorn, Sumith Kulal, Daniel Mendelevitch, Maciej Kilian, Dominik Lorenz, Yam Levi, Zion English, Vikram Voleti, Adam Letts, et al. Stable video diffusion: Scaling latent video diffusion models to large datasets. arXiv preprint arXiv:2311.15127, 2023. 4 [3] Antoni Buades, Bartomeu Coll, and Jean-Michel Morel. Non-local means denoising. Image processing on line, 1: 208–212, 2011. 2 [4] Chaofeng Chen, Jiadi Mo, Jingwen Hou, Haoning Wu, Liang Liao, Wenxiu Sun, Qiong Yan, and Weisi Lin. Topiq: A top-down approach from semantics to distortions for image quality assessment. IEEE Transactions on Image Processing, 33:2404–2418, 2024. 5 [5] Xiangyu Chen, Xintao Wang, Jiantao Zhou, Yu Qiao, and Chao Dong. Activating more pixels in image super-resolution transformer. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages 22367–22377, 2023. 2 [6] Zheng Chen, Yulun Zhang, Jinjin Gu, Linghe Kong, Xi-aokang Yang, and Fisher Yu. Dual aggregation transformer for image super-resolution. In Proceedings of the IEEE/CVF international conference on computer vision, pages 12312– 12321, 2023. 2 [7] Carlos Cort´ es-Mendez and Jean-Bernard Hayet. Explor-ing the usage of diffusion models for thermal image super-resolution: A generic uncertainty-aware approach for guided and non-guided schemes. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 3123–3130, 2024. 3 [8] Kostadin Dabov, Alessandro Foi, Vladimir Katkovnik, and Karen Egiazarian. Image denoising by sparse 3-d transform-domain collaborative filtering. IEEE Transactions on image processing, 16(8):2080–2095, 2007. 2 [9] Chao Dong, Chen Change Loy, Kaiming He, and Xiaoou Tang. Learning a deep convolutional network for im-age super-resolution. In European conference on computer vision, pages 184–199. Springer, 2014. 2 [10] Weisheng Dong, Lei Zhang, Guangming Shi, and Xin Li. Nonlocally centralized sparse representation for image restoration. IEEE transactions on Image Processing, 22(4): 1620–1630, 2012. 2 [11] Lu Fang, Mengqi Ji, Xiaoyun Yuan, Jing He, Jianing Zhang, Yinheng Zhu, Tian Zheng, Leyao Liu, Bin Wang, and Qiong-hai Dai. Engram-driven videography. Engineering, 25:101– 109, 2023. 3 [12] Ying Fu, Tao Zhang, Yinqiang Zheng, Debing Zhang, and Hua Huang. Hyperspectral image super-resolution with op-timized rgb guidance. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages 11661–11670, 2019. 2, 3 [13] Jonathan Ho, Ajay Jain, and Pieter Abbeel. Denoising dif-fusion probabilistic models. Advances in neural information processing systems, 33:6840–6851, 2020. 3 [14] Edward J Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang, Weizhu Chen, et al. Lora: Low-rank adaptation of large language models. ICLR, 1(2):3, 2022. 4 [15] Tao Huang, Yuan Zhang, Mingkai Zheng, Shan You, Fei Wang, Chen Qian, and Chang Xu. Knowledge diffusion for distillation. Advances in Neural Information Processing Systems, 36:65299–65316, 2023. 3 [16] Xinyu Jia, Chuang Zhu, Minzhen Li, Wenqi Tang, and Wenli Zhou. Llvip: A visible-infrared paired dataset for low-light vision. In Proceedings of the IEEE/CVF international conference on computer vision, pages 3496–3504, 2021. 2, 5[17] Aditya Kasliwal, Pratinav Seth, Sriya Rallabandi, and San-chit Singhal. Corefusion: Contrastive regularized fusion for guided thermal super-resolution. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 507–514, 2023. 2, 3, 5, 7 [18] Diederik P Kingma. Adam: A method for stochastic opti-mization. arXiv preprint arXiv:1412.6980, 2014. 5 [19] Diederik P Kingma and Max Welling. Auto-encoding varia-tional bayes. arXiv preprint arXiv:1312.6114, 2013. 2 [20] Lingshun Kong, Jiangxin Dong, Jianjun Ge, Mingqiang Li, and Jinshan Pan. Efficient frequency domain-based trans-formers for high-quality image deblurring. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 5886–5895, 2023. 2 [21] Haoying Li, Yifan Yang, Meng Chang, Shiqi Chen, Huajun Feng, Zhihai Xu, Qi Li, and Yueting Chen. Srdiff: Single image super-resolution with diffusion probabilistic models. Neurocomputing, 479:47–59, 2022. 2 [22] Shuang Li, Bingfeng Han, Zhenjie Yu, Chi Harold Liu, Kai Chen, and Shuigen Wang. I2v-gan: Unpaired infrared-to-visible video translation. In Proceedings of the 29th ACM international conference on multimedia, pages 3061–3069, 2021. 5 [23] Xingyuan Li, Jinyuan Liu, Zhixin Chen, Yang Zou, Long Ma, Xin Fan, and Risheng Liu. Contourlet residual for prompt learning enhanced infrared image super-resolution. In European Conference on Computer Vision, pages 270– 288. Springer, 2024. 5, 7 [24] Xingyuan Li, Zirui Wang, Yang Zou, Zhixin Chen, Jun Ma, Zhiying Jiang, Long Ma, and Jinyuan Liu. Difiisr: A diffusion model with gradient guidance for infrared image super-resolution. In Proceedings of the Computer Vision and 5667 Pattern Recognition Conference, pages 7534–7544, 2025. 3, 5, 7 [25] Yawei Li, Yuchen Fan, Xiaoyu Xiang, Denis Demandolx, Rakesh Ranjan, Radu Timofte, and Luc Van Gool. Effi-cient and explicit modelling of image hierarchies for image restoration. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages 18278– 18289, 2023. 2 [26] Jingyun Liang, Jiezhang Cao, Guolei Sun, Kai Zhang, Luc Van Gool, and Radu Timofte. Swinir: Image restoration using swin transformer. In Proceedings of the IEEE/CVF international conference on computer vision, pages 1833– 1844, 2021. 2 [27] Bee Lim, Sanghyun Son, Heewon Kim, Seungjun Nah, and Kyoung Mu Lee. Enhanced deep residual networks for single image super-resolution. In Proceedings of the IEEE conference on computer vision and pattern recognition workshops, pages 136–144, 2017. 2 [28] Hanzhou Liu, Binghan Li, Chengkai Liu, and Mi Lu. De-blurdinat: A lightweight and effective transformer for image deblurring. CoRR, 2024. 2 [29] Jinyuan Liu, Xin Fan, Zhanbo Huang, Guanyao Wu, Risheng Liu, Wei Zhong, and Zhongxuan Luo. Target-aware dual adversarial learning and a multi-scenario multi-modality benchmark to fuse infrared and visible for object detection. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages 5802–5811, 2022. 2, 5 [30] Jinyuan Liu, Bowei Zhang, Qingyun Mei, Xingyuan Li, Yang Zou, Zhiying Jiang, Long Ma, Risheng Liu, and Xin Fan. Dcevo: Discriminative cross-dimensional evolu-tionary learning for infrared and visible image fusion. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 2226–2235, 2025. 2 [31] Jinyuan Liu, Bowei Zhang, Qingyun Mei, Xingyuan Li, Yang Zou, Zhiying Jiang, Long Ma, Risheng Liu, and Xin Fan. Dcevo: Discriminative cross-dimensional evolu-tionary learning for infrared and visible image fusion. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 2226–2235, 2025. 1 [32] Jiayi Ma, Yong Ma, and Chang Li. Infrared and visible im-age fusion methods and applications: A survey. Information fusion, 45:153–178, 2019. 1 [33] Julien Mairal, Michael Elad, and Guillermo Sapiro. Sparse representation for color image restoration. IEEE Transactions on image processing, 17(1):53–69, 2007. 2 [34] Chenlin Meng, Robin Rombach, Ruiqi Gao, Diederik Kingma, Stefano Ermon, Jonathan Ho, and Tim Salimans. On distillation of guided diffusion models. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages 14297–14306, 2023. 3 [35] Gaurav Parmar, Taesung Park, Srinivasa Narasimhan, and Jun-Yan Zhu. One-step image translation with text-to-image models. arXiv preprint arXiv:2403.12036, 2024. 3 [36] Raghunath Sai Puttagunta, Birendra Kathariya, Zhu Li, and George York. Multi-scale feature fusion using channel trans-formers for guided thermal image super resolution. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 3086–3095, 2024. 3 [37] Tianhe Ren, Shilong Liu, Ailing Zeng, Jing Lin, Kunchang Li, He Cao, Jiayu Chen, Xinyu Huang, Yukang Chen, Feng Yan, et al. Grounded sam: Assembling open-world models for diverse visual tasks. arXiv preprint arXiv:2401.14159, 2024. 6 [38] Rafael E Rivadeneira, Angel D Sappa, Riad Hammoud, Jiyong Rao, Hang Zhong, Yu Wang, Shengjie Zhao, Zhi-wei Zhong, Yung-Hui Li, Shiqi Wang, Qiangqiang Shen, Hanzhang Wang, and Xuanqi Zhang. Thermal image super-resolution challenge results-pbvs 2025. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages 4630–4639, 2025. 5 [39] Leonid I Rudin, Stanley Osher, and Emad Fatemi. Nonlinear total variation based noise removal algorithms. Physica D: nonlinear phenomena, 60(1-4):259–268, 1992. 2 [40] Axel Sauer, Dominik Lorenz, Andreas Blattmann, and Robin Rombach. Adversarial diffusion distillation. In European Conference on Computer Vision, pages 87–103. Springer, 2024. 2, 3 [41] Mark Sheinin, Aswin C Sankaranarayanan, and Srinivasa G Narasimhan. Projecting trackable thermal patterns for dy-namic computer vision. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 25223–25232, 2024. 1 [42] Ukcheol Shin, Jinsun Park, and In So Kweon. Deep depth estimation from thermal image. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 1043–1053, 2023. 1 [43] Yang Tan, Haitian Zheng, Yinheng Zhu, Xiaoyun Yuan, Xing Lin, David Brady, and Lu Fang. Crossnet++: Cross-scale large-parallax warping for reference-based super-resolution. IEEE Transactions on Pattern Analysis and Machine Intelligence, 43(12):4291–4305, 2020. 3 [44] Linfeng Tang, Xinyu Xiang, Hao Zhang, Meiqi Gong, and Jiayi Ma. Divfusion: Darkness-free infrared and visible im-age fusion. Information Fusion, 91:477–493, 2023. 1 [45] Zitian Tang, Wenjie Ye, Wei-Chiu Ma, and Hang Zhao. What happened 3 seconds ago? inferring the past with thermal imaging. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 17111– 17120, 2023. 1 [46] Zhijun Tu, Kunpeng Du, Hanting Chen, Hailing Wang, Wei Li, Jie Hu, and Yunhe Wang. Ipt-v2: Efficient image process-ing transformer using hierarchical attentions. arXiv preprint arXiv:2404.00633, 2024. 2 [47] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszko-reit, Llion Jones, Aidan N Gomez, Łukasz Kaiser, and Illia Polosukhin. Attention is all you need. Advances in neural information processing systems, 30, 2017. 3 [48] Yufei Wang, Wenhan Yang, Xinyuan Chen, Yaohui Wang, Lanqing Guo, Lap-Pui Chau, Ziwei Liu, Yu Qiao, Alex C Kot, and Bihan Wen. Sinsr: diffusion-based image super-resolution in a single step. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages 25796–25805, 2024. 3 [49] Zhou Wang, Alan C Bovik, Hamid R Sheikh, and Eero P Si-moncelli. Image quality assessment: from error visibility to 5668 structural similarity. IEEE transactions on image processing, 13(4):600–612, 2004. 5 [50] Zhihao Wang, Jian Chen, and Steven CH Hoi. Deep learn-ing for image super-resolution: A survey. IEEE transactions on pattern analysis and machine intelligence, 43(10):3365– 3387, 2020. 2 [51] Jay Zhangjie Wu, Yuxuan Zhang, Haithem Turki, Xuanchi Ren, Jun Gao, Mike Zheng Shou, Sanja Fidler, Zan Goj-cic, and Huan Ling. Difix3d+: Improving 3d reconstruc-tions with single-step diffusion models. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 26024–26035, 2025. 4 [52] Rongyuan Wu, Lingchen Sun, Zhiyuan Ma, and Lei Zhang. One-step effective diffusion network for real-world im-age super-resolution. Advances in Neural Information Processing Systems, 37:92529–92553, 2024. 3, 5, 7 [53] Rongyuan Wu, Tao Yang, Lingchen Sun, Zhengqiang Zhang, Shuai Li, and Lei Zhang. Seesr: Towards semantics-aware real-world image super-resolution. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages 25456–25467, 2024. 3, 5, 7 [54] Zongsheng Yue, Jianyi Wang, and Chen Change Loy. Resshift: Efficient diffusion model for image super-resolution by residual shifting. Advances in Neural Information Processing Systems, 36:13294–13307, 2023. 3 [55] Jianing Zhang, Jiayi Zhu, Feiyu Ji, Xiaokang Yang, and Xiaoyun Yuan. Degradation-modeled multipath diffu-sion for tunable metalens photography. arXiv preprint arXiv:2506.22753, 2025. 3 [56] Richard Zhang, Phillip Isola, Alexei A Efros, Eli Shecht-man, and Oliver Wang. The unreasonable effectiveness of deep features as a perceptual metric. In Proceedings of the IEEE conference on computer vision and pattern recognition, pages 586–595, 2018. 5 [57] Youcai Zhang, Xinyu Huang, Jinyu Ma, Zhaoyang Li, Zhaochuan Luo, Yanchun Xie, Yuzhuo Qin, Tong Luo, Yaqian Li, Shilong Liu, et al. Recognize anything: A strong image tagging model. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 1724–1732, 2024. 4 [58] Yingkai Zhang, Zeqiang Lai, Tao Zhang, Ying Fu, and Chenghu Zhou. Unaligned rgb guided hyperspectral image super-resolution with spatial-spectral concordance: Y. zhang et al. International Journal of Computer Vision, pages 1–21, 2025. 3 [59] Zhifei Zhang, Zhaowen Wang, Zhe Lin, and Hairong Qi. Image super-resolution by neural texture transfer. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages 7982–7991, 2019. 3 [60] Wenda Zhao, Shigeng Xie, Fan Zhao, You He, and Huchuan Lu. Metafusion: Infrared and visible image fusion via meta-feature embedding from object detection. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition, pages 13955–13965, 2023. 2 [61] Zhicheng Zhao, Yong Zhang, Chenglong Li, Yun Xiao, and Jin Tang. Thermal uav image super-resolution guided by multiple visible cues. IEEE Transactions on Geoscience and Remote Sensing, 61:1–14, 2023. 3 [62] Haitian Zheng, Mengqi Ji, Haoqian Wang, Yebin Liu, and Lu Fang. Crossnet: An end-to-end reference-based super reso-lution network using cross-scale warping. In Proceedings of the European conference on computer vision (ECCV), pages 88–104, 2018. 3 [63] Naishan Zheng, Man Zhou, Jie Huang, Junming Hou, Haoy-ing Li, Yuan Xu, and Feng Zhao. Probing synergistic high-order interaction in infrared and visible image fusion. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition, pages 26384–26395, 2024. 2 [64] Hang Zhong, Yu Wang, and Shengjie Zhao. Swinpaste: A swin transformer-based framework for rgb-guided thermal image super-resolution. In Proceedings of the Computer Vision and Pattern Recognition Conference, pages 4589– 4594, 2025. 3, 5, 7 5669

@@ -1,0 +1,399 @@
+Title: GSV2X: Geometry-Aware Uncertainty Modeling and Orthogonal Fusion for Robust Roadside Perception
+
+URL Source: https://openaccess.thecvf.com/content/CVPR2026/papers/Xu_GSV2X_Geometry-Aware_Uncertainty_Modeling_and_Orthogonal_Fusion_for_Robust_Roadside_CVPR_2026_paper.pdf
+
+Published Time: Sat, 16 May 2026 16:49:32 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+# GSV2X: Geometry-Aware Uncertainty Modeling and Orthogonal Fusion for Robust Roadside Perception 
+
+# Jianqiang Xu 1,3, Gensheng Pei 2, Huafeng Liu 1,3∗, Yazhou Yao 1,3∗
+
+> 1
+
+Nanjing University of Science and Technology, 2Department of Electrical and Computer Engineering, Sungkyunkwan University 
+
+> 3
+
+State Key Laboratory of Intelligent Manufacturing of Advanced Construction Machinery 
+
+# Abstract 
+
+Reliable 3D perception from multi-view roadside sensors hinges on the robust fusion of camera and LiDAR data, a task complicated by geometric misalignments and sensor calibration errors. This paper presents GSV2X , a fusion framework that tackles these challenges through two core contributions. First, to achieve robustness against spatial uncertainty, we lift 2D image features into a unified Bird’s-Eye-View (BEV) space by representing them as 3D Gaus-sian distributions. By incorporating learnable perturba-tions guided by camera geometry, our model explicitly ac-counts for potential calibration inaccuracies. Second, to maximize the synergy between modalities, we propose a new orthogonal fusion module. This module employs con-strained attention to enforce orthogonality between camera and LiDAR features, effectively disentangling redundant in-formation and promoting the learning of complementary representations. Extensive experiments on the challenging RCooper dataset demonstrate that GSV2X sets a new state-of-the-art in multi-view roadside perception and exhibits re-markable robustness in complex, real-world scenarios. 
+
+# 1. Introduction 
+
+Roadside Perception Systems (RPS) are rapidly becom-ing a cornerstone of intelligent transportation infrastructure [7, 47–49, 51, 52]. Deployed at fixed locations, they provide a stable, global perspective of complex traffic environments like intersections and highway ramps, a clear advantage over the limited viewpoint of on-board sensors [55]. The prevailing paradigm for these systems leverages multi-view, multi-modal fusion, integrating rich semantic information from cameras with precise geometric data from LiDAR [24, 28, 42]. By combining sensors at diverse viewpoints, RPS can mitigate occlusions and build a more complete 3D understanding of the scene [6, 19, 58], a research direction further propelled by large-scale datasets like RCooper [10]. However, a significant gap exists between this com--14.5% 
+
+> -0.6%
+> BEVFusion
+> GSV2X
+> BEVFusion
+> GSV2X
+> -2.9%
+> -9.5%
+
+Figure 1. Robustness comparison under calibration error. We compare our method with a strong baseline, BEVFusion [24], across two scenarios. On the left, when switching from corridor (Corr.) to intersection (Int.) scenes, BEVFusion suffers a 14.5% 
+
+drop in AP@0.3, while GSV2X degrades by only 2.9% . On the right, within intersection scenes, we further compare performance under Accurate Calibration (AC) and Perturbed Calibration (PC). GSV2X again exhibits superior robustness, with only 0.6% per-formance loss, in contrast to BEVFusion’s 9.5% drop. 
+
+pelling vision and the reality of current systems. The pro-cess of fusing information from disparate sensors and view-points is fundamentally brittle, plagued by two intercon-nected challenges that undermine reliability in real-world deployments. The first is acute sensitivity to spatial uncer-tainty. Projecting features into a unified Bird’s-Eye-View (BEV) space requires perfect sensor calibration, a condi-tion rarely met in practice. Even minute, inevitable cali-bration errors can cause catastrophic feature misalignment, leading to ghost objects, unstable tracks, and missed de-tections that critically compromise safety [5, 40, 53]. As illustrated in Fig. 1, conventional methods that rely on deterministic projections are ill-equipped to handle these real-world imperfections. The second challenge is inher-ent modal imbalance. Naively combining sensor data often leads to information conflict, where dense camera features overshadow the sparse but precise geometry from LiDAR. This imbalance not only leads to suboptimal performance but also causes models to overfit to one modality[10], fail-ing to generalize when sensing conditions change ( e.g. , in adverse weather). This CVPR paper is the Open Access version, provided by the Computer Vision Foundation. Except for this watermark, it is identical to the accepted version; the final published version of the proceedings is available on IEEE Xplore. 21409 To overcome these dual challenges, we propose GSV2X, a robust multi-modal fusion framework for multi-view road-side perception. Our work is built upon two key insights .To tackle spatial uncertainty, we move beyond determinis-tic projections and introduce a novel BEV representation based on 3D Gaussian Splatting [16]. We represent each image pixel feature not as a single point in 3D, but as a con-tinuous 3D Gaussian distribution. This approach, guided by a geometric depth estimation strategy, explicitly models the inherent uncertainty in both depth prediction and cam-era calibration parameters by learning the variance of these Gaussians. This allows for a “ softer ” projection that is sig-nificantly more robust to spatial misalignments. To resolve the imbalance between modalities, we intro-duce an Orthogonal Fusion Module (OFM). Instead of sim-ply combining features, the OFM employs a constrained attention mechanism that enforces orthogonality between the feature representations of the camera and LiDAR. This forces the model to learn complementary information, en-suring that each modality contributes its unique strengths while suppressing redundant or conflicting signals. This de-sign leads to a more stable and effective fusion, particularly in complex and noisy scenarios. We conduct extensive evaluations on the challenging RCooper dataset [10], where GSV2X demonstrates a re-markable leap in performance. Our method achieves state-of-the-art results, reaching AP scores of 74.7% , 63.4% , and 
+
+40.3% at IoU thresholds of 0.3, 0.5, and 0.7, respectively. These results constitute a significant improvement of 9.6% ,
+
+15.8% , and 15.9% over the official benchmark, validating the profound impact of our principled approach to uncer-tainty and fusion. Our contributions are summarized as fol-lows: • We propose a new framework, GSV2X, that addresses two of the most critical and coupled challenges in multi-view, multi-modal perception: spatial uncertainty and 
+
+modal redundancy .• We introduce a probabilistic BEV representation based on 3D Gaussians that explicitly models and absorbs er-rors from both depth estimation and sensor calibration, drastically improving feature robustness. • We design an Orthogonal Fusion Module that enforces complementarity between modalities, leading to a more stable, efficient, and powerful fused representation. 
+
+# 2. Related Works 
+
+## 2.1. Camera-based 3D Object Detection 
+
+The Lift-Splat-Shoot (LSS) paradigm [31] revolutionized camera-based 3D object detection by providing an effec-tive pipeline to transform multi-view 2D features into a uni-fied BEV representation, and has since become the back-bone of many methods [12, 13, 24, 28]. LSS-based ap-proaches [21, 22, 47, 49] predict per-pixel depth distribu-tions to lift image features into 3D, but still rely on a deter-ministic projection, making them brittle to errors in depth estimation and camera calibration. This fragility is espe-cially pronounced in roadside perception, where diverse sensor heights and pitch angles challenge the generalization of learned depth predictors. To address this, prior works mainly follow two direc-tions. One line improves the robustness of the geometric projection, e.g., BEVHeight [47] regresses height instead of depth to reduce pitch sensitivity, and SGV3D [50] ex-ploits geometric priors to transfer instances across views for augmentation. The other compensates for projection er-rors after lifting to BEV: BEVSpread [43] smooths features via neighborhood-aware spreading, while CBR [7] avoids explicit projection through decoupled view transformations at the cost of geometric precision. In contrast to refining a fixed deterministic projection or correcting its BEV artifacts post-hoc, GSV2X relaxes the deterministic assumption it-self: each lifted feature is represented as a 3D Gaussian rather than a single point, explicitly modeling spatial un-certainty from depth ambiguity and calibration noise in the geometric representation and yielding a more robust BEV feature space. 
+
+## 2.2. LiDAR-based 3D Object Detection 
+
+Existing LiDAR-based 3D object detection methods are commonly grouped into three families: point-based [23, 32–35], voxel-based [4, 26, 41, 46], and point–voxel hy-brids [27, 30, 36, 38, 57]. Two representative lines are Vox-elNet [57] and PointPillars [20]. VoxelNet divides point clouds into 3D voxels, uses a VFE layer for intra-voxel aggregation, and a 3D backbone for spatial features, uni-fying extraction and box prediction end-to-end. It cap-tures local 3D shape and boundaries well, but stacked VFEs and 3D convs are costly in large, sparse scenes. By con-trast, PointPillars collapses height into “pillars,” encodes them into image-like BEV features, and performs detection with only 2D convs. Leveraging efficient 2D backbones, it preserves accuracy while reducing latency and boosting throughput. We therefore adopt PointPillars for an efficient, BEV-aligned point-cloud branch. 
+
+## 2.3. Multimodal BEV-based Perception 
+
+Fusing data from complementary sensors, such as cameras and LiDAR, is a key strategy for achieving robust 3D per-ception [1, 8, 24, 28, 39]. The primary goal is to align and integrate rich camera semantics with precise sensor geom-etry in a shared BEV space. A dominant trend in recent works is the use of attention-based mechanisms to establish cross-modal correspondences. Methods like RCBEVDet [25], FUTR3D [3], SparseFusion3D [54], and CRN [18] often employ sparse queries and deformable attention to 21410 dO H         
+
+> CNN
+> (a) Image Data Processing Module
+> (b) LiDAR Data Processing Module
+> Multi -view
+> Images Image
+> Backbone Multi -view Features
+> Pillar Scatter
+> LiDAR Points Pillar VFE LiDAR Features
+> F
+> (c) Orthogonal Fusion Module ℒorth
+> BEV Features BEV Backbone
+> Task
+> Head
+> Late Fusion
+> Results
+> Feature
+> Misalignment
+> Voxel Pooling
+> (LSS) Gaussian
+> Rendering ( Ours )
+> Image BEV
+> Features
+> LiDAR BEV
+> Features
+> 3D Gaussians
+> Rendered BEV
+> Features
+> F
+> O
+> d
+> H
+> Image
+> Features
+> Opacity
+> Visible
+> Depth
+> Height
+> Image BEV
+> Features
+> LiDAR BEV
+> Features
+> C
+> B
+> R
+> S
+> Conv2d
+> BatchNorm
+> ReLU
+> Sigmoid
+> Concat
+> Add
+> Hadamard
+> Produc t
+> Geometry -guided
+> Depth Estimation Camera -to -BEV
+> view Transform
+> 𝐱 𝑖 𝐺(𝐱)
+> C
+> C
+> Attention
+> Map
+> C
+> B
+> R
+> C
+> S
+
+Figure 2. The GSV2X Architecture. Our framework synergistically processes multi-view camera and LiDAR data through two specialized streams that converge at a novel fusion module. The image branch employs a Gaussian-based view transformer to lift 2D features into a probabilistic 3D representation, while the LiDAR branch generates a robust geometric BEV map. For training, data from all views are processed jointly to enable collaborative optimization. During inference, each view is processed independently, with its outputs fused in a final post-processing step. 
+
+dynamically sample and align features from heterogeneous data sources. Alignment-focused fusion implicitly maximizes cross-modal similarity, which can induce modal dominance un-der noise: dense camera features overpower sparser yet geometrically critical LiDAR cues, leading to redundancy rather than complementarity. We instead explicitly promote complementarity. The proposed Orthogonal Fusion Mod-ule imposes an orthogonality regularizer between camera and LiDAR feature spaces, discouraging overlapping repre-sentations and encouraging each modality to contribute its unique strengths. This yields a more balanced and robust fusion that is less sensitive to noise and input imbalance. 
+
+# 3. Method 
+
+## 3.1. Overview 
+
+Conventional fusion methods based on LSS [31] are brittle under feature misalignment, a common issue in real-world systems. Our framework GSV2X is designed to address this brittleness in multi-view roadside perception by target-ing two key challenges: spatial uncertainty and modal im-balance (Fig. 2). To handle spatial uncertainty from depth estimation and camera calibration errors, we redesign the lifting step from images to 3D. Rather than mapping each 2D pixel to a single fixed 3D point, we represent it as a 3D Gaussian distribution, treating the pixel location as a soft continuous region instead of a hard point. This proba-bilistic formulation naturally absorbs small geometric mis-alignments that are unavoidable in practice. The proposed Geometry-guided Depth Estimation (GDE) module enables this robust lifting and provides a reliable basis for plac-ing the Gaussians in 3D. To mitigate modal imbalance and conflict during fusion, we introduce an Orthogonal Fusion Module (OFM). Instead of simple feature concatenation, OFM uses a constrained fusion strategy with an orthogonal-ity regularizer between image and LiDAR feature spaces, promoting complementary rather than redundant represen-tations. The resulting fused BEV features are then fed into a detection head to produce the final 3D object predictions. 
+
+## 3.2. BEV Representation via Gaussian Splatting 
+
+The critical weakness of LSS-based methods [24, 31] is their reliance on a deterministic point-wise projection to transform 2D features into the 3D space. This process is inherently brittle, as any error in depth estimation or cam-era calibration leads to feature misalignment in the final BEV representation. To overcome this fragility, we pro-pose a probabilistic view transformer that represents the spatial contribution of each pixel not as a single point, but as a continuous 3D Gaussian distribution, inspired by Gaus-sianLSS [29]. Our key insight is that spatial uncertainty in this context stems from two distinct sources: the inherent ambiguity in depth prediction and the potential for extrinsic calibration noise. We design our 3D Gaussian representation to explic-21411 itly model both. For each pixel m with feature fm, we pre-dict its location in 3D as a Gaussian G(x) ∼ N (μ, Σ). The mean μ ∈ R3 and covariance Σ ∈ R3×3 are formulated to capture the decomposed uncertainties. First, from a predicted depth distribution p(di|m) over D
+
+depth bins, we compute an initial mean μm, 3D and a depth-induced covariance Σm, depth for the m-th pixel: 
+
+μm, 3D =
+
+> D
+
+X
+
+> i=1
+
+p(di|m) · xi,
+
+Σm, depth =
+
+> D
+
+X
+
+> i=1
+
+p(di|m) · (xi − μm, 3D )( xi − μm, 3D )⊤,
+
+(1) where xi ∈ R3 is the 3D coordinate corresponding to the 
+
+i-th depth bin. While Σm, depth models the uncertainty along the camera ray, it fails to account for calibration errors. To address this, we introduce a learnable, view-dependent per-turbation scalar λ ≥ 0 predicted by a lightweight MLP from the camera extrinsics. This factor adaptively scales the co-variance to model the additional uncertainty from potential calibration noise: 
+
+Σm, 3D = λ · Σm, depth . (2) The BEV feature map F BEV img is rendered by accumulat-ing the contributions of all pixel features via differentiable Gaussian splatting [16, 29]. Specifically, the feature vector at any location p ∈ R2 on the BEV grid is computed as: 
+
+F BEV img (p) = 
+
+> N
+
+X
+
+> m=1
+
+fm · αm · exp 
+
+
+
+− 12 (p − μm, BEV )⊤
+
+Σ−1
+
+> m, BEV
+
+(p − μm, BEV )
+
+
+
+,
+
+(3) where the sum is over all N lifted pixels, fm and αm are the feature and predicted opacity for the m-th pixel, and 
+
+μm, BEV and Σm, BEV are the mean and covariance of its 3D Gaussian projected onto the BEV plane. This probabilistic lifting produces a BEV representation that is more robust to the geometric perturbations endemic to real-world systems. Notably, we adopt alpha-blending [17] to render BEV features instead of BEV-pooling [31], which further im-proves inference efficiency and strengthens deployability, as our experiments demonstrate. 
+
+## 3.3. Geometry-guided Depth Estimation 
+
+The fidelity of our Gaussian representation hinges on accu-rate depth estimation. Directly regressing the scene depth 
+
+z is notoriously difficult in roadside settings due to signif-icant, unconstrained variations in camera height and pitch O                                         
+
+> P
+> ℎ′
+> ℎ𝐻
+> 𝑑 A
+> Image plane
+> B
+> C
+> P
+> ℎ′
+> ℎ𝐻
+> 𝑑 A
+> Image plane
+> B
+> (a) (b)
+> O𝜃 𝜃
+> MonoUni Ours
+> Figure 3. Disentangled vs. Direct Depth Estimation Geometry.
+> (a) MonoUni [15]: Ois the camera center, OZ the optical axis, f
+> the focal length, θthe pitch angle, σthe per-pixel viewing offset,
+> Hthe true object height above the ground, h′the vertical pixel dis-tance from the object center to its bottom, and zthe true depth. (b) Our model: Cis any 3D point on the object surface, Pits ground projection, Athe auxiliary ground intersection, Qthe intersection with line OP ,h=∥CQ ∥the geometric distance, and d=∥OA ∥
+> the ground-plane projection distance. zis recovered using these quantities via geometric constraints.
+
+across installations. As shown in Fig. 3(a), prior work has explored predicting normalized depth values [15], but these are abstract and not directly applicable to our per-pixel lift-ing framework. Our solution, Geometry-guided Depth Estimation (GDE), is to disentangle the depth estimation task into a more constrained and stable learning problem. Instead of predicting the final depth z directly, our network learns to predict two intermediate, physically-grounded quantities that are more robust to variations in camera extrinsics: the visible horizontal distance d on the ground plane and the ob-ject height H above the ground (see Fig. 3(b)). These quan-tities are more directly inferable from image semantics. The final, true depth z for each pixel is then deterministically re-covered using these predictions in conjunction with known camera parameters (pitch θ, focal length f , etc .) through the geometric relationship: 
+
+z = d · (tan( θ + σ) · sin θ + cos θ) − H · sin θ, (4) where σ is the pixel’s vertical viewing angle derived from its y-coordinate as σ = arctan(( vp − cy )/f ). By supervis-ing the network on the more stable targets d and H (using LiDAR-derived ground truth), we achieve superior general-ization across diverse camera poses, providing a more re-liable foundation for our probabilistic view transformation. More details are provided in the Supplementary Material .
+
+## 3.4. Orthogonal Fusion Module 
+
+Effective multimodal fusion must handle heterogeneous sensor data and issues such as temporal asynchrony and cal-ibration errors (e.g., in RCooper [10]). In many BEV fusion backbones, na¨ ıve designs such as simple concatenation or addition (e.g., BEVFusion [28]) can lead to modal dom-inance , where dense camera features contribute stronger gradients than sparse but geometrically precise LiDAR fea-21412 tures, so the network reaches a low training loss by relying heavily on the camera branch while underutilizing LiDAR cues where they are available. To mitigate this tendency, we propose an Orthogonal Fusion Module (OFM, see Fig. 2) that treats F BEV LiDAR as a geometric backbone and uses F BEV img 
+
+as an enhancement branch, not to densify LiDAR or explain sparsity by non-orthogonality, but to structure fusion so that the camera branch does not trivially overwrite LiDAR guid-ance in LiDAR-dense regions and instead focuses on com-plementary cues such as appearance and distant context. As illustrated in Fig. 2(c), we first use an attention mech-anism to generate a spatial weight map A, which adaptively modulates the image features. The fusion is formulated as 
+
+F BEV fused = F BEV LiDAR + A ⊙ F BEV img , (5) where ⊙ denotes the Hadamard product. In this formula-tion, the LiDAR pathway always provides a complete BEV representation, and the image branch contributes a residual term whose influence is controlled by A.The key to promoting complementarity lies in our or-thogonal regularization loss, Lorth . This loss discourages re-dundant projections of the camera features onto the LiDAR directions by penalizing their correlation at each spatial lo-cation. By minimizing the squared dot product between the feature vectors, we encourage the two modalities to occupy less correlated directions in the feature space: 
+
+Lorth = Ep∈BEV 
+
+h F BEV LiDAR (p)⊤F BEV img (p)2i
+
+, (6) where E[·] denotes the expectation over all BEV grid lo-cations p. This regularizer mainly shapes the direction of the image features relative to LiDAR, nudging the camera branch to avoid simply re-encoding LiDAR geometry where LiDAR is present and to contribute complementary infor-mation instead. 
+
+Regularization behavior. Lorth is used as a mild auxiliary loss with a small weight, so the training objective is still dominated by the detection loss on F BEV fused . Since the fusion output is anchored by F BEV LiDAR , the network can always re-duce A and fall back to a LiDAR-dominant solution when camera signals are unreliable, while in LiDAR-sparse re-gions A is free to upweight the camera branch. Thus, OFM does not enforce LiDAR dominance everywhere, but gently reduces camera dominance in LiDAR-dense regions and en-courages a more complementary use of the two modalities. 
+
+# 4. Experiments 
+
+## 4.1. Experimental Setup 
+
+Datasets and Metrics. Our approach is rigorously eval-uated on two challenging, large-scale roadside perception datasets. 
+
+RCooper [10] is a real-world dataset featuring diverse data from intersection and corridor scenarios collected under various weather and lighting conditions. For all experi-ments, we strictly adhere to the official data splits. Follow-ing the benchmark’s protocol, we report Average Precision (AP) at multiple 3D IoU thresholds while treating all cate-gories as a single class, as non-vehicle classes constitute a negligible portion of the dataset. 
+
+DAIR-V2X-I [52] is a vehicle-infrastructure cooperative dataset. We use the infrastructure-side subset. It contains 10,000 images with annotations for objects up to 200 meters away. We follow the official training and validation splits, as the test set is not public. Performance is measured us-ing the 40-point Average Precision (AP 3D |R40 ) metric, with results for the vehicle class categorized into Easy, Middle, and Hard difficulty levels, following the KITTI [9] protocol. 
+
+## 4.2. Implementation Details 
+
+Architecture. Our GSV2X framework is implemented in PyTorch, building upon the open-source projects Gaus-sianLSS [29] and PointPillars [20]. For the image branch, we employ a ResNet-50 [11] backbone with a Feature Pyra-mid Network (FPN) to extract multi-scale features. In-put images are resized to 512 × 512 for RCooper and 
+
+864 × 1536 for DAIR-V2X-I to align with their respec-tive standard practices. For the LiDAR branch, we use a PointPillars backbone. The voxel size for RCooper is set to 
+
+[0 .5, 0.5, 11] m within a point cloud range of [−100 , 100] mfor the X/Y axes and [−11 , 0] m for the Z-axis. For the BEV representation, we render features onto a 200 × 200 grid for RCooper (representing a 100 m×100 m area) and a 128 ×128 
+
+grid for DAIR-V2X-I ( 102 .4m × 102 .4m area). 
+
+Training and Inference. All models are trained from scratch using the AdamW optimizer [56] with a weight decay of 1 × 10 −4 and a cosine annealing learning rate schedule. For the RCooper experiments, we train for 50 epochs with a batch size of 4 and an initial learning rate of 
+
+2 × 10 −3. For DAIR-V2X-I, we follow its common proto-col, training for 100 epochs with an initial learning rate of 
+
+2×10 −4. Standard data augmentation techniques, including random scaling and rotation, are applied to the image data during training. All experiments are conducted on a single NVIDIA GeForce RTX 3090 GPU with 24GB of memory. 
+
+## 4.3. Comparison with State-of-the-Art Methods 
+
+Main Results on RCooper. We compare GSV2X with other leading methods on the RCooper validation set, with detailed results in Table 1. Our full GSV2X model achieves the best performance across both the “intersection” and “corridor” scenarios. GSV2X GS , which uses only our prob-abilistic Gaussian Splatting, shows a clear improvement over existing methods. In the challenging “intersection” scene with known calibration noise, GSV2X GS reaches 21413 Method Modality Intersection Scene Corridor Scene 
+
+AP@0.3 AP@0.5 AP@0.7 AP@0.3 AP@0.5 AP@0.7 No Fusion [10] LiDAR 58.1 44.1 23.8 40.0 29.2 11.1 Late Fusion [10] LiDAR 65.1 47.6 24.4 44.5 29.9 10.8 Early Fusion [10] LiDAR 50.0 33.9 18.3 69.8 54.7 30.3 AttFuse [45] LiDAR 45.5 40.9 27.9 62.7 51.6 32.1 F-Cooper [2] LiDAR 49.5 32.0 12.9 65.9 55.8 36.1 Where2Comm [14] LiDAR 50.5 42.2 29.9 67.1 55.6 34.3 CoBEVT [44] LiDAR 53.5 45.6 32.6 67.6 57.2 36.2 RCooper [10] Camera 11.3 2.41 - 27.0 3.5 -BEVHeight [47] Camera 34.9 11.7 4.9 70.1 58.3 29.4 BEVHeight++ [49] Camera 35.0 12.4 5.1 70.9 58.0 29.8 BEVFusion [28] LiDAR & Camera 58.6 43.7 24.1 73.1 60.8 35.5 GSV2X GS (Ours ) LiDAR & Camera 70.5 58.6 39.5 74.7 62.9 40.5 GSV2X ( Ours ) LiDAR & Camera 74.7 63.4 40.3 77.6 65.3 41.2 
+
+Table 1. Quantitative results for 3D object detection on the RCooper [10] validation set. GSV2X GS is a variant using only our Gaussian Splatting module. Best and second-best results are marked in bold and underlined, respectively. Method Modality Vehicle (IoU=0.5) Pedestrian (IoU=0.25) Cyclist (IoU=0.25) Easy Middle Hard Easy Middle Hard Easy Middle Hard PointPillars [20] LiDAR 63.0 54.0 54.0 38.5 37.2 37.3 38.5 22.6 22.5 SECOND [46] LiDAR 71.5 53.9 54.0 55.2 52.5 52.5 54.7 31.1 31.2 BEVHeight [47] Camera 77.8 65.8 65.9 41.2 39.2 39.4 60.3 60.6 61.3 BEVSpread [43] Camera 79.1 66.8 66.9 46.5 44.5 44.7 62.6 63.5 63.8 BEVHeight++ [47] Camera 79.3 68.6 68.7 42.9 40.9 41.0 60.8 60.5 61.0 MVXNet [37] LiDAR & Camera 71.0 53.7 53.8 55.8 54.5 54.4 54.1 30.8 31.2 BEVFusion [28] LiDAR & Camera 82.1 69.7 69.8 51.5 49.1 49.5 61.2 58.1 58.7 GSV2X LiDAR & Camera 83.8 70.2 70.2 58.3 56.2 56.3 65.5 63.6 64.0 
+
+Table 2. Quantitative results for 3D object detection on the DAIR-V2X-I [52] validation set. Performance is reported for Vehicle (IoU=0.5) and Pedestrian/Cyclist (IoU=0.25) across Easy/Middle/Hard splits. 
+
+58.6 AP@0.5, which is nearly 15 points higher than BEV-Fusion. This result shows that our uncertainty-aware repre-sentation is highly effective at handling real-world geomet-ric errors. Furthermore, our full GSV2X model, with GDE and OFM, reaches 74.7 AP@0.3 and 63.4 AP@0.5. The perfor-mance increase, especially in the more difficult intersection scene, shows the benefits of our specialized design for both depth estimation and feature fusion. 
+
+Generalization on DAIR-V2X-I. To demonstrate that the advantages of GSV2X are not limited to scenarios with significant calibration noise, we further evaluate its per-formance on the DAIR-V2X-I dataset [52]. This bench-mark features high-quality calibration, allowing us to iso-late the benefits of our fusion strategy. As shown in Table 2, GSV2X outperforms previous methods [20, 28, 37, 43, 46, 47, 49] across all Easy, Middle, and Hard difficulty levels for vehicle detection, with gains of up to 1.7% AP 3D |R40 .For Pedestrian, it reaches 58.3%/56.2%/56.3%, outperform-ing BEVFusion by +6.8%/+7.1%/+6.8%. For Cyclist, it ob-tains 65.5%/63.6%/64.0%, improving over BEVFusion by +4.3%/+5.5%/+5.3%. This strong performance on a “ cleaner ” dataset suggests that, even with minimal spatial misalignment, GSV2X’s in-tegrated components together provide a clear advantage. By coupling geometry-aware lifting with complementarity-driven fusion, GSV2X achieves more efficient and effective integration, validating it as a general-purpose framework. 
+
+## 4.4. Ablation Studies and Analysis 
+
+We conduct a series of comprehensive ablation studies to dissect the GSV2X framework and validate the contribu-tion of each key component. Unless otherwise specified, all ablations are performed on the RCooper dataset. 21414 Scene Method AP@0.3 AP@0.5 AP@0.7 Int. GSV2X Base 58.4 43.6 24.1 GSV2X GS 70.5 58.6 39.5 
+
++GDE ( Only ) 71.4 59.9 39.5 
+
++OFM ( Only ) 73.2 62.7 42.4 
+
+GSV2X ( Full ) 74.7 63.4 40.3 Corr. GSV2X Base 72.9 60.8 35.2 GSV2X GS 74.7 62.9 40.5 
+
++GDE ( Only ) 75.5 63.0 41.3 
+
++OFM ( Only ) 76.9 65.5 38.2 GSV2X ( Full ) 77.6 65.3 41.2 Table 3. Component-wise ablation study of GSV2X on the RCooper validation set. Our baseline model, GSV2X Base , does not include our Gaussian Splatting module, making it equivalent to a standard BEVFusion architecture. “Int.” and “Corr.” refer to the intersection and corridor scenes. Method Calibration AP@0.3 AP@0.5 AP@0.7 BEVFusion AC 69.4 59.6 41.4 PC 59.9 43.2 25.2 
+
+Drop ( ∆) -9.5 -16.4 -16.2 
+
+GSV2X GS 
+
+AC 71.2 61.8 40.9 PC 70.6 58.6 39.4 
+
+Drop ( ∆) -0.6 -3.2 -1.5 
+
+Table 4. Ablation on the effect of probabilistic representation un-der different calibration qualities. The experiment isolates the ben-efit of our GSV2X GS (w/o GDE and w/o OFM) against a deter-ministic projection BEVFusion on the RCooper intersection scene. “AC” and “PC” denote Accurate and Perturbed Calibration, re-spectively. 
+
+Effectiveness of Model Components. Our primary ab-lation study, shown in Table 3, dissects the model’s per-formance. The first and most critical step is introducing our probabilistic Gaussian representation (GSV2X GS ) to the BEVFusion-like baseline (GSV2X Base ). This single change yields a remarkable +15.0 AP@0.5 gain in the chal-lenging “intersection” scene. Building upon this strong foundation, the OFM provides the most significant subse-quent improvement, boosting performance by another +4.1 
+
+AP@0.5. The full GSV2X model, which integrates all com-ponents, achieves the best overall results, demonstrating the synergistic effect of our design. 
+
+Impact of Probabilistic Representation on Calibration Noise. To directly prove that the gains from GSV2X GS 
+
+stem from its robustness to calibration errors, we perform a controlled experiment with perturbed calibration (Table 4). When faced with calibration noise, the deterministic BEV-Fusion’s performance plummets by 16.4 AP@0.5. In stark contrast, our uncertainty-aware GSV2X GS exhibits excep-
+
+Perturbation Factor ( λ) AP@0.3 AP@0.5 AP@0.7 Fixed: 0.50 73.7 63.0 39.7 Fixed: 0.75 73.8 62.8 39.9 Fixed: 1.00 73.2 62.7 39.3 
+
+Learnable (Ours) 74.7 63.4 40.3 
+
+Table 5. Analysis of the learnable perturbation factor λ on the RCooper intersection scene. View λ (Learnable) ∆x (m) ∆y (m) ∆z (m) 
+
+Cam #0 0.85 -2.4 0.1 0.3 
+
+Cam #1 0.62 0.5 -0.3 0.0 
+
+Cam #2 0.45 0.1 0.0 0.0 
+
+Cam #3 1.10 0.5 4.0 0.5 Table 6. Learnable perturbation factors λ and the corresponding translation offsets (∆ x, ∆y, ∆z) manually applied to camera ex-trinsics for GT box projection. Higher λ values are learned for views requiring larger extrinsic adjustments, reflecting stronger spatial uncertainty modeling. Num. of Cameras AP@0.3 AP@0.5 AP@0.7 
+
+4 (Full ) 74.7 63.4 40.3 3 72.3 61.9 41.2 
+
+2 70.2 58.6 39.4 1 68.0 55.6 37.8 Table 7. Demonstration of graceful degradation under simulated camera failures on the RCooper intersection scenario. Perfor-mance is reported as the number of active cameras is progressively reduced from 4 (full model) to 1. 
+
+tional stability, with its performance degrading by only 3.2. This experiment provides clear and compelling evi-dence that modeling spatial uncertainty is highly effective for building robust roadside perception systems. 
+
+Analysis of the Learnable Perturbation Factor. Our learnable perturbation factor, λ, is designed to adaptively model per-view calibration uncertainty. We first verify its effectiveness in Table 5, which shows that a learnable λ
+
+consistently outperforms any fixed global value. This con-firms the benefit of adapting to varying sensor calibration qualities. More importantly, we find that the model learns a physically meaningful representation of this uncertainty. As detailed in Table 6, there is a strong positive correlation between the learned magnitude of λ and the ground-truth calibration error for each view. Camera views requiring larger extrinsic adjustments to align ( e.g. , Cam #0 and #3) learn correspondingly larger λ values, while well-calibrated views ( e.g. , Cam #2) learn smaller ones. This adaptive be-havior provides compelling evidence that our method cor-21415 Cam # 0            
+
+> Cam # 2
+> Cam # 1
+> Cam # 0Cam # 2
+> Cam # 3
+> Cam # 3
+> Cam # 0
+> Cam # 2Cam # 3
+> Cam # 1
+> Cam # 0Cam # 2
+> Cam # 3
+> Cam # 0Cam # 1
+> Cam # 2
+> Cam # 1
+> Cam # 0Cam # 2
+> Cam # 3
+> Cam # 3
+> Cam # 0Cam # 1
+> Cam # 2Cam # 3
+> Cam # 1
+> Cam # 0Cam # 2
+> Cam # 3
+> RCooper Ours RCooper Ours
+> Cam # 1Cam # 1
+
+Figure 4. Qualitative Comparison of BEV Detection Results. We visualize the outputs of our method ( right : the full GSV2X model) against RCooper ( left : the LiDAR late fusion benchmark) [10]. Note how our method successfully detects distant and partially occluded vehicles that are missed by RCooper (highlighted in red circles). This demonstrates the effective contribution of camera features through our fusion mechanism. Viewpoint numbers correspond to different camera perspectives. The green bounding boxes represent the ground truth, while the red bounding boxes indicate the predictions. 
+
+Figure 5. Cosine Similarity Distributions between Camera and LiDAR BEV Features in LiDAR-sparse (left) and LiDAR-dense (right) Cells. In dense regions, OFM shifts the distribu-tion away from extremely high correlation, while in sparse regions the distributions with/without OFM almost overlap, indicating that OFM mainly affects regions where LiDAR is available. 
+
+rectly identifies view-specific uncertainty and adjusts fea-ture dispersion accordingly. To ensure this learning process remains stable, we apply a lightweight L2 regularization to the λ parameter during training, with a weight decay set to 
+
+1 × 10 −4.
+
+Camera–LiDAR interaction under OFM. To better un-derstand how OFM affects the relative use of camera and LiDAR features, we further analyze the interaction between the two modalities. As shown in Fig. 5, we measure the cosine similarity between F BEV LiDAR and F BEV img before and af-ter applying Lorth , and observe that OFM shifts the simi-larity distribution away from extremely high correlation in LiDAR-dense regions, while leaving LiDAR-sparse regions largely unchanged. This supports our claim that OFM acts as a mild, LiDAR-preserving regularizer that encourages complementary fusion instead of interfering with an other-wise well-maintained solution. 
+
+## 4.5. Robustness and Qualitative Analysis 
+
+Robustness to Sensor Failure. To simulate real-world fail-ures, we randomly drop an increasing number of cameras during inference on the intersection scene. As shown in Ta-ble 7, GSV2X degrades gracefully and still maintains strong performance even when half of the cameras are missing, in-dicating that it can effectively exploit remaining sensors for dependable deployment. 
+
+Qualitative Results. To complement our quantitative re-sults, we provide qualitative visualizations that illustrate both the final detection performance and the quality of our underlying feature representations. As shown in Fig. 4, GSV2X significantly outperforms RCooper, successfully identifying distant and partially occluded objects that are challenging for any single modality. Further examples are available in the Supplementary Material .
+
+# 5. Conclusion 
+
+We present GSV2X, a robust framework for multi-view roadside perception that tackles two key challenges: spa-tial uncertainty and modal redundancy. Visual features are modeled as probabilistic 3D Gaussians to absorb calibra-tion and depth errors, while an Orthogonal Fusion Module encourages complementary rather than redundant contribu-tions from camera and LiDAR. Experiments on RCooper demonstrate strong performance and generalization in com-plex real-world scenarios, validating the approach, but also highlight typical limitations: GSV2X still assumes reason-ably good calibration and LiDAR availability and intro-duces extra computation, so future work will aim to relax these assumptions and reduce the overhead. 21416 Acknowledgements 
+
+This work was supported by the National Natural Sci-ence Foundation of China (No. 62472222, 62302217), Natural Science Foundation of Jiangsu Province (No. BK20240080), National Defense Science and Technol-ogy Industry Bureau Technology Infrastructure Project (JSZL2024606C001). 
+
+# References 
+
+[1] Qi Cai, Yingwei Pan, Ting Yao, Chong-Wah Ngo, and Tao Mei. Objectfusion: Multi-modal 3d object detection with object-centric fusion. In Proceedings of the IEEE/CVF In-ternational Conference on Computer Vision , pages 18067– 18076, 2023. 2 [2] Qi Chen, Xu Ma, Sihai Tang, Jingda Guo, Qing Yang, and Song Fu. F-cooper: Feature based cooperative perception for autonomous vehicle edge computing system using 3d point clouds. In Proceedings of the 4th ACM/IEEE Symposium on Edge Computing , pages 88–100, 2019. 6 [3] Xuanyao Chen, Tianyuan Zhang, Yue Wang, Yilun Wang, and Hang Zhao. Futr3d: A unified sensor fusion frame-work for 3d detection. In Proceedings of the IEEE/CVF Con-ference on Computer Vision and Pattern Recognition , pages 172–181, 2023. 2 [4] Jiajun Deng, Shaoshuai Shi, Peiwei Li, Wengang Zhou, Yanyong Zhang, and Houqiang Li. Voxel r-cnn: Towards high performance voxel-based 3d object detection. In Pro-ceedings of the AAAI conference on artificial intelligence ,pages 1201–1209, 2021. 2 [5] Yinpeng Dong, Caixin Kang, Jinlai Zhang, Zijian Zhu, Yikai Wang, Xiao Yang, Hang Su, Xingxing Wei, and Jun Zhu. Benchmarking robustness of 3d object detection to common corruptions. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 1022– 1032, 2023. 1 [6] Sudeep Fadadu, Shreyash Pandey, Darshan Hegde, Yi Shi, Fang-Chieh Chou, Nemanja Djuric, and Carlos Vallespi-Gonzalez. Multi-view fusion of sensor data for improved perception and prediction in autonomous driving. In Pro-ceedings of the IEEE/CVF Winter Conference on Applica-tions of Computer Vision , pages 2349–2357, 2022. 1 [7] Siqi Fan, Zhe Wang, Xiaoliang Huo, Yan Wang, and Jingjing Liu. Calibration-free bev representation for infrastructure perception. In 2023 IEEE/RSJ International Conference on Intelligent Robots and Systems , pages 9008–9013, 2023. 1, 2[8] Chongjian Ge, Junsong Chen, Enze Xie, Zhongdao Wang, Lanqing Hong, Huchuan Lu, Zhenguo Li, and Ping Luo. Metabev: Solving sensor failures for 3d detection and map segmentation. In Proceedings of the IEEE/CVF Interna-tional Conference on Computer Vision , pages 8721–8731, 2023. 2 [9] Andreas Geiger, Philip Lenz, and Raquel Urtasun. Are we ready for autonomous driving? the kitti vision benchmark suite. In 2012 IEEE Conference on Computer Vision and Pattern Recognition , pages 3354–3361, 2012. 5 [10] Ruiyang Hao, Siqi Fan, Yingru Dai, Zhenlin Zhang, Chenxi Li, Yuntian Wang, Haibao Yu, Wenxian Yang, Jirui Yuan, and Zaiqing Nie. Rcooper: A real-world large-scale dataset for roadside cooperative perception. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 22347–22357, 2024. 1, 2, 4, 5, 6, 8 [11] Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. Deep residual learning for image recognition. In Proceed-ings of the IEEE Conference on Computer Vision and Pattern Recognition , pages 770–778, 2016. 5 [12] Anthony Hu, Zak Murez, Nikhil Mohan, Sof´ ıa Dudas, Jef-frey Hawke, Vijay Badrinarayanan, Roberto Cipolla, and Alex Kendall. Fiery: Future instance prediction in bird’s-eye view from surround monocular cameras. In Proceedings of the IEEE/CVF International Conference on Computer Vi-sion , pages 15273–15282, 2021. 2 [13] Shengchao Hu, Li Chen, Penghao Wu, Hongyang Li, Junchi Yan, and Dacheng Tao. St-p3: End-to-end vision-based au-tonomous driving via spatial-temporal feature learning. In 
+
+European Conference on Computer Vision , pages 533–549, 2022. 2 [14] Yue Hu, Shaoheng Fang, Zixing Lei, Yiqi Zhong, and Si-heng Chen. Where2comm: Communication-efficient collab-orative perception via spatial confidence maps. Advances in Neural Information Processing Systems , 35:4874–4886, 2022. 6 [15] Jia Jinrang, Zhenjia Li, and Yifeng Shi. Monouni: A unified vehicle and infrastructure-side monocular 3d object detec-tion network with sufficient depth clues. Advances in Neural Information Processing Systems , 36:11703–11715, 2023. 4 [16] Bernhard Kerbl, Georgios Kopanas, Thomas Leimk¨ uhler, and George Drettakis. 3d gaussian splatting for real-time radiance field rendering. ACM Trans. Graph. , 42(4):139–1, 2023. 2, 4 [17] Bernhard Kerbl, Georgios Kopanas, Thomas Leimk¨ uhler, and George Drettakis. 3d gaussian splatting for real-time radiance field rendering. ACM Transactions on Graphics , 42 (4), 2023. 4 [18] Youngseok Kim, Juyeb Shin, Sanmin Kim, In-Jae Lee, Jun Won Choi, and Dongsuk Kum. Crn: Camera radar net for accurate, robust, efficient 3d perception. In Proceedings of the IEEE/CVF International Conference on Computer Vi-sion , pages 17615–17626, 2023. 2 [19] Abhijit Kundu, Xiaoqi Yin, Alireza Fathi, David Ross, Brian Brewington, Thomas Funkhouser, and Caroline Pantofaru. Virtual multi-view fusion for 3d semantic segmentation. In 
+
+European Conference on Computer Vision , pages 518–535, 2020. 1 [20] Alex H Lang, Sourabh Vora, Holger Caesar, Lubing Zhou, Jiong Yang, and Oscar Beijbom. Pointpillars: Fast encoders for object detection from point clouds. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 12697–12705, 2019. 2, 5, 6 [21] Yinhao Li, Han Bao, Zheng Ge, Jinrong Yang, Jianjian Sun, and Zeming Li. Bevstereo: Enhancing depth estimation in multi-view 3d object detection with temporal stereo. In Pro-ceedings of the AAAI Conference on Artificial Intelligence ,pages 1486–1494, 2023. 2 21417 [22] Yinhao Li, Zheng Ge, Guanyi Yu, Jinrong Yang, Zengran Wang, Yukang Shi, Jianjian Sun, and Zeming Li. Bevdepth: Acquisition of reliable depth for multi-view 3d object detec-tion. In Proceedings of the AAAI conference on artificial intelligence , pages 1477–1485, 2023. 2 [23] Zhichao Li, Feng Wang, and Naiyan Wang. Lidar r-cnn: An efficient and universal 3d object detector. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 7546–7555, 2021. 2 [24] Tingting Liang, Hongwei Xie, Kaicheng Yu, Zhongyu Xia, Zhiwei Lin, Yongtao Wang, Tao Tang, Bing Wang, and Zhi Tang. Bevfusion: A simple and robust lidar-camera fusion framework. Advances in Neural Information Processing Sys-tems , 35:10421–10434, 2022. 1, 2, 3 [25] Zhiwei Lin, Zhe Liu, Zhongyu Xia, Xinhao Wang, Yong-tao Wang, Shengxiang Qi, Yang Dong, Nan Dong, Le Zhang, and Ce Zhu. Rcbevdet: radar-camera fusion in bird’s eye view for 3d object detection. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 14928–14937, 2024. 2 [26] Lin Liu, Ziying Song, Qiming Xia, Feiyang Jia, Caiyan Jia, Lei Yang, Yan Gong, and Hongyu Pan. Sparsedet: a sim-ple and effective framework for fully sparse lidar-based 3d object detection. IEEE Transactions on Geoscience and Re-mote Sensing , 2024. 2 [27] Zhijian Liu, Haotian Tang, Yujun Lin, and Song Han. Point-voxel cnn for efficient 3d deep learning. Advances in neural information processing systems , 32, 2019. 2 [28] Zhijian Liu, Haotian Tang, Alexander Amini, Xinyu Yang, Huizi Mao, Daniela L Rus, and Song Han. Bevfusion: Multi-task multi-sensor fusion with unified bird’s-eye view representation. In 2023 IEEE International Conference on Robotics and Automation , pages 2774–2781, 2023. 1, 2, 4, 6 [29] Shu-Wei Lu, Yi-Hsuan Tsai, and Yi-Ting Chen. Toward real-world bev perception: Depth uncertainty estimation via gaussian splatting. In Proceedings of the Computer Vision and Pattern Recognition Conference , pages 17124–17133, 2025. 3, 4, 5 [30] Jiageng Mao, Yujing Xue, Minzhe Niu, Haoyue Bai, Ji-ashi Feng, Xiaodan Liang, Hang Xu, and Chunjing Xu. Voxel transformer for 3d object detection. In Proceedings of the IEEE/CVF international conference on computer vision ,pages 3164–3173, 2021. 2 [31] Jonah Philion and Sanja Fidler. Lift, splat, shoot: Encoding images from arbitrary camera rigs by implicitly unprojecting to 3d. In European Conference on Computer Vision , pages 194–210, 2020. 2, 3, 4 [32] Charles R Qi, Hao Su, Kaichun Mo, and Leonidas J Guibas. Pointnet: Deep learning on point sets for 3d classification and segmentation. In Proceedings of the IEEE conference on computer vision and pattern recognition , pages 652–660, 2017. 2 [33] Charles Ruizhongtai Qi, Li Yi, Hao Su, and Leonidas J Guibas. Pointnet++: Deep hierarchical feature learning on point sets in a metric space. Advances in neural information processing systems , 30, 2017. [34] LIUW QI CR, C WU, H SU, and LJ GUIBAS. Frustum pointnets for 3d object detection from rgb-d data. In Pro-ceedings of the IEEE conference on computer vision and pat-tern recognition , 2018. [35] Shaoshuai Shi, Xiaogang Wang, and Hongsheng Li. Pointr-cnn: 3d object proposal generation and detection from point cloud. In Proceedings of the IEEE/CVF conference on com-puter vision and pattern recognition , pages 770–779, 2019. 2[36] Shaoshuai Shi, Li Jiang, Jiajun Deng, Zhe Wang, Chaoxu Guo, Jianping Shi, Xiaogang Wang, and Hongsheng Li. Pv-rcnn++: Point-voxel feature set abstraction with local vector representation for 3d object detection. International Journal of Computer Vision , 131(2):531–551, 2023. 2 [37] Vishwanath A Sindagi, Yin Zhou, and Oncel Tuzel. Mvx-net: Multimodal voxelnet for 3d object detection. In 2019 In-ternational Conference on Robotics and Automation , pages 7276–7282, 2019. 6 [38] Ziying Song, Haiyue Wei, Caiyan Jia, Yongchao Xia, Xi-aokun Li, and Chao Zhang. Vp-net: Voxels as points for 3-d object detection. IEEE Transactions on Geoscience and Remote Sensing , 61:1–12, 2023. 2 [39] Ziying Song, Feiyang Jia, Hongyu Pan, Yadan Luo, Caiyan Jia, Guoxin Zhang, Lin Liu, Yang Ji, Lei Yang, and Li Wang. Contrastalign: Toward robust bev feature alignment via con-trastive learning for multi-modal 3d object detection. arXiv preprint arXiv:2405.16873 , 2024. 2 [40] Ziying Song, Lin Liu, Feiyang Jia, Yadan Luo, Caiyan Jia, Guoxin Zhang, Lei Yang, and Li Wang. Robustness-aware 3d object detection in autonomous driving: A review and outlook. IEEE Transactions on Intelligent Transportation Systems , 2024. 1 [41] Li Wang, Ziying Song, Xinyu Zhang, Chenfei Wang, Guoxin Zhang, Lei Zhu, Jun Li, and Huaping Liu. Sat-gcn: Self-attention graph convolutional network-based 3d object de-tection for autonomous driving. Knowledge-Based Systems ,259:110080, 2023. 2 [42] Li Wang, Xinyu Zhang, Ziying Song, Jiangfeng Bi, Guoxin Zhang, Haiyue Wei, Liyao Tang, Lei Yang, Jun Li, Caiyan Jia, et al. Multi-modal 3d object detection in autonomous driving: A survey and taxonomy. IEEE Transactions on In-telligent Vehicles , 8(7):3781–3798, 2023. 1 [43] Wenjie Wang, Yehao Lu, Guangcong Zheng, Shuigen Zhan, Xiaoqing Ye, Zichang Tan, Jingdong Wang, Gaoang Wang, and Xi Li. Bevspread: Spread voxel pooling for bird’s-eye-view representation in vision-based roadside 3d object detec-tion. In Proceedings of the IEEE/CVF Conference on Com-puter Vision and Pattern Recognition , pages 14718–14727, 2024. 2, 6 [44] Runsheng Xu, Zhengzhong Tu, Hao Xiang, Wei Shao, Bolei Zhou, and Jiaqi Ma. Cobevt: Cooperative bird’s eye view semantic segmentation with sparse transformers. arXiv preprint arXiv:2207.02202 , 2022. 6 [45] Runsheng Xu, Hao Xiang, Xin Xia, Xu Han, Jinlong Li, and Jiaqi Ma. Opv2v: An open benchmark dataset and fusion pipeline for perception with vehicle-to-vehicle communica-tion. In 2022 International Conference on Robotics and Au-tomation , pages 2583–2589, 2022. 6 21418 [46] Yan Yan, Yuxing Mao, and Bo Li. Second: Sparsely embed-ded convolutional detection. Sensors , 18(10):3337, 2018. 2, 6[47] Lei Yang, Kaicheng Yu, Tao Tang, Jun Li, Kun Yuan, Li Wang, Xinyu Zhang, and Peng Chen. Bevheight: A robust framework for vision-based roadside 3d object detection. In 
+
+Proceedings of the IEEE/CVF Conference on Computer Vi-sion and Pattern Recognition , pages 21611–21620, 2023. 1, 2, 6 [48] Lei Yang, Xinyu Zhang, Jiaxin Yu, Jun Li, Tong Zhao, Li Wang, Yi Huang, Chuang Zhang, Hong Wang, and Yiming Li. Monogae: Roadside monocular 3d object detection with ground-aware embeddings. IEEE Transactions on Intelligent Transportation Systems , 2024. [49] Lei Yang, Tao Tang, Jun Li, Kun Yuan, Kai Wu, Peng Chen, Li Wang, Yi Huang, Lei Li, Xinyu Zhang, et al. Bevheight++: Toward robust visual centric 3d object detec-tion. IEEE Transactions on Pattern Analysis and Machine Intelligence , 2025. 1, 2, 6 [50] Lei Yang, Xinyu Zhang, Jun Li, Li Wang, Chuang Zhang, Li Ju, Zhiwei Li, Yang Shen, Chen Lv, and Hong Wang. Sgv3d: Toward scenario generalization for vision-based roadside 3d object detection. IEEE Transactions on Intelligent Trans-portation Systems , 2025. 2 [51] Xiaoqing Ye, Mao Shu, Hanyu Li, Yifeng Shi, Yingying Li, Guangjie Wang, Xiao Tan, and Errui Ding. Rope3d: The roadside perception dataset for autonomous driving and monocular 3d object detection task. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 21341–21350, 2022. 1 [52] Haibao Yu, Yizhen Luo, Mao Shu, Yiyi Huo, Zebang Yang, Yifeng Shi, Zhenglong Guo, Hanyu Li, Xing Hu, Jirui Yuan, et al. Dair-v2x: A large-scale dataset for vehicle-infrastructure cooperative 3d object detection. In Proceed-ings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 21361–21370, 2022. 1, 5, 6 [53] Kaicheng Yu, Tang Tao, Hongwei Xie, Zhiwei Lin, Tingt-ing Liang, Bing Wang, Peng Chen, Dayang Hao, Yongtao Wang, and Xiaodan Liang. Benchmarking the robustness of lidar-camera fusion for 3d object detection. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pat-tern Recognition , pages 3188–3198, 2023. 1 [54] Zedong Yu, Weibing Wan, Maiyu Ren, Xiuyuan Zheng, and Zhijun Fang. Sparsefusion3d: Sparse sensor fusion for 3d object detection by radar and camera in environmental per-ception. IEEE Transactions on Intelligent Vehicles , 9(1): 1524–1536, 2023. 2 [55] Junping Zhang, Fei-Yue Wang, Kunfeng Wang, Wei-Hua Lin, Xin Xu, and Cheng Chen. Data-driven intelligent trans-portation systems: A survey. IEEE Transactions on Intelli-gent Transportation Systems , 12(4):1624–1639, 2011. 1 [56] Zijun Zhang. Improved adam optimizer for deep neural net-works. In 2018 IEEE/ACM 26th International Symposium on Quality of Service , pages 1–2, 2018. 5 [57] Yin Zhou and Oncel Tuzel. Voxelnet: End-to-end learning for point cloud based 3d object detection. In Proceedings of the IEEE conference on computer vision and pattern recog-nition , pages 4490–4499, 2018. 2 [58] Yin Zhou, Pei Sun, Yu Zhang, Dragomir Anguelov, Jiyang Gao, Tom Ouyang, James Guo, Jiquan Ngiam, and Vijay Va-sudevan. End-to-end multi-view fusion for 3d object detec-tion in lidar point clouds. In Conference on Robot Learning ,pages 923–932, 2020. 1 21419

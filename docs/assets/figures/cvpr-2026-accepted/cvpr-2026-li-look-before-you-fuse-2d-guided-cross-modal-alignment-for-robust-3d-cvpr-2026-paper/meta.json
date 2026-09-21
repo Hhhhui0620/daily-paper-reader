@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "extractor": "pymupdf-images",
+  "figures": [
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-li-look-before-you-fuse-2d-guided-cross-modal-alignment-for-robust-3d-cvpr-2026-paper/fig-001.webp",
+      "caption": "",
+      "page": 1,
+      "index": 1,
+      "width": 1787,
+      "height": 866
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-li-look-before-you-fuse-2d-guided-cross-modal-alignment-for-robust-3d-cvpr-2026-paper/fig-002.webp",
+      "caption": "",
+      "page": 3,
+      "index": 2,
+      "width": 1886,
+      "height": 1127
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-li-look-before-you-fuse-2d-guided-cross-modal-alignment-for-robust-3d-cvpr-2026-paper/fig-003.webp",
+      "caption": "",
+      "page": 4,
+      "index": 3,
+      "width": 1892,
+      "height": 632
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-li-look-before-you-fuse-2d-guided-cross-modal-alignment-for-robust-3d-cvpr-2026-paper/fig-004.webp",
+      "caption": "",
+      "page": 6,
+      "index": 4,
+      "width": 1687,
+      "height": 1104
+    }
+  ]
+}

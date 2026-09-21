@@ -1,0 +1,387 @@
+Title: Rethinking Cross-Modal Anchor Alignment for Mitigating Error Accumulation
+
+URL Source: https://openaccess.thecvf.com/content/CVPR2026/papers/Liu_Rethinking_Cross-Modal_Anchor_Alignment_for_Mitigating_Error_Accumulation_CVPR_2026_paper.pdf
+
+Published Time: Sat, 16 May 2026 16:47:14 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+# Rethinking Cross-Modal Anchor Alignment for Mitigating Error Accumulation 
+
+# Bin Liu 1,2* Wei Sun 1∗ Qianqian Wang 3 Wei Feng 1 Yijie Chen 1 Haixi Zhang 1†
+
+> 1
+
+# College of Information Engineering, Northwest A &F University, Yangling, 712100, Shaanxi, China  
+
+> 2
+
+# Shaanxi Engineering Research Center for Intelligent Perception and Analysis of Agricultural Information, and Shaanxi Key Laboratory of Agricultural Information Perception and Intelligent Service, Yangling, 712100, Shaanxi, China 
+
+> 3
+
+# School of Telecommunications Engineering, Xidian University, Xi’an, 710071, China 
+
+# Abstract 
+
+Mitigating noisy correspondence in cross-modal match-ing poses a serious challenge due to the problem of error ac-cumulation. Existing methods primarily attribute this accu-mulation to errors caused by noisy sample pairs. However, a novel source of error from clean sample pairs (also termed anchor pairs) is discovered in this paper. Such error accu-mulation is considered to arise from modality-inconsistent correlations. To address this issue, a novel method termed Geometric-Semantic Learning (GSL) is proposed. Firstly, GSL leverages the Fourier transform to emphasize seman-tic representations and reduce cross-modal inconsistencies caused by perturbations in non-critical fine-grained fea-tures, thereby alleviating the error accumulation problem. After that, a Geometry-Aware Label Correction (GALC) method is introduced to re-estimate soft correspondence la-bels by leveraging angular consistency between noisy sam-ple pairs and anchor pairs across different modalities. Fi-nally, a semantically constrained triplet loss is employed to regulate sample distances using semantic information, enabling robust separation of clean and noisy pairs dur-ing the training process. Extensive experiments on three benchmark datasets demonstrate that GSL consistently out-performs existing methods in retrieval accuracy. 
+
+# 1. Introduction 
+
+Cross-modal matching is a fundamental task in multi-modal learning, aiming to establish associations between different modalities. Most existing approaches assume that the training data pairs are perfectly aligned. However, this assumption does not hold for large-scale, web-crawled datasets such as Conceptual Captions, which often contain a significant number of mismatched pairs commonly referred 
+
+> *Equal contribution.
+> †Corresponding author (zh.haixi@nwafu.edu.cn).
+
+to as noisy correspondences [1–3]. In recent years, the challenge of noisy correspondences has attracted increasing attention [4–6]. This line of re-search aims to identify and distinguish noisy correspon-dences, which provide models with more reliable and accu-rate supervision signals, thereby mitigating the negative im-pact of noisy correspondences. However, existing methods [7] remain vulnerable to error accumulation, which primar-ily stems from misclassification during sample partitioning and the inaccurate estimation of soft correspondence labels. To alleviate this issue, several approaches have been pro-posed. For example, fine-grained partitioning strategies [8] attempt to better capture ambiguous sample boundaries and reduce propagation errors. Others incorporate robust loss functions [9–11] to enhance the model’s stability and re-duce the impact of noisy samples during optimization. In addition, recent studies have explored more accurate la-bel correction mechanisms. These methods [12, 13] rely on anchor samples as references, modeling the relationship between noisy samples and their corresponding anchors through cross-modal geometric consistency to enhance the reliability of soft correspondence labels. However, the above methods mainly rely on the consis-tency of the semantic geometric structures across different modalities. The ideal geometric consistency (Fig. 1(a)) leverages high-level semantic associations to correct noisy correspondence labels. But it still suffers from a critical source of error accumulation—anchor correlation discrep-ancy—arising from inconsistent cross-modal anchor pairs. Features extracted from the spatial domain contain not only semantic representations but also a significant amount of lo-cal detail representations. Such local detail feature compo-nents are considered to be the fundamental cause of cross-modal anchor correlation discrepancies ( ∆d). As illus-trated in Fig. 1(b), once anchor correlation discrepancy oc-curs, the consistency of the cross-modal geometric struc-ture is distorted. This distortion introduces errors during the re-estimation of soft correspondence labels, preventing This CVPR paper is the Open Access version, provided by the Computer Vision Foundation. Except for this watermark, it is identical to the accepted version; the final published version of the proceedings is available on IEEE Xplore. 8664 (a) Ideal geometric structure (b) Real geometric structure (c) Discrepancy visualization in noisy Flickr30K 
+
+> Figure 1. Qualitative illustration and visualization for anchor correlation discrepancy.
+
+the model from receiving accurate supervisory signals and ultimately leading to error accumulation. In addition, the anchor correlation discrepancy was also computed on the Flickr30K with a noise rate of 0.2 and visualized the dis-tribution of samples across different discrepancy intervals using a heatmap (Fig. 1(c)). The results show that anchor correlation discrepancies are widely present among cross-modal samples, with approximately 23% of the samples ex-hibiting a discrepancy greater than 0.3. On the other hand, existing methods typically rely on sample-wise loss values to distinguish clean samples from noisy ones. However, the triplet loss exhibits inconsistent sensitivity to different types of noisy correspondences, making it prone to failure under noisy conditions, which directly reduces the accuracy and reliability of sample partitioning. Moreover, as the core objective for model parameter updates, its lack of robust-ness further undermines training stability in the presence of noise. To address the aforementioned issues, we propose a novel noisy correspondence learning framework termed 
+
+Geometric-Semantic Learning (GSL) , as illustrated in Fig. 2. Firstly, to alleviate anchor discrepancies caused by variations in local detail feature components, we introduce a Fourier-based Anchor Alignment algorithm (FoA 2).This method embeds spatial-domain features into the fre-quency domain and reconstructs a joint representation of local and global feature components, enabling the model to automatically regulate its reliance on local detail fea-tures during optimization. In this way, the stability of se-mantic representations is enhanced, effectively mitigating anchor correlation discrepancies. Secondly, a Geometry-aware Label Correction (GALC) module is employed to re-estimate soft correspondence labels. In the frequency do-main, GALC computes the cross-modal angular ratio be-tween noisy sample pairs and anchor sample pairs, thereby achieving more accurate soft label re-estimation. Finally, we propose a Semantic-Constrained Triplet Loss (SCT) ,which incorporates semantic correlation as an explicit reg-ularization term to guide sample partitioning and model op-timization. Specifically, inspired by [12] and [14], we intro-duce intra-modal semantic consistency and inter-modal se-mantic asymmetry as regularization constraints, encourag-ing the model to focus more on semantic information during updates, and achieving more robust optimization. In summary, the main contributions of this paper can be summarized as follows: (1) This paper provides a detailed analysis of error accu-mulation in noisy correspondence learning and, to the best of our knowledge, first identifies anchor correlation discrep-ancy as a key factor that exacerbates the error accumulation problem. (2) A FoA 2 method is proposed to alleviate the anchor correlation discrepancy caused by local detail feature com-ponents. Meanwhile, a geometry-aware label correction module is proposed to re-estimate the soft correspondence labels. (3) A semantic-constrained triplet loss is designed to guide the model in separating clean and noisy samples more effectively and to further enhance the robustness of the training process. 
+
+# 2. Related Work 
+
+## 2.1. Cross-Modal Matching 
+
+Cross-modal retrieval [15–17] aims to search for rele-vant data across different modalities using a query from one. Existing research in this area primarily falls into three cat-egories. Global-level methods focus on aligning image and text features holistically, leveraging modality-specific en-coders to establish global correspondence [18, 19]. Local-level methods emphasize fine-grained alignment, captur-ing semantic relationships between specific visual regions and textual elements [20, 21]. Region-block-level meth-ods, positioned between global and local approaches, aggre-gate multiple image regions into coherent blocks and align them with textual fragments to learn more structured associ-ations [22, 23]. Despite their differences, the above methods share the same assumption: the training data pairs are per-8665 Figure 2. General architecture of the GSL. □, ⃝ and △ represent the image feature, text feature and soft correspondence labels, respec-tively. 
+
+fectly aligned. Nonetheless, with the increasing reliance on web-crawled datasets, perfect alignment has become pro-hibitively expensive and practically unfeasible. Therefore, ensuring model robustness under noisy correspondence has become a critical challenge. 
+
+## 2.2. Noisy Correspondence Learning 
+
+Noisy correspondence learning aims to mitigate the ad-verse effects of mismatched pairs through carefully de-signed methods. The NCR model [7] was the first to address this problem. It employs a two-component Gaussian Mix-ture Model to distinguish between clean and noisy samples and applies different strategies to correct the soft correspon-dence labels of each category. Such an idea has been widely adopted and extended in recent works addressing noisy cor-respondences. For instance, some research [12, 24] has pro-posed improved soft correspondence label correction tech-niques to enhance the accuracy of soft correspondence la-bels. Other research introduced finer-grained data parti-tioning approaches by leveraging techniques, including un-certainty modeling [25, 26], energy-guided [27], and meta-learning [28]. In addition to sample partitioning methods, some researchers have focused on enhancing the robustness of loss functions to reduce errors arising from the inabil-ity of conventional loss functions to accurately characterize sample relationships, such as evidential learning [26] and complementary learning [29, 30]. However, existing meth-ods share a critical limitation: they assume that anchors are well-aligned, and they ignore the semantic correlation be-tween samples. This is essential for mitigating error accu-mulation. 
+
+# 3. Methodology 
+
+## 3.1. Problem Formulation 
+
+Image-text matching is used as a representative exam-ple to explore the issue of noisy correspondences in cross-modal matching. Given a training set D = ( Ii, T i, y i)Ni=1 ,where (Ii, T i) denotes the i-th image-text pair and yi ∈{0, 1} is the corresponding label indicating whether the pair is matched ( yi = 1 ) or not ( yi = 0 ). The goal of cross-modal matching is to minimize the distance between posi-tive pairs while maximizing the distance between negative pairs. Nevertheless, noisy correspondences occur when a negative pair ( yi = 0 ) is incorrectly annotated as a posi-tive pair ( yi = 1 ). As a result, the model treats truly nega-tive samples as positive during training, leading to degraded performance. Noisy correspondence learning has been proposed to mitigate noisy correspondences, but it still suffers from er-ror accumulation. We argue that anchor correlation discrep-ancy is a key factor causing this issue. The anchor correla-tion discrepancy is defined: 
+
+∆d = |SV − ST | (1) where SV and ST denote the similarities between anchor sample pairs in the image and text modalities, respectively. When ∆d occurs, the cross-modal geometric consistency is distorted (Fig. 1(b)), resulting in biased label correction. As training proceeds, the re-estimated soft correspondence la-bels gradually deviate from the true semantic relationships, leading to error accumulation. To address this issue, a novel GSL is proposed in this paper. As shown in Fig. 2, the proposed model consists of three core components: Fourier-Based Anchor Align-ment, Geometry-Aware Label Correction, and Semantic-Constrained Triplet Loss. The following sections detail their core components. 
+
+## 3.2. Anchor Correlation Discrepancy 
+
+In this section, the cause of anchor correlation discrep-ancy is analyzed from a feature-level perspective. The vi-sual and textual features contain not only global semantic components but also varying amounts of local detail com-ponents. Due to significant differences in the local de-8666 Figure 3. Anchor correlation discrepancy in clean dataset. 
+
+tail components between the two modalities, the similar-ity within each modality exhibits distinct variation trends, leading to anchor correlation discrepancy in cross-modal semantic-geometric structures. To verify this analysis, a simple experiment was con-ducted on the clean Flickr30K by employing the SGR model to extract image and text features. Each image sam-ple was considered a query, and the two most similar anchor samples were selected based on their similarity scores. Af-ter that, the image similarity ( SV ) and the text similarity (ST ) between the selected anchors are computed and paired as ( SV , S T ). Finally, the were pairs plotted as a scatter plot (Fig. 3). The figure shows that the sample points are mainly con-centrated in the upper region, indicating that this issue exists in both the image and text modalities, while it is particularly pronounced in the image modality due to its richer local de-tail feature components. 
+
+## 3.3. Fourier-Based Anchor Alignment 
+
+Anchor Selection. As deep learning exhibits a strong mem-orization effect, clean samples typically yield lower loss values, while noisy samples produce higher loss during the early stages of the training process. Based on this prop-erty, the memorization effect of deep learning is leveraged to distinguish between clean and noisy samples. Given a matching model F(f, g, S ) at time step T − 1, the loss for each sample is computed using LSCT :
+
+ℓF(f,g,S ) = {ℓi}Ni=1 = {LSCT (Ii, T i)}Ni=1 (2) The differences between the loss distributions are used to separate clean and noisy samples. A Beta Mixture Model (BMM) is then employed to fit the observed loss distribu-tion: 
+
+P(ℓ|γ, β ) = Γ( γ + β)Γ( γ)Γ( β) ℓγ−1(1 − ℓ)β−1 (3) where γ, β > 0 denotes the shape parameters, and Γ( ·)
+
+denotes the Gamma function. The posterior probability that the i-th sample belongs to either the clean or noisy subset is given by: 
+
+P(k|ℓi) = P(k)P(ℓi|k)
+
+P(ℓi) (4) 
+
+> Figure 4. Fourier-based anchor alignment algorithm.
+
+where P(k) denotes the prior probability of the k-th com-ponent in the mixture model, k = 0 /1 indicates whether the sample pair (Ii, T i, y i) belongs to noisy or clean sam-ple pairs. Based on posterior probabilities, clean samples can be selected from the noisy dataset to construct the clean subset ˜Dc:
+
+˜Dc = {(Ii, T i, y i = 1) |P (k = 1 |ℓi) > δ, ∀(Ii, T i) ∈ ˜D} 
+
+(5) where δ is a confidence threshold, and the value is set to 0.5 in this paper. The remaining samples from the noisy subset 
+
+˜Dn can then be expressed as: 
+
+˜Dn = {(Ii, T i)|P (k = 0 |ℓi) > δ, ∀(Ii, T i) ∈ ˜D} (6) 
+
+Anchor Embedding. Correlation discrepancies among an-chor samples lead to error accumulation, as misaligned an-chors distort cross-modal geometric consistency and reduce the reliability of label correction, ultimately resulting in fur-ther error accumulation in label correction. The key to re-ducing anchor correlation discrepancy lies in minimizing the influence of local feature components. Therefore, a simple yet effective method termed Fourier-based Anchor Alignment (FoA 2) has been designed. FoA 2 takes advan-tage of the Fourier transform and a mean-centering opera-tion to attenuate local detail feature components and further mitigate the correlation discrepancy, which is exacerbated by modality heterogeneity. Given a feature x ∈ RB×D,The Fourier transform is defined as follows: 
+
+F(x)[ m] = 
+
+> D−1
+
+X
+
+> d=0
+
+x[d] · e−2jπ dD m (7) where, m represents the frequency index in the Fourier Transform, D represents the feature dimensions of images and text, which are 2048 and 1024, respectively. F repre-sents the FT of feature x. As illustrated in Fig. 4, the im-age and text features are first embedded into the frequency domain through the Fourier transform, yielding their ampli-tude and phase components. Subsequently, the amplitude and phase are concatenated to construct a joint frequency-domain representation. The phase component encapsu-8667 lates global structural information and high-level seman-tics, whereas the amplitude component characterizes lo-cal texture statistics and low-level modality characteristics [31, 32]. Their integration achieves complementarity be-tween local detail feature components and semantic feature components, enabling the model to adaptively reduce re-liance on local features during optimization, thereby en-hancing the stability of feature representations. In addi-tion, a mean-centering operation is applied to the frequency-domain features to mitigate the energy shift caused by modality heterogeneity, thereby reducing the anchor corre-lation discrepancy exacerbated by modality-specific charac-teristics. These operations effectively reduce anchor correlation discrepancies caused by fine-grained variations and modal-ity heterogeneity, thereby enhancing cross-modal geometric consistency. Therefore, label correction for noisy samples is conducted in the frequency-domain feature space to fully exploit its stable structural representations. 
+
+## 3.4. Geometry-Aware Label Correction 
+
+In order to provide more accurate label information, a geometry-aware label correction module is proposed. The core idea of this module is that, for clean image–text pairs, the geometric structure formed between a query image and its visual anchor remains consistent with that of the cor-responding textual anchor (Fig. 1(a)). In contrast, noisy samples do not exhibit this property. Thus, by evaluating angular consistency between the noisy sample and anchor samples across modalities, the module can correct the la-bels of noisy samples and provide more reliable supervision for model training. Since the cross-modal geometric struc-tures in the frequency domain demonstrate higher consis-tency, the label correction is accordingly performed in this domain, as detailed below. Let the i-th noisy image-text pair be (Ini , T ni ) in the noisy subset ˜Dn; the most and second-most similar images 
+
+(Ia1 
+
+> i
+
+and Ia2 
+
+> i
+
+) are first selected from the clean subset ˜Dc.The similarities between the image feature and the two most similar anchors (Sn→a1 
+
+> Ii
+
+and Sn→a2 
+
+> Ii
+
+), as well as the sim-ilarities between the corresponding text feature and the two most similar anchors (Sn→a1 
+
+> T i
+
+and Sn→a2 
+
+> T i
+
+), are calculated. 
+
+Sn→a1 
+
+> I
+
+= D(Ini , I a1 
+
+> i
+
+), Sn→a2 
+
+> I
+
+= D(Ini , I a2 
+
+> i
+
+)
+
+Sn→a1 
+
+> T
+
+= D(T ni , T a1 
+
+> i
+
+), Sn→a2 
+
+> T
+
+= D(T ni , T a2 
+
+> i
+
+) (8) where, D(·) denotes cosine similarity, respectively. The intra-modal similarity ratios are then computed to capture the structural relationships within each modality: 
+
+RI = Sn→a1
+
+> I
+
+Sn→a2
+
+> I
+
+, RT = Sn→a1
+
+> T
+
+Sn→a2
+
+> T
+
+(9) Next, the geometric consistency of image to text (im-age2text) can be calculated by comparing the image modal-   
+
+> (a) Intra-modal semantic consistency.
+> (b) Inter-modal semantic asymmetry.
+> Figure 5. Inter- and Intra-modal Semantic Correlation. □and ⃝
+> are the image feature, text feature, respectively.
+
+ity angle with the text modality angle. Similarly, the geo-metric consistency from text to images (text2image) can be calculated. 
+
+SI2T = RI
+
+RT
+
+, ST 2I = RT
+
+RI
+
+(10) The corrected soft correspondence label y∗ 
+
+> i
+
+is obtained by averaging bidirectional geometric consistency: 
+
+y∗ 
+
+> i
+
+= ( SI2T + ST 2I )/2 (11) Finally, the updated noisy sample subset is constructed as ˜Dn = {(Ini , T ni , y ∗
+
+> ni
+
+)}, and the labels of the clean sam-ple subset are also updated, resulting in a new clean sample subset: ˜Dc = {(Ici , T ci , y ∗
+
+> ci
+
+)}. The two subsets are then merged to form the complete training set for subsequent model optimization. 
+
+## 3.5. Semantic-Constrained Triplet Loss Module 
+
+For noisy correspondence learning, a robust loss func-tion plays a critical role in facilitating model optimization and improving the ability to distinguish between clean and noisy samples. To this end, a Semantic-Constrained Triplet Loss Module (SCT) is proposed, where semantic correla-tion is embedded to regularize the triplet loss for better noise robustness. This loss function imposes constraints on the model through both intra-modal semantic consistency and inter-modal asymmetry, thereby enhancing the model’s robustness under noisy conditions and improving its ability to distinguish between clean and noisy samples. 
+
+Intra-modal Semantic Consistency Constraint. Intra-modal semantic consistency captures the semantic coher-ence within each modality and reflects the alignment be-tween the image and text modalities. As illustrated in Fig. 8668 5(a), the core idea is that variations within one modal-ity should correspond proportionally to those in the other modality. This intra-modal semantic consistency can im-pose stronger constraints on clean samples. Therefore, an intra-modal semantic consistency constraint is introduced as a regularization term to constrain clean samples effec-tively. Specifically, the distances between the embedded features of different modalities can be calculated as follows: 
+
+S(Ii, I j ) = Ii·Ij  
+
+> ∥Ii∥·∥ Ij∥
+
+, i, j ∈ [1 , B ] and i ̸ = j, S(Ti, T j ) = Ti·Tj  
+
+> ∥Ti∥·∥ Tj∥
+
+, i, j ∈ [1 , B ] and i ̸ = j
+
+(12) where B denotes the batch size. According to the principle of intra-modal semantic consistency, the similarity between different images should align with the similarity between their corresponding texts. A Mean Squared Error (MSE) loss is used to measure this discrepancy, serving as a regu-larization term to constrain the overall loss: 
+
+Lintra = ∥MI − MT ∥22
+
+=
+
+> B
+
+X
+
+> i=1
+> B
+
+X
+
+> j=1
+
+(S(Ii, I j ) − S(Ti, T j )) 2 (13) where MI and MT represent the similarity matrices for the image and text modalities, respectively. 
+
+Inter-modal Semantic Asymmetry Constraints. Inter-modal semantic asymmetry, on the other hand, reflects the relationship between mismatched image-text pairs, As shown in Fig. 5(b). Thus, this study introduces a cross-modal semantic asymmetry regularization term. The loss function can be optimized by explicitly constraining the asymmetry between non-diagonal elements in the similarity matrix to improve model robustness. Specifically, the dis-tances between the embedded features of different modali-ties are calculated as: 
+
+S(Ii, T j ) = Ii·Tj  
+
+> ∥Ii∥·∥ Tj∥
+
+, i, j ∈ [1 , B ] (14) Next, a similarity matrix M = {S(Ii, T j )|i = [1 , B ]} is constructed by combining the similarity scores. The cross-modal semantic asymmetry regularization loss is defined as: 
+
+Linter = −∥ MIT − MT I ∥22
+
+= −
+
+> B
+
+X
+
+> i=1
+> B
+
+X
+
+> j=1
+
+(S(Ii, T j ) − S(Ij , T i)) 2 (15) Here, the Mean Squared Error (MSE) is adopted as the regularization loss. 
+
+Loss function. The loss function is formulated as: 
+
+LSCT = Lw + ζL intra + ηL inter (16) where ζ and η are hyperparameters that balance the intra-and inter-modal regularization terms. The triplet loss Lw is defined as: 
+
+Lw = [ˆ α − S(Ii, T i) + S(Ii, ˆTi)] +
+
++ [ˆ α − S(Ii, T i) + S( ˆIi, T i)] +
+
+(17) where ˆα is the soft margin and [x]+ = max( x, 0) . The terms ˆIi and ˆTi denote the hardest negative text and image samples within the current batch, respectively. Moreover, the training process is divided into a warmup phase and a formal training phase. During the warmup phase, the model parameters are updated using Lw. In the formal training phase, the model is optimized with LSCT to improve dis-crimination and robustness to noisy correspondences. 
+
+# 4. Experiments 
+
+## 4.1. Datasets and Evaluation Metrics 
+
+Extensive experiments are conducted on three widely used image-text retrieval datasets. 
+
+Flickr30K [33]: This dataset contains 31,014 images, each annotated with five textual descriptions. In the experimen-tal setup, 1,014 images are used for validation, 1,000 for testing, and the remaining 29,000 for training. 
+
+MS-COCO [34]: This dataset comprises 123,287 images paired with five captions each. For this work, 5,000 images are used for validation, 5,000 for testing, and 113,287 for training. 
+
+Conceptual Captions [35]: This large-scale real-world dataset is characterized by noisy image-text pairs, with an estimated 3%-20% of the pairs being noisy. A subset of 152,000 pairs, referred to as CC152K , is utilized in this study, with 150,000 for training and 1,000 each for testing and validation. 
+
+Evaluation Metrics: Standard evaluation protocols for re-trieval tasks are followed, with Recall at K (R@K) as the primary metric. R@K measures the proportion of relevant items retrieved among the top K results. Reported results in-clude R@1, R@5, and R@10, along with the sum of image-to-text and text-to-image recall scores, denoted as RSum. 
+
+## 4.2. Implementation Details 
+
+For all experiments, the Adam optimizer is adopted with an initial learning rate of 2e − 4. The batch size is set to 128, the word embedding dimension is set to 300, and the dimensionality of the joint embedding space is 2048. The soft margin ˆα is set to 0.2. The balancing factors in the 
+
+LSCT are configured as ζ = 1 .0 and η = 0 .1. We use 
+
+Lw for 10 warmup training epochs, and the total number of training epochs after warmup is 40, during which LSCT is applied. 
+
+## 4.3. Comparison with the SOTA methods 
+
+To validate the effectiveness of the proposed method, it is compared against several representative baseline ap-8669 Table 1. Retrieval results on Flickr30K and MS-COCO datasets under different noise levels. * indicates reproduction of results based on publicly available code. The best and second-best results are shown in bold and underline, respectively. 
+
+Noise Method Flickr 30K MS-COCO Image →Text Text →Image RSum Image →Text Text →Image RSum 
+
+R@1 R@5 R@10 R@1 R@5 R@10 R@1 R@5 R@10 R@1 R@5 R@10 0.2 NCR* 75.0 93.9 97.5 58.3 83.0 89.0 496.7 78.7 95.8 98.5 63.3 90.4 95.8 522.5 DECL 77.5 93.8 97.0 56.1 81.8 88.5 494.7 77.5 95.9 98.4 61.7 89.3 95.4 518.2 BiCro 78.1 94.4 97.5 60.4 84.4 89.9 504.7 78.8 96.1 98.6 63.7 90.3 95.7 523.2 MSCN 77.4 94.9 97.6 59.6 83.2 89.2 501.9 78.1 97.2 98.8 64.3 90.4 95.8 524.6 RCL 74.2 91.8 96.9 55.6 81.2 87.5 487.2 77.0 95.5 98.1 61.3 88.8 94.8 515.5 GSC* 77.1 94.7 97.4 59.7 83.9 89.7 502.5 79.3 96.6 98.7 63.8 90.5 95.8 524.6 CERAM* 75.9 94.3 97.3 59.5 83.9 89.8 500.7 77.9 96.2 98.4 63.0 90.1 95.6 521.2 L2RM 77.9 95.2 97.8 59.8 83.6 89.5 503.8 80.2 96.3 98.5 64.2 90.1 95.4 524.7 ESC* 76.3 93.5 96.8 59.9 83.9 89.6 500.0 78.3 96.1 98.6 63.0 90.3 95.8 522.1 PC 2* 78.6 95.1 97.9 59.7 83.6 89.6 504.5 78.7 96.1 98.6 63.5 89.8 95.4 522.1 SPS* 77.4 94.4 97.4 59.1 84.6 90.0 502.9 78.9 96.1 98.7 63.5 90.0 95.5 522.6 
+
+GSL 78.9 94.8 97.8 60.7 84.7 90.7 507.5 79.6 96.4 98.7 64.2 90.5 95.8 525.1 
+
+0.4 NCR* 71.3 91.9 95.6 54.4 80.2 87.0 480.4 75.3 95.5 98.1 60.3 88.9 94.9 513.0 DECL 72.7 92.3 95.4 53.4 79.4 86.4 479.6 75.6 95.5 98.3 59.5 88.3 94.8 512.0 BiCro 74.6 92.7 96.2 55.5 81.1 87.4 487.5 77.0 95.9 98.3 61.8 89.2 94.9 517.1 MSCN 74.4 93.2 96.0 55.3 80.4 86.8 486.1 77.5 96.2 98.7 60.7 89.1 94.9 517.1 RCL 71.3 91.1 95.3 51.4 78.0 85.2 472.3 73.9 94.9 97.9 59.0 87.4 93.9 507.0 GSC* 75.6 93.5 96.9 56.2 82.0 88.6 492.8 77.3 95.8 98.3 62.0 89.6 95.3 518.3 CERAM* 76.2 93.3 97.0 56.4 81.8 88.7 493.4 76.5 95.6 98.3 61.5 89.1 95.1 516.1 L2RM 75.8 93.2 96.9 56.3 81.0 87.3 490.5 77.5 95.8 98.4 62.0 89.1 94.9 517.7 ESC* 73.6 93.4 96.6 56.0 81.5 88.3 489.4 77.3 95.6 98.4 61.8 89.4 95.3 517.8 PC 2* 75.8 93.5 96.9 57.5 81.9 88.2 493.8 77.4 95.5 98.6 62.1 89.1 95.0 517.7 SPS* 74.8 93.5 97.4 56.1 82.1 88.6 492.5 77.9 95.8 98.3 62.5 89.4 95.0 518.9 
+
+GSL 77.6 94.7 97.0 58.5 82.2 88.6 498.6 78.1 96.1 98.6 62.7 89.8 95.5 520.9 
+
+0.6 NCR* 33.3 65.2 75.4 26.8 52.3 63.9 316.9 73.8 94.3 97.6 58.2 87.2 94.0 505.1 DECL 65.2 88.4 94.0 46.8 74.0 82.2 450.6 73.0 94.2 97.9 57.0 86.6 93.8 502.5 BiCro 67.6 90.8 94.4 51.2 77.6 84.7 466.3 73.9 94.4 97.8 58.3 87.2 93.9 505.5 MSCN 69.0 89.3 93.0 49.2 73.1 79.0 452.6 74.4 94.9 97.7 58.8 87.2 93.7 506.7 RCL 62.3 86.3 92.9 45.1 71.3 80.2 438.1 71.4 93.2 97.1 55.4 84.7 92.3 494.1 GSC* 70.5 91.3 95.5 52.1 79.5 86.7 475.6 74.9 94.6 97.9 59.6 88.0 94.3 509.3 CERAM* 71.6 90.2 94.3 52.5 79.1 86.3 474.0 73.6 94.4 97.7 58.9 87.7 94.5 506.8 L2RM 70.0 90.8 95.4 51.3 76.4 83.7 467.6 75.4 94.7 97.9 59.2 87.4 93.8 508.4 ESC* 72.0 91.4 95.8 53.5 78.4 86.0 477.1 74.4 94.5 97.9 58.9 87.9 94.5 508.1 PC 2* 69.2 91.1 94.8 52.7 78.7 85.4 471.9 75.1 94.8 97.8 59.7 87.7 94.3 509.4 SPS* 70.6 90.2 94.7 53.0 79.4 86.7 474.5 75.7 94.8 98.0 60.0 88.2 94.6 511.3 
+
+GSL 73.4 91.4 95.8 55.6 80.6 87.3 484.1 76.1 95.0 98.1 60.7 88.5 94.8 513.2 
+
+proaches, including NCR [7], DECL [26], BiCro [2], MSCN [28], RCL [29], GSC [12], CERAM [9], L2RM [11], ESC [10], PC 2 [24] and SPS[36]. Noise is simu-lated at levels of 20%, 40%, and 60% on the Flickr30K and MS-COCO datasets to evaluate the performance of all mod-els. For MS-COCO, results are reported with 5-fold cross-validation on the test set. Additionally, to assess perfor-mance under real-world noisy conditions, experiments are conducted on the CC152K dataset and the corresponding results are reported. 
+
+Results on Simulated Noise. As shown in Table 1, GSL consistently outperforms the baselines. The Flickr30K dataset achieves notable improvements in retrieval perfor-mance, with RSum scores exceeding the best-performing baseline by 3.0, 4.8, and 7.0 under different noise lev-els. Similarly, on the MS-COCO dataset, GSL achieves the highest overall performance, with RSum improvements of 0.4, 2.0, and 1.9 across various noise ratios. Moreover, the proposed model achieves either the best or second-best re-sults across all evaluation metrics in nearly all cases. 
+
+Results on Real-world Noise. To evaluate the model’s effectiveness in real-world scenarios, all the models were tested on the CC152K dataset, which contains real noisy correspondences. The results are presented in Table 2. It can be observed that GSL significantly outperforms the baseline models, achieving an RSum of 379.6. Further-8670 Table 2. Image-Text Retrieval on CC152K. * indicates reproduc-tion of results based on publicly available code. The best and second-best indicators are represented in bold and underline re-spectively.                                                                                                                           
+
+> Method CC152K Image →Text Text →Image RSum
+> R@1 R@5 R@10 R@1 R@5 R@10 NCR* 39.5 64.5 73.5 40.3 64.6 73.2 355.6 DECL 39.0 66.1 75.5 40.7 66.3 76.7 364.3 BiCro 40.8 67.2 76.1 42.1 67.6 76.4 370.2 MSCN 40.1 65.7 76.6 40.6 67.4 76.3 366.7 RCL 41.7 66.0 73.6 41.6 66.4 75.1 364.4 GSC* 40.0 66.5 76.6 42.3 67.4 76.3 369.1 CERAM* 38.7 68.2 77.5 41.5 68.3 77.0 371.2 L2RM 43.0 67.5 75.7 42.8 68.0 77.2 374.2 ESC* 40.4 68.3 75.7 41.4 67.7 75.2 368.7 PC 2*39.5 65.4 73.5 40.9 65.7 75.2 360.2 SPS* 41.2 67.6 77.0 41.6 68.0 77.0 372.6
+> GSL 42.3 69.1 77.7 42.9 69.9 77.7 379.6
+> Table 3. Ablation studies on Flickr30K with 40% noise with dif-ferent components in GSL.
+> Components Image →Text Text →Image RSum
+> GALC FoA 2SCT R@1 R@5 R@10 R@1 R@5 R@10
+> ✓--75.4 92.8 96.1 56.3 80.5 87.3 488.4
+> ✓✓-76.1 94.3 97.6 57.9 81.6 88.3 495.8
+> ✓✓✓77.6 94.7 97.0 58.5 82.2 88.6 498.6
+
+more, GSL achieves either the best or second-best scores across all evaluation metrics, demonstrating its effective-ness and robustness in handling real-world noisy correspon-dence problems. 
+
+## 4.4. Ablation Study 
+
+To investigate the impact of each component on model performance, ablation studies were conducted on the Flickr30K dataset with a noise level of 40%. Table 3 presents the experimental results for each component. GSL achieves the best performance when all components are in-tegrated, and each individual component contributes posi-tively, demonstrating the effectiveness of each module. 
+
+> Figure 6. Hyperparameter variation curve.
+> Figure 7. Discrepancy visualization with FoA 2.
+
+## 4.5. Hyperparameter Analysis. 
+
+In this subsection, the hyperparameters ζ and η are an-alyzed. Fig. 6 illustrates the variations in performance on the Flickr30K dataset under a 40% noise ratio with differ-ent values of ζ and η. A controlled variable approach was employed during the experiments: first, ζ was fixed while η
+
+was varied to identify its optimal value; then, based on the optimal η, ζ was adjusted to determine its best setting. The results show that GSL achieves the best performance when 
+
+ζ is set to 1.0 and η is set to 0.1. 
+
+## 4.6. Visualization 
+
+To verify the effectiveness of the proposed FoA 2 algo-rithm in mitigating anchor correlation discrepancy, we con-duct a visualization analysis of the discrepancy distribution on Flickr30K at a noise rate of 0.2, as shown in Fig. 7. The visualization results demonstrate a significant reduction in anchor correlation discrepancy after applying FoA 2, con-firming its effectiveness. These findings clearly validate the capability of FoA 2 in reducing anchor correlation discrep-ancy. 
+
+# 5. Conclusion 
+
+This paper identifies a previously overlooked key factor leading to error accumulation-anchor correlation discrep-ancy. To deal with the above issue, a model named GSL is proposed in this paper. GSL leverages a Fourier-based anchor alignment algorithm to improve correlation consis-tency among anchor samples. The aligned representation is then utilized within a geometry-aware label correction algorithm to estimate reliable soft correspondence labels. Furthermore, a semantic-constrained triplet loss is intro-duced to mitigate error accumulation caused by sample mis-classification. Extensive experiments on three benchmark datasets demonstrate the effectiveness and robustness of the proposed approach. 8671 6. Acknowledgment 
+
+This research is supported by the National Natu-ral Science Foundation of China Youth Project (No. 62406254), National Natural Science Foundation of China (No. 62376226), Xi’an Key Technology Research Projects for Key Agricultural Industry Chains (No. 2024JH-NYZD-0027). 
+
+# References 
+
+[1] Junnan Li, Ramprasaath Selvaraju, Akhilesh Gotmare, Shafiq Joty, Caiming Xiong, and Steven Chu Hong Hoi. Align before Fuse: Vision and Language Representation Learning with Momentum Distillation. In Advances in Neural Information Processing Systems , pages 9694–9705, 2021. 1 [2] Shuo Yang, Zhaopan Xu, Kai Wang, Yang You, Hongxun Yao, Tongliang Liu, and Min Xu. BiCro: Noisy Cor-respondence Rectification for Multi-Modality Data via Bi-Directional Cross-Modal Similarity Consistency. In Pro-ceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 19883–19892, 2023. 7 [3] Yuqing Li, Haoming Huang, Jian Xu, and Shao-Lun Huang. NAC: Mitigating Noisy Correspondence in Cross-Modal Matching Via Neighbor Auxiliary Corrector. In ICASSP 2024-2024 IEEE International Conference on Acoustics, Speech and Signal Processing , pages 6815–6819, 2024. 1 [4] Wooyoung Kang, Jonghwan Mun, Sungjun Lee, and Byungseok Roh. Noise-Aware Learning from Web-Crawled Image-Text Data for Image Captioning. In Proceedings of the IEEE/CVF International Conference on Computer Vi-sion , pages 2942–2952, 2023. 1 [5] Yuting Gao, Jinfeng Liu, Zihan Xu, Tong Wu, Enwei Zhang, Ke Li, Jie Yang, Wei Liu, and Xing Sun. SoftCLIP: Softer Cross-Modal Alignment Makes CLIP Stronger. In Proceed-ings of the AAAI Conference on Artificial Intelligence , pages 1860–1868, 2024. [6] Zhenyu Huang, Mouxing Yang, Xinyan Xiao, Peng Hu, and Xi Peng. Noise-Robust Vision-Language Pre-Training With Positive-Negative Learning. IEEE Transactions on Pattern Analysis and Machine Intelligence , 47(1):338–350, 2025. 1 [7] Zhenyu Huang, Guocheng Niu, Xiao Liu, Wenbiao Ding, Xinyan Xiao, Hua Wu, and Xi Peng. Learning with Noisy Correspondence for Cross-modal Matching. In Advances in Neural Information Processing Systems , pages 29406– 29419, 2021. 1, 3, 7 [8] Ruochen Zheng, Jiahao Hong, Changxin Gao, and Nong Sang. REPAIR: Rank Correlation and Noisy Pair Half-Replacing With Memory for Noisy Correspondence. IEEE Transactions on Multimedia , 28:465–478, 2026. 1 [9] Xinran Ma, Mouxing Yang, Yunfan Li, Peng Hu, Jiancheng Lv, and Xi Peng. Cross-Modal Retrieval With Noisy Cor-respondence via Consistency Refining and Mining. IEEE Transactions on Image Processing , 33:2587–2598, 2024. 1, 7[10] Yuchen Yang, Likai Wang, Erkun Yang, and Cheng Deng. Robust Noisy Correspondence Learning with Equivariant Similarity Consistency. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition ,pages 17700–17709, 2024. 7 [11] Haochen Han, Qinghua Zheng, Guang Dai, Minnan Luo, and Jingdong Wang. Learning to Rematch Mismatched Pairs for Robust Cross-Modal Retrieval. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 26679–26688, 2024. 1, 7 [12] Zihua Zhao, Mengxi Chen, Tianjie Dai, Jiangchao Yao, Bo Han, Ya Zhang, and Yanfeng Wang. Mitigating Noisy Correspondence by Geometrical Structure Consis-tency Learning. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 27381– 27390, 2024. 1, 2, 3, 7 [13] Sitong Wu, Haoru Tan, Zhuotao Tian, Yukang Chen, Xiao-juan Qi, and Jiaya Jia. SaCo Loss: Sample-Wise Affinity Consistency for Vision-Language Pre-Training. In Proceed-ings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 27358–27369, 2024. 1 [14] Yunbo Wang, YuJie Wu, Zhien Dai, Can Tian, Jun Long, and Jianhai Chen. Noisy Correspondence Rectification via Asymmetric Similarity Learning. In Proceedings of the AAAI Conference on Artificial Intelligence , number 20, pages 21384–21392, 2025. 2 [15] Shiyuan He, Weiyang Wang, Zheng Wang, Xing Xu, Yang Yang, Xiaoming Wang, and Heng Tao Shen. Category Alignment Adversarial Learning for Cross-Modal Retrieval. 
+
+IEEE Transactions on Knowledge and Data Engineering ,35(5):4527–4538, 2023. 2 [16] Fan Yang, Meng Han, Fumin Ma, Yufeng Liu, Xiaojian Ding, and Deyu Tong. Disperse asymmetric subspace rela-tion hashing for cross-modal retrieval. IEEE Transactions on Circuits and Systems for Video Technology , 34(1):603–617, 2023. [17] Yuan Sun, Zhenwen Ren, Peng Hu, Dezhong Peng, and Xu Wang. Hierarchical Consensus Hashing for Cross-Modal Retrieval. IEEE Transactions on Multimedia , 26:824–836, 2024. 2 [18] Jiacheng Chen, Hexiang Hu, Hao Wu, Yuning Jiang, and Changhu Wang. Learning the Best Pooling Strategy for Vi-sual Semantic Embedding. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition ,pages 15789–15798, 2021. 2 [19] Haiwen Diao, Ying Zhang, Lin Ma, and Huchuan Lu. Sim-ilarity Reasoning and Filtration for Image-Text Matching. In Proceedings of the AAAI conference on artificial intelli-gence , pages 1218–1226, 2021. 2 [20] Zheng Wang, Xing Xu, Jiwei Wei, Ning Xie, Yang Yang, and Heng Tao Shen. Semantics Disentangling for Cross-Modal Retrieval. IEEE Transactions on Image Processing ,33:2226–2237, 2024. 2 [21] Min Meng, Jiaxuan Sun, Jigang Liu, Jun Yu, and Jigang Wu. Semantic Disentanglement Adversarial Hashing for Cross-Modal Retrieval. IEEE Transactions on Circuits and Systems for Video Technology , 34(3):1914–1926, 2023. 2 [22] Hongguang Zhu, Chunjie Zhang, Yunchao Wei, Shujuan Huang, and Yao Zhao. ESA: External Space Attention Ag-gregation for Image-Text Retrieval. IEEE Transactions on 8672 Circuits and Systems for Video Technology , 33(10):6131– 6143, 2023. 2 [23] Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sastry, Amanda Askell, Pamela Mishkin, Jack Clark, et al. Learning Transferable Visual Models From Natural Language Super-vision. In Proceedings of the 38th International Conference on Machine Learning , pages 8748–8763, 2021. 2 [24] Yue Duan, Zhangxuan Gu, Zhenzhe Ying, Lei Qi, Changhua Meng, and Yinghuan Shi. PC 2: Pseudo-Classification Based Pseudo-Captioning for Noisy Correspondence Learning in Cross-Modal Retrieval. In Proceedings of the 32nd ACM International Conference on Multimedia , pages 9397–9406, 2024. 3, 7 [25] Quanxing Zha, Xin Liu, Yiu-ming Cheung, Xing Xu, Nan-nan Wang, and Jianjia Cao. UGNCL: Uncertainty-Guided Noisy Correspondence Learning for Efficient Cross-Modal Matching. In Proceedings of the 47th International ACM SIGIR Conference on Research and Development in Infor-mation Retrieval , pages 852–861, 2024. 3 [26] Yang Qin, Dezhong Peng, Xi Peng, Xu Wang, and Peng Hu. Deep Evidential Learning with Noisy Correspondence for Cross-modal Retrieval. In Proceedings of the 30th ACM International Conference on Multimedia , pages 4948–4956, 2022. 3, 7 [27] Zhuohang Dang, Minnan Luo, Chengyou Jia, Guang Dai, Xiaojun Chang, and Jingdong Wang. Noisy Correspondence Learning with Self-Reinforcing Errors Mitigation. In Pro-ceedings of the AAAI Conference on Artificial Intelligence ,pages 1463–1471, 2024. 3 [28] Haochen Han, Kaiyao Miao, Qinghua Zheng, and Minnan Luo. Noisy Correspondence Learning With Meta Similar-ity Correction. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 7517– 7526, 2023. 3, 7 [29] Peng Hu, Zhenyu Huang, Dezhong Peng, Xu Wang, and Xi Peng. Cross-Modal Retrieval With Partially Mismatched Pairs. IEEE Transactions on Pattern Analysis and Machine Intelligence , 45(8):9595–9610, 2023. 3, 7 [30] Yang Qin, Yuan Sun, Dezhong Peng, Joey Tianyi Zhou, Xi Peng, and Peng Hu. Cross-modal Active Complementary Learning with Self-refining Correspondence. In Advances in Neural Information Processing Systems , pages 24829– 24840, 2023. 3 [31] Yukang Zhang, Hanzi Wang, Yang Lu, Yan Yan, and Xue-long Li. Frequency Domain Nuances Mining for Visible-Infrared Person Re-Identification. IEEE Transactions on In-formation Forensics and Security , 20:5411–5424, 2025. 5 [32] Xiaoheng Tan, Yanxia Chai, Fenglei Chen, and Haijun Liu. A Fourier-Based Semantic Augmentation for Visible-Thermal Person Re-Identification. IEEE Signal Processing Letters , 29:1684–1688, 2022. 5 [33] Peter Young, Alice Lai, Micah Hodosh, and Julia Hock-enmaier. From image descriptions to visual denotations: Newsimilarity metrics for semantic inference over event de-scriptions. Transactions of the Association for Computa-tional Linguistics , 2:67–78, 2014. 6 [34] Tsung-Yi Lin, Michael Maire, Serge Belongie, James Hays, Pietro Perona, Deva Ramanan, Piotr Doll´ ar, and C Lawrence Zitnick. Microsoft COCO: Common Objects in Context. In 
+
+European Conference on Computer Vision , pages 740–755, 2014. 6 [35] Piyush Sharma, Nan Ding, Sebastian Goodman, and Radu Soricut. Conceptual Captions: A Cleaned, Hypernymed, Image Alt-text Dataset For Automatic Image Captioning. In Proceedings of the 56th Annual Meeting of the Associa-tion for Computational Linguistics (Volume 1: Long Papers) ,pages 2556–2565, 2018. 6 [36] Yucheng Xie, Songyue Cai, Tao Tong, Ping Hu, and Xi-aofeng Zhu. Seeking Proxy Point via Stable Feature Space for Noisy Correspondence Learning. In Proceedings of the Thirty-Fourth International Joint Conference on Artificial Intelligence , pages 2072–2080, 2025. 7 8673

@@ -1,0 +1,987 @@
+VT-Intrinsic: Physics-Based Decomposition of Reﬂectance and Shading
+using a Single Visible-Thermal Image Pair
+Zeqing Yuan
+Mani Ramanagopal
+Aswin C. Sankaranarayanan
+Srinivasa G. Narasimhan
+Carnegie Mellon University
+https://vt-intrinsic.github.io
+Ordinality
+Retexturing
+Relighting
+…
+Applications
+Albedo & Shading Networks
+(Randomly Initialized)
+Fixed Random Maps 
+Local / 
+Non-local
+!
+❄
+Optimization
+Double-DIP Parameterization
+Input Visible
+Input Thermal
+Estimated Shading
+Estimated Albedo
+Edge
+Albedo / Shading Constraints
+Point Pair
+Figure 1.
+Through the tree’s veil, sunlight weaves intricate shadows across a building fac¸ade. Visible and thermal images capture
+complementary cues of the reﬂected and absorbed light. Local and non-local visible–thermal ordinalities (Sec. 3) reveal albedo-/shading-
+dominant edges and point-pair ordinalities respectively, guiding an optimization using Double-DIP parameterization (Sec. 4). Our
+physics-based method reconstructs the complex shading and albedo without learned priors, whereas state-of-the-art models fail (see
+supplementary). The decomposition enables faithful retexturing and relighting via albedo and shading editing.
+Abstract
+Decomposing a scene into its reﬂectance and shading is
+a challenge due to the lack of extensive ground-truth data
+for real-world scenes. We introduce a novel physics-based
+approach for intrinsic image decomposition using a pair of
+visible and thermal images. We leverage the principle that
+light not reﬂected from an opaque surface is absorbed and
+detected as heat by a thermal camera. This allows us to relate
+the ordinalities (or relative magnitudes) between visible and
+thermal image intensities to the ordinalities of shading and
+reﬂectance. The ordinalities enable dense self-supervision
+of an optimizing neural network to recover shading and re-
+ﬂectance. We perform quantitative evaluations with known
+reﬂectance and shading under natural and artiﬁcial light-
+ing, and qualitative experiments across diverse scenes. The
+results demonstrate superior performance over both physics-
+based and recent learning-based methods, providing a path
+toward scalable real-world data curation with supervision.
+1. Introduction
+Understanding how a scene appears from the interaction be-
+tween surface reﬂectance (the intrinsic material color, often
+approximated as diffuse albedo) and incident illumination
+(shading determined by lighting and geometry) has long
+been a central pursuit in vision and imaging sciences [3].
+Disentangling these physical factors is useful for various ap-
+plications in graphics (recoloring, relighting, and composit-
+ing) and vision (object recognition and tracking). Recent
+learning-based methods have made progress by formulating
+this task in an end-to-end framework and inferring statisti-
+cal priors from auxiliary datasets to constrain the otherwise
+ill-posed inverse problem [17]. However, collecting ground-
+truth data for real-world scenes remains infeasible, as mea-
+suring surface reﬂectance and shading requires specialized
+equipment and controlled procedures [19, 42].
+In this paper, we introduce a novel physics-based frame-
+work that leverages a single auxiliary thermal image to de-
+compose a visible image of a scene into its albedo and shad-
+1
+This CVPR paper is the Open Access version, provided by the Computer Vision Foundation.
+Except for this watermark, it is identical to the accepted version;
+the final published version of the proceedings is available on IEEE Xplore.
+41752
+
+
+ing components. To see why a thermal image is useful here,
+we consider the underlying physical principles that govern
+albedo and shading. Shading corresponds to the total inci-
+dent energy (or irradiance) at a scene point, while albedo
+represents the proportion of that energy reﬂected by the
+surface. For opaque objects, the unreﬂected portion of the
+incident energy is absorbed, which contributes to the ther-
+mal radiation. This radiation can be detected by a thermal
+camera in the long-wave infrared range (8–14 µm). A recent
+technique called JoLHT-Video [34] addressed this issue by
+modeling heat transport equations and estimating it from the
+transient heat ﬂow observed by a thermal video. However,
+directly estimating the absorbed light is challenging as it
+requires controlled and visible-only lighting and transient
+thermal measurements from video, Inspired by this work,
+we pose the following question: What can be achieved using
+only a single thermal image?
+Since absorption of light increases the temperature of
+an object, low-albedo regions—dark in the visible im-
+age—appear bright in the thermal image, whereas shading
+variations appear bright in both. Based on this observa-
+tion, we relate visible–thermal intensity ordinalities between
+any two scene points to their albedo and shading ordinali-
+ties, without having to estimate the absorbed light. Specif-
+ically, the ordinality of neighboring scene points classiﬁes
+edges as shading- or reﬂectance-dominant and deﬁnes an
+edge loss, while non-local ordinalities yield a point-pair loss.
+These new losses are used, together with the standard visible-
+image reconstruction loss, to optimize a neural network (e.g.,
+Double Deep Image Prior [16], randomly initialized to pa-
+rameterize albedo and shading), effectively providing dense
+self-supervision for intrinsic decomposition.
+Our ordinality theory is derived using the Lambertian
+assumption and when illumination is conﬁned to the vis-
+ible spectrum (e.g., LED lighting). We further extend it
+to broadband sources containing infrared energy (e.g., sun-
+light, incandescent bulbs) by empirically observing—and
+statistically validating with [22]—that infrared albedo ex-
+hibits lower variation across common materials than visible
+albedo [9], thereby preserving ordinalities. Expert validation
+on diverse materials and natural scenes—including those
+moderately violating the Lambertian assumption—shows
+near-perfect agreement between our automatically estimated
+point-pair ordinalities and conﬁdent expert labels, conﬁrm-
+ing robustness across material types and generalization be-
+yond idealized conditions.
+We quantitatively evaluate our method on scenes with
+known reﬂectance (e.g. color charts) and known shading
+(e.g. object imaged under identical lighting but painted dif-
+ferently). We further test on visible-thermal pairs simulated
+from the MIT Intrinsic dataset [19]. Finally, we demon-
+strate qualitative results on complex indoor and outdoor
+scenes with notable improvements over both physics-based
+and learning-based methods trained on auxiliary datasets.
+Our dataset of visible-thermal image pairs can also provide
+supervision for learning methods in real-world scenes.
+Limitations: Our method assumes dominant diffuse re-
+ﬂection, heat arising primarily from light absorption, and
+the absence of multiple colored illuminations. Performance
+can also be affected by the limited SNR and resolution of
+inexpensive microbolometer thermal cameras, particularly
+under weak illumination or in dynamic scenes. Despite these
+limitations, as thermal cameras improve and become more
+ubiquitous, understanding the interplay between light and
+heat holds strong potential for vision and graphics.
+2. Related Work
+2.1. Thermal Imaging for Physics-Based Vision
+Thermal cameras have recently emerged as a powerful com-
+plement to visible sensing across geometry [32, 33, 39],
+materials [12], and appearance [2].
+JoLHT-Video [34] showed that transient thermal video
+provides analytical cues for estimating absorbed and re-
+ﬂected light. However, it relies on (i) active lighting con-
+trol, infeasible in-the-wild, (ii) visible-only illumination that
+excludes common sources (sun and incandescent bulbs),
+and (iii) radiometric calibration between visible and thermal
+cameras. In contrast, our method uses a single steady-state
+thermal image to extract reliable ordinal constraints without
+requiring video, calibration or lighting control.
+2.2. Intrinsic Image Decomposition (IID)
+Early optimization-based approaches: Retinex-style [25]
+methods rely on stringent assumptions that hinder gen-
+eralization—such as smooth shading or reﬂectance [4],
+chromaticity-preserving shading variations [11, 14, 18], or
+local intensity similarity implying shared reﬂectance [37].
+Learning-based approaches: Unsupervised learning based
+methods that decorrelate albedo and shading [29] or that
+enforce albedo consistency across changing illumination
+[27] improve upon hand-crafted priors. Supervised learning-
+based models are primarily trained on synthetic datasets [24,
+26, 28, 35], which provide ground-truth albedo and shading
+but face a signiﬁcant sim-to-real gap. Existing real-world
+datasets [5, 23, 42] offer sparse annotations used by models
+(e.g., to predict albedo ordinalities [44]), but are limited to
+small-scale indoor scenes. Intrinsic-v1 [6] expands to more
+diverse data by using model predictions as pseudo-ground
+truth, albeit imperfectly. Recent works [21, 30, 43] leverage
+diffusion priors for IID, yet as noted in [7], they suffer from
+hallucination.
+Using auxiliary sensors: Cheng et al. [8] used near-infrared
+(NIR) images as shading proxies, but NIR albedo often varies
+across materials (albeit less than visible) and modern ef-
+ﬁcient lighting such as LEDs hardly emits NIR, limiting
+41753
+
+
+Visible
+Thermal
+Edges
+Points
+Shading
+Albedo
+Figure 2. Printed (top) vs. projected (bottom) Roger Shepard’s
+illusion [38]. Top: a printed paper lit by an incandescent bulb,
+where reﬂectance variations reveal a saxophone player. Bottom:
+the same pattern projected onto a uniform cardboard, where mod-
+ulated shading reveals a lady’s face. This comparison highlights
+the albedo-shading ambiguity and motivates modeling light–heat
+transport: reﬂectance induces inverse visible–thermal ordinalities,
+while shading yields consistent ones. Columns 3-4 show classiﬁed
+albedo- / shading-dominant edges (Sec. 3.1.1) and points of lower
+albedo / higher shading than
+(Sec. 3.1.2). Our method decom-
+poses correctly (right), whereas baselines fail (see supplementary).
+generality and applicability. Sato et al. [36] used intensity
+of sparse LiDAR returns and enforce consistency with esti-
+mated albedos, yet LIDAR operates in NIR where albedo
+differs from visible [8]. While such NIR cues help in spe-
+ciﬁc cases, our approach exploits the complementary relation
+between visible (reﬂected light) and thermal (proxy for ab-
+sorbed light), enabling broader applicability.
+3. Theory of Visible-Thermal Ordinality
+We present the theoretical relationship between a visible and
+thermal image pair and show that the ordinality of their pixel
+intensities directly convey the ordinality of the underlying
+albedo or shading, as illustrated in Fig. 2. We ﬁrst consider
+visible illumination (e.g., an LED), then extend our analysis
+to include invisible illumination component (e.g., infrared
+light in incandescent bulbs and sunlight).
+3.1. Visible-only Illumination
+Consider an opaque Lambertian scene imaged by visible and
+thermal cameras. The visible intensity at a pixel x is:
+Iv(x) = g⇢(x)⌘(x),
+(1)
+where ⇢is the albedo (reﬂectance), ⌘the shading (irradiance),
+and g = k/⇡a global scale determined by the camera gain
+k. For brevity, we omit x denoting a single pixel.
+Light not reﬂected is absorbed by the surface and con-
+verted into heat, producing a heat source of intensity:
+H = (1 −⇢)⌘.
+(2)
+This heat propagates through conduction, convection and
+radiation according to the heat transport equation. Though
+H is not directly measurable, it can be inferred from sur-
+face temperature, which is indirectly observed by a thermal
+camera. JoLHT-Video [34] modeled the light-heat transport
+using thermal video of the heating process to estimate H and
+solve for ⇢and ⌘. In contrast, we use a single thermal image
+It near thermal equilibrium, easily attainable within seconds
+under stable lighting.
+Together, Iv and the absorbed heat image H impose local
+and non-local constraints on albedo and shading.
+3.1.1. Local (Edge) Constraints
+The spatial gradient of the visible image can be written as:
+rIv = g(r⇢)⌘+ g⇢(r⌘).
+(3)
+For most edges in natural images, one of the two terms on the
+right dominates—edges arise primarily from either albedo
+or shading variations [18, 25]. This creates a fundamental
+ambiguity, but the spatial gradients of the heat source provide
+complementary information:
+rH = (−r⇢)⌘+ (1 −⇢)r⌘.
+(4)
+From (3) and (4), we have
+Albedo Edge(r⌘! 0): sign(rIv) = −sign(rH), (5a)
+Shading Edge(r⇢! 0): sign(rIv) = sign(rH).
+(5b)
+This yields a simple criterion to distinguish albedo- and
+shading-dominant edges using the heat intensity image.
+3.1.2. Non-Local (Point-Pair) Constraints
+We generalize the above gradient analysis to compare point
+pairs, i.e., any two distinct pixels xi and xj in the scene.
+Iv(xi) = g⇢(xi)⌘(xi), H(xi) = (1 −⇢(xi))⌘(xi), (6a)
+Iv(xj) = g⇢(xj)⌘(xj), H(xj) = (1 −⇢(xj))⌘(xj). (6b)
+When a pixel’s visible intensity is lower (or higher) than
+another’s while its thermal intensity is higher (or lower), the
+pixel’s albedo is correspondingly lower (or higher).
+Proposition 1 (Albedo Ordinality). For pixels xi, xj with
+visible and heat intensities as in (6), if Iv(xi) < Iv(xj) and
+H(xi) > H(xj), then ⇢(xi) < ⇢(xj), and vice versa.
+Conversely, when both visible and heat intensities are
+lower (or higher), its shading is also lower (or higher).
+Proposition 2 (Shading Ordinality). For pixels xi, xj with
+visible and thermal intensities as in (6), if Iv(xi) < Iv(xj)
+and H(xi) < H(xj), then ⌘(xi) < ⌘(xj), and vice versa.
+Proofs for Prop. 1 and Prop. 2 are in the supplementary.
+The ordinalities here rely on H, the heat from absorbed
+visible light. Next, we incorporate invisible light and relate
+H to thermal image intensity, It.
+41754
+
+
+3.2. Visible and Invisible Illumination
+Common light sources such as sunlight and incandescent
+lamps emit signiﬁcant invisible radiation (e.g., infrared).
+While the visible camera captures only reﬂected light within
+its spectral response, heat generation arises from absorbed
+energy across all wavelengths. Thus, the equation for the
+heat source intensity has an additional term as follows:
+H = (1 −⇢v)⌘+ (1 −⇢i) li
+lv
+⌘,
+(7)
+where ⇢i is the average albedo in the invisible band, li/lv is
+the ratio of light intensity in the invisible and visible spectra.
+While albedo variations are prominent in the visible spec-
+trum, their counterparts in the infrared are much smaller [9].
+Thus, we assume that ⇢i is locally constant within a region,
+allowing (7) to be approximated as:
+H = (β −⇢v)⌘,
+s.t.
+β = 1 + (1 −⇢i)li/lv.
+(8)
+As β is locally constant, (5b) still holds as rH is invariant
+to a constant offset in H. Also, as β > 1, Prop. 1 and
+Prop. 2 holds whenever β is same for the two points.
+3.3. Relating heat intensity to a single thermal image
+While heat intensity is not directly observable, we show that
+a thermal image is a reliable proxy for ordinality constraints.
+The heat transport equation at a surface point is:
+Ch
+@T
+@t = H + hc(Ta −T) + 4✏σT 3
+s (Ts −T) + ∆T, (9)
+where Ch is the heat capacity, T the surface temperature, t
+time, hc the convection coefﬁcient, Ta the air temperature, ✏
+the surface emissivity, σ the Stefan-Boltzmann constant, Ts
+the surrounding temperature, the thermal conductivity, and
+∆denotes the Laplacian operator along the surface. A static
+scene under constant lighting reaches thermal equilibrium
+when the left side of (9) is zero, giving
+H = (hc + 4✏σT 3
+s )T −∆T −(hcTa + 4✏σT 4
+s ).
+(10)
+The image intensity measurement Tt made by a thermal
+camera is related to the temperature T as follows:
+It = ✏U(T) + (1 −✏)U(Ts),
+(11)
+where U denotes the thermal camera’s response function.
+Linearizing U as U(T) = p1T + p2 in (11), we get
+T = a1It −a2
+s.t. a1 =
+1
+✏p1
+, a2 = p2 + p1Ts(1 −✏)
+✏p1
+.
+(12)
+Substituting (12) in (10), we get
+H = c1It −c2∆It −c3,
+(13)
+where c1
+=
+hc+4✏σT 3
+s
+✏p1
+, c2
+=
+
+✏p1 , and c3
+= (hc +
+4✏σT 3
+s )( p2+p1Ts(1−✏)
+✏p1
+) + (hcTa + 4✏σT 4
+s ).
+The thermal properties such as ✏, and have small varia-
+tions irrespective of the variation in albedo [41]. The envi-
+ronmental variables such as hc, Ta, and Ts are also similar.
+Therefore, c1, c2 and c3 are similar within a region. Also,
+thermal conductivity of many common materials, excluding
+metals, is low. Likewise, the Laplacian of a temperature ﬁeld
+at steady state has a much smaller magnitude than absolute
+temperatures [41]. Therefore, we ignore the conduction term.
+Then, as c1 > 0, the ordinal relationships between H at two
+points is the same as that of It.
+Proposition 3. In local regions, c1, c2 and c3 are constant
+so that for any two pixels xi, xj, if H(xi) is less (or more)
+than H(xj), then It(xi) is also less (or more) than It(xj).
+3.4. Ordinality of Albedo and Shading
+Using Prop. 3, we can extend the results from Eq. 5b to use
+thermal image intensities, as summarized below:
+Albedo Edge(r⌘= 0): sign(rIv) = −sign(rIt),
+(14a)
+Shading Edge(r⇢= 0): sign(rIv) = sign(rIt).
+(14b)
+Similarly, we extend Prop. 1 and Prop. 2 to thermal image
+intensities, yielding the following ordinal relationships:
+Iv(xi) > Iv(xj), It(xi) > It(xj) ) ⌘(xi) > ⌘(xj),
+(15a)
+Iv(xi) < Iv(xj), It(xi) < It(xj) ) ⌘(xi) < ⌘(xj),
+(15b)
+Iv(xi) > Iv(xj), It(xi) < It(xj) ) ⇢(xi) > ⇢(xj),
+(15c)
+Iv(xi) < Iv(xj), It(xi) > It(xj) ) ⇢(xi) < ⇢(xj).
+(15d)
+4. Method
+Using the ordinalities as loss functions, we optimize the
+albedo and shading from a visible-thermal image pair. Let
+Iv be a k−channel visible image and It be the corresponding
+aligned thermal image. Let ˆ⇢and ˆ⌘be an estimate of the
+k−channel albedo and grayscale shading. Let ¯Iv and ¯⇢be
+the grayscale image and albedo estimate, respectively.
+4.1. Local (Edge) Loss
+Using Eq. 14, we label edges (A for albedo, S for shading)
+based on their local visible–thermal gradients (Fig. 2):
+C(x) =
+(
+A
+|r¯Iv| > ✏m, |
+r¯IvrIt
+kr¯IvkkrItk| > ✏p,
+S
+|r¯Iv| > ✏m, |
+r¯IvrIt
+kr¯IvkkrItk| < ✏p,
+(16)
+where ✏m suppresses textureless regions and ✏p thresholds
+the cosine similarity between visible and thermal gradients.
+Before computing rIt, we apply Gaussian smoothing to
+reduce noise while maintaining gradient consistency.
+With the class labels above, we formulate an edge loss
+that penalizes albedo gradients at shading-dominant pixels
+and vice versa, where ⌦denotes all image pixels:
+Ledge(¯⇢, ˆ⌘, C) =
+1
+|⌦|
+h
+X
+C(x)=S
+kr¯⇢(x)k2 +
+X
+C(x)=A
+krˆ⌘(x)k2i
+.
+(17)
+41755
+
+
+4.2. Non-Local (Point-Pair) Loss
+During optimization, we use Poisson disk sampling [5] to
+generate random point pairs across the image. Using Eq. 15,
+each pair (xi, xj) is assigned a class label based on their
+normalized intensity differences δIv and δIt:
+P(xi, xj) =
+8
+>
+>
+>
+<
+>
+>
+>
+:
+S+
+δIv > ✏d, δIt > ✏d,
+S−
+δIv < −✏d, δIt < −✏d,
+A+ δIv > ✏d, δIt < −✏d,
+A−δIv < −✏d, δIt > ✏d,
+(18)
+where δIx = Ix(xi)−Ix(xj)
+Zx
+with normalization Zx so that
+threshold ✏d is relative. The ordinal loss is a hinge-based
+formulation that enforces separation beyond a margin "m:
+Lord =
+1
+|P|
+X
+(xi,xj)
+8
+>
+>
+>
+<
+>
+>
+>
+:
+max(ˆ⌘j −ˆ⌘i + "m, 0),
+P(xi, xj)=S+,
+max(ˆ⌘i −ˆ⌘j + "m, 0),
+P(xi, xj)=S−,
+max(¯⇢j −¯⇢i + "m, 0),
+P(xi, xj)=A+,
+max(¯⇢i −¯⇢j + "m, 0),
+P(xi, xj)=A−.
+(19)
+4.3. Regularization using Deep Image Prior
+In complex real scenes, thermal noise can corrupt subtle
+gradients, and ordinal constraints alone cannot fully deter-
+mine absolute albedo or shading values—they only restrict
+the solution space. Therefore, we adopt a variant of the
+Deep Image Prior [40] to parameterize albedo and shading,
+leveraging the inherent architectural prior in a randomly
+initialized network for regularization.
+We employ a Double-DIP (DDIP) architecture
+[16]
+with two networks N(zA, ⇥A), N(zS, ⇥S) to parameterize
+albedo and shading, respectively. Each uses a convolutional
+encoder–decoder with skip connections [40]. ⇥A, ⇥S are
+randomly initialized model weights and zA, zS are randomly
+sampled input noise vectors. The albedo network outputs
+a 3-channel image bounded to [0, 1]3 via a sigmoid activa-
+tion, while the shading network predicts a single channel
+constrained by a non-negativity penalty. We freeze zA and
+zS while only optimizing for ⇥A and ⇥S.
+4.4. Optimization
+Our complete objective function is as follows.
+L(ˆ⇢, ˆ⌘, Iv, It) = kˆ⇢· ˆ⌘−Ivk2+λ1Ledge(¯⇢, ˆ⌘, C(¯Iv, It))+
+λ2Lord(¯⇢, ˆ⌘, P(¯Iv, It)),
+(20)
+where λ1, λ2 > 0 are the respective loss weights. The ther-
+mal image is used only for edge or point pair losses, which
+operate on the mean albedo. The reconstruction loss is de-
+ﬁned on the 3−channel image.
+5. VT-Intrinsic Dataset
+Existing IID datasets lack thermal modalities, while cur-
+rent visible–thermal datasets (e.g., captured from vehicles or
+Figure 3. Visible–thermal image pair examples in the VT-Intrinsic
+dataset, covering diverse scenes including parks, schools, cathe-
+drals, plazas, museums, and various urban streets.
+drones) focus on dynamic objects (people, cars) or non-light-
+absorption based heat sources (engines, people) that are out
+of scope for this work. So, we collected 600 visible–thermal
+image pairs (Fig. 3) across diverse stationary scenes under
+varying illumination to validate our method.
+Imaging System. We co-locate a FLIR Boson thermal
+camera (512 ⇥640 resolution, 24◦HFOV, 50mK NEDT)
+with an IDS UI-3130 color camera (600 ⇥800 resolution,
+27◦HFOV) using a gold dichroic mirror (BSP-DI-25-2). For
+distant outdoor scenes, the cameras are placed side by side
+and aligned via homography.
+Data Acquisition and Preprocessing. We captured 20
+exposure-bracketed color images with geometrically spaced
+exposure times and merged them into a linear HDR im-
+age [13] after edge-aware demosaicing in OpenCV. Five
+frames were averaged to suppress sensor noise. The visible
+HDR and thermal images were aligned via homography.
+Our dataset contributes in two key aspects: (i) a large
+collection of high-quality real-world outdoor images with
+diverse albedo–shading combinations (vs. predominantly in-
+door/synthetic prior datasets); (ii) abundant pseudo-ground-
+truth albedo and shading ordinalities for training and eval-
+uation. As shown in Sec. 6.2.1, the thermal image pro-
+duces reliable albedo/shading ordinalities across arbitrary
+pixel pairs—previously only available in limited form due
+to costly human labeling (IIW [5]).
+6. Experiments
+Datasets: As typical IID datasets lack associated thermal
+images, we construct the VT-Intrinsic dataset for qualitative
+evaluation. Obtaining ground truth albedo and shading for
+real-world scenes is impractical. Therefore, for quantitative
+evaluation, we collected images of a color chart under differ-
+ent illuminations: white LED light, incandescent bulb and
+sunlight. We also evaluate on the JoLHT-Video dataset [34],
+which contains four scenes of a color chart under varied illu-
+minations and a Painted-Mask scene. In the supplementary,
+we evaluate on the MIT-Intrinsics [19] dataset by simulating
+an ideal thermal image using their pseudo-ground truth.
+41756
+
+
+Figure 4. Results on a color-chart scene in JoLHT-Video dataset. Our method recovers the smooth line-light shading across the color chart.
+Figure 5. Results on Painted-Mask scene in JoLHT-Video dataset. Baselines show albedo texture in shading or highlight artifacts in albedo.
+Metrics: We use the scale-invariant Mean Square Error
+(si-MSE) to evaluate albedo and shading quantitatively.
+Baselines: We compare with state-of-the-art methods
+in three categories.
+Learning-based:
+Diffusion-based
+IntrinsicDiffusion [30] and RGB$X [43], CNN-based
+Intrinsic-v1 [6] and Intrinsic-v2 [7], and Transformer-
+based CRefNet [31]. Physics-based: NIR-Priors [8], re-
+quiring a paired NIR image, and JoLHT-Video [34], de-
+manding transient thermal video under controlled illu-
+mination.
+Optimization-based: RGB-Retinex [20] and
+Opt-LocalSmooth [37]. IntrinsicDiffusion, RGB$X, and
+Intrinsic-v2 output colorful shading, while others grayscale.
+6.1. Qualitative Evaluation
+Fig. 6 presents comparisons with state-of-the-art baselines
+across various scenes. The ﬁrst two cases demonstrate our
+ability to remove cast shadows from albedo (e.g., handrail
+and lantern shadows), while the next two highlight disentan-
+gling albedo texture from shading (e.g., rhino statue texture
+and checkerboard pattern). The ﬁnal example is an homage
+to the classic Adelson’s Checker-Shadow Illusion [1], where
+our method successfully separates the shadowed checker
+region from the cylinder shading.
+Learning-based baselines often over-smooth albedo and
+shading due to strong statistical priors, producing ﬂat grass
+shading or overly uniform wall colors. In contrast, our
+physics-based approach, guided solely by a single thermal
+image, better preserves details such as block-wise albedo
+variation, concrete texture, and natural shading gradients.
+Fig. 4 and Fig. 5 show results on the JoLHT-Video dataset.
+Our method recovers smooth line-light shading comparable
+to JoLHT-Video using only a single thermal image, while
+other baselines exhibit clear albedo or shading leakage.
+6.2. Quantitative Evaluation
+6.2.1. Validating Ordinalities
+We validated our ordinality theory on a wide range of real-
+world materials and scenes via expert annotations, and con-
+ﬁrm statistically with a spectral reﬂectance dataset [22] that
+invisible component rarely overturn these ordinalities.
+Patch Ordinality on Various Materials. The evaluation
+included 20 patches from CUReT dataset [10] and com-
+mon objects (painted aluminum, plastic, wood, silk, leather,
+cloth, plaster, etc.). These patches were placed in different
+orientations under artiﬁcial and natural lighting. Experts
+conﬁdently labeled 865 ordinalities across patches. Our pre-
+diction matched the expert labels with 98.59% accuracy in
+sunlight (albedo: 99.37%, shading: 97.01%) and 96.82%
+under white-LED (albedo: 94.62%, shading: 100%).
+Point-Pair Ordinality on Diverse Scenes. We further evalu-
+ated on 100 real-world scenes in VT-Intrinsic dataset (Sec. 5),
+spanning materials such as stone, concrete, grass, vegetation,
+painted metal, plastic, and wood. Experts labeled the ordi-
+nalities in albedo or shading of 20 randomly sampled point
+pairs per image using the visible image as reference. Pairs
+with small intensity differences were excluded to avoid am-
+biguity. Experts conﬁdently labeled 1,063 pairs and found
+937 unclear. Ignoring the latter, our theory achieved 98.95%
+overall accuracy (albedo: 96.96%, shading: 99.62%), con-
+ﬁrming the reliability of thermal-guided ordinal cues. More
+details are in the supplementary.
+Statistical Robustness to Invisible Spectral Components.
+Violations of ordinalities due to invisible reﬂectance are
+possible but statistically unlikely. Above we validated or-
+dinalities with expert labels for many materials and light-
+ing conditions with non-visible components. As a further
+41757
+
+
+Figure 6. Qualitative comparisons to state-of-the-art baselines. The ﬁrst two scenes show how our method removes cast shadows from
+albedo (e.g., shadow of handrail in case 1, lanterns in case 2). The next three demonstrate our ability to eliminate albedo texture from
+shading (e.g., rhino statue texture in case 3, checkerboard pattern in case 4). But baselines struggle with these challenges, despite their
+advantage of pre-training on large datasets, whereas our approach relies solely on physics-based information in a single thermal image.
+Baselines often over-smooth albedo and shading (e.g., smooth albedo on detailed ground and walls, ﬂat shading on grass) due to reliance on
+priors. Diffusion-based baselines can offer appealing visual quality but sacriﬁce faithfulness (e.g. hallucinated albedo texture on the rhino
+statue in case 3). Images are tonemapped for visualization. Key differences are highlighted in bounding boxes. More examples and baselines
+appear in the supplementary.
+41758
+
+
+Table 1. Results of si-MSE (#) reported at 10−2 across datasets (Sec. 6.2). Best and second highlighted. Our method surpasses all
+learning-based approaches despite using no learned priors and achieves performance comparable to JoLHT-Video, which demands transient
+thermal video under controlled illumination. N/A indicates unavailable data, and 7 denotes non-applicability.
+Method
+Optimization-based
+Learning-based
+Physics-based (w/ auxiliary sensor)
+JoLHT-Video Dataset
+Color Chart w/ Different Illumination
+Painted Mask
+Color Charts
+White LED
+Incandescent
+Sunlight
+Albedo
+Shading
+Albedo
+Albedo
+Albedo
+Albedo
+RGB-Retinex [20] (TPAMI’06)
+25
+0.30
+3.4
+2.42
+2.33
+2.73
+Opt-LocalSmooth [37] (CVPR’11)
+45
+0.35
+7.1
+2.41
+4.21
+2.04
+IntrinsicDiffusion [30] (SIGGRAPH’24)
+37
+0.25
+2.9
+4.12
+3.33
+4.85
+RGB$X [43] (SIGGRAPH’24)
+30
+0.37
+2.8
+4.07
+5.31
+4.59
+Intrinsic-v2 [7] (ToG’24)
+27
+0.17
+2.8
+1.25
+4.36
+4.17
+Intrinsic-v1 [6] (ToG’23)
+30
+0.21
+3.8
+1.55
+2.72
+4.97
+CRefNet [31] (TVCG’23)
+38
+0.23
+8.8
+1.79
+2.29
+1.98
+NIR-Priors [8] (ICCV’19)
+N/A
+N/A
+N/A
+7
+2.46
+2.08
+JoLHT-Video [34] (CVPR’24)
+8.4
+0.05
+2.0
+N/A
+7
+7
+Ours
+11
+0.10
+2.7
+0.37
+1.06
+1.19
+evaluation, we used the Solar Spectral Irradiance (ASTM-
+G173) and 427 materials from USGS Spectral Reﬂectance
+dataset [22], and conﬁrmed that the ordinality of absorbed
+visible light matches the ordinality of total absorbed light
+(including UV and IR) in 94.2% cases out of all 90,951 or
+&427
+2
+'
+material pairs. The remaining 5.8% of violations occur
+mostly when absorptances are nearly identical.
+6.2.2. Validating IID Method
+We present evaluations on the color charts under different
+illuminations and JoLHT-Video dataset [34], and include in
+the supplementary (i) a simulation experiment to validate
+ordinality informativeness and (ii) an ablation study.
+Color Chart under Different Illuminations. We imaged
+a color chart under white LED, incandescent and sunlight.
+Tab. 1 shows our method outperforming baselines under
+all illuminations. Incandescent and sunlight experiments
+demonstrate our robustness to albedo variations even in the
+invisible band that inﬂuence absorbed light. In contrast,
+physics-based baselines have limited applicability: JoLHT-
+Video assumes no invisible lighting component, and NIR-
+Priors requires NIR emission absent in white LEDs.
+Using JoLHT-Video Dataset.
+The dataset [34] includes
+four color-chart scenes and a Painted-Mask scene with
+pseudo ground-truth obtained following [19], which are con-
+siderably challenging due to the strong lighting variations
+from line light (Fig. 4, Fig. 5). As shown in Tab. 1, our
+method outperforms all learning-based baselines without
+pre-trained priors, and achieves performance comparable
+to JoLHT-Video [34], which demands stricter conditions of
+calibrated transient thermal video and controlled lighting.
+7. Limitations and Conclusion
+This work explores photometric cues encoded in a single
+auxiliary thermal image, and presents physics-based opti-
+mization for albedo-shading separation. We showed its ef-
+fectiveness on real scenes with a wide range of materials and
+Visible
+Thermal
+Albedo
+Shading
+Figure 7. Corner cases: 1) Heat from a truck engine, unrelated to
+light absorption, elevates the thermal intensity of the road beneath
+it. 2) Non-opaque cathedral windows violate the visible image
+formation model.. 3) The metallic ﬁre hydrant has low emissivity,
+resulting in poor thermal SNR, and exhibits specular highlights that
+challenge the common Lambertian assumption in IID.
+lighting conditions. However, diffuse reﬂection dominates
+in these materials — metals, transparent objects and mirrors
+violate the visible image formation model. Our model also
+assumes that the heat arises primarily from light absorption
+— heat generated otherwise internally (engines, humans) or
+externally (hot air blower or ﬁre) is not modeled. It also
+does not handle multiple colored illuminations. Finally,
+we rely on inexpensive microbolometer thermal cameras
+whose quality is lower compared to visible cameras — low
+SNR due to insufﬁcient heat generation (overcast skies, dy-
+namic objects) can degrade performance. Failure cases are
+shown in Fig. 7, with additional analysis on low-light and
+non-equilibrium thermal conditions in the supplementary.
+Despite these limitations, the improvements demonstrate
+the potential to scale supervision for learning algorithms.
+We hope our work inspires further exploration of light–heat
+interaction in computer vision and graphics.
+41759
+
+
+Acknowledgements
+This work was partly supported by NSF grants IIS210723,
+and NSF-NIFA AI Institute for Resilient Agriculture. We
+are sincerely grateful to Akihiko Oharazawa for his help
+with expert annotation, and to Sriram Narayanan and Gaurav
+Parmar for their insightful discussions.
+References
+[1] Edward Adelson.
+The checker shadow illusion.
+In per-
+sci.mit.edu/gallery/checkershadow, 1995. 6
+[2] Fanglin Bao, Xueji Wang, Shree Hari Sureshbabu, Gautam
+Sreekumar, Liping Yang, Vaneet Aggarwal, Vishnu N. Bod-
+deti, and Zubin Jacob. Heat-assisted detection and ranging.
+Nature, 619(7971):743–748, 2023. 2
+[3] Harry Barrow, J Tenenbaum, A Hanson, and E Riseman.
+Recovering intrinsic scene characteristics. Comput. vis. syst,
+2(3-26):2, 1978. 1
+[4] Harry G Barrow and Jay M Tenenbaum. Recovering intrinsic
+scene characteristics from images. Computer Vision Systems,
+pages 3–26, 1978. 2
+[5] Sean Bell, Kavita Bala, and Noah Snavely. Intrinsic images
+in the wild. ACM Trans. on Graphics (SIGGRAPH), 33(4),
+2014. 2, 5
+[6] Chris Careaga and Ya˘gız Aksoy. Intrinsic image decomposi-
+tion via ordinal shading. ACM Trans. Graph., 43(1), 2023. 2,
+6, 8
+[7] Chris Careaga and Ya˘gız Aksoy. Colorful diffuse intrinsic
+image decomposition in the wild. ACM Trans. Graph., 43(6),
+2024. 2, 6, 8
+[8] Ziang Cheng, Yinqiang Zheng, Shaodi You, and Imari Sato.
+Non-local intrinsic decomposition with near-infrared priors.
+In Proceedings of the IEEE/CVF international conference on
+computer vision, pages 2521–2530, 2019. 2, 3, 6, 8
+[9] Gyeongmin Choe, Srinivasa G. Narasimhan, and In So
+Kweon. Simultaneous estimation of near ir brdf and ﬁne-scale
+surface geometry. In 2016 IEEE Conference on Computer
+Vision and Pattern Recognition (CVPR), 2016. 2, 4
+[10] Kristin Dana, Bram Ginneken, Shree Nayar, and Jan Koen-
+derink. Reﬂectance and texture of real-world surfaces. ACM
+Transactions on Graphics (TOG), 18:1–34, 1999. 6, 2
+[11] Partha Das, Sezer Karaoglu, and Theo Gevers. Intrinsic image
+decomposition using physics-based cues and cnns. Computer
+Vision and Image Understanding, 223:103538, 2022. 2
+[12] Aniket Dashpute, Vishwanath Saragadam, Emma Alexan-
+der, Florian Willomitzer, Aggelos Katsaggelos, Ashok Veer-
+araghavan, and Oliver Cossairt. Thermal spread functions
+(tsf): Physics-guided material classiﬁcation. In Proceedings
+of the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), pages 1641–1650, 2023. 2
+[13] Paul E. Debevec and Jitendra Malik. Recovering high dy-
+namic range radiance maps from photographs. SIGGRAPH
+97, 1997. 5
+[14] Graham D Finlayson, Steven D Hordley, Cheng Lu, and
+Mark S Drew. Color constancy at a pixel. Journal of the
+Optical Society of America A, 21(8):1453–1458, 2004. 2
+[15] Sigmund Fritz. Illuminance and luminance under overcast
+skies. J. Opt. Soc. Am., 45(10):820–825, 1955. 2
+[16] Yossi Gandelsman, Assaf Shocher, and M. Irani. ”double-
+dip”: Unsupervised image decomposition via coupled deep-
+image-priors.
+Computer Vision and Pattern Recognition,
+2018. 2, 5
+[17] Elena Garces, Carlos Rodriguez-Pardo, Dan Casas, and Jorge
+Lopez-Moreno. A survey on intrinsic images: Delving deep
+into lambert and beyond. International Journal of Computer
+Vision, 130(3):836–868, 2022. 1
+[18] Gevers. Reﬂectance-based classiﬁcation of color edges. In
+Proceedings Ninth IEEE International Conference on Com-
+puter Vision, pages 856–861. IEEE, 2003. 2, 3
+[19] Roger Grosse, Micah K. Johnson, Edward H. Adelson, and
+William T. Freeman. Ground truth dataset and baseline eval-
+uations for intrinsic image algorithms. In 2009 IEEE 12th
+International Conference on Computer Vision, pages 2335–
+2342, 2009. 1, 2, 5, 8
+[20] Steven D. Hordley, Mark S. Drew, Graham D. Finlayson, and
+Cheng Lu. On the Removal of Shadows from Images . IEEE
+Transactions on Pattern Analysis & Machine Intelligence, 28
+(01):59–68, 2006. 6, 8
+[21] Peter Kocsis, Vincent Sitzmann, and Matthias Nießner. Intrin-
+sic image diffusion for indoor single-view material estimation.
+arXiv preprint arXiv: 2312.12274, 2023. 2
+[22] Raymond F. Kokaly, Roger N. Clark, Gregg A. Swayze,
+K. Eric Livo, Todd M. Hoefen, Neil C. Pearson, Richard A.
+Wise, William M. Benzel, Heather A. Lowers, Ryan L.
+Driscoll, and Andrew J. Klein.
+USGS Spectral Library
+Version 7 Data.
+https://doi.org/10.5066/
+F7RR1WDJ, 2017. U.S. Geological Survey Data Release.
+2, 6, 8
+[23] Balazs Kovacs, Sean Bell, Noah Snavely, and Kavita Bala.
+Shading annotations in the wild. Computer Vision and Pattern
+Recognition (CVPR), 2017. 2
+[24] Philipp Krahenbuhl. Free supervision from video games. In
+2018 IEEE/CVF Conference on Computer Vision and Pattern
+Recognition, pages 2955–2964, 2018. 2
+[25] Edwin H Land. The retinex theory of color vision. Scientiﬁc
+American, 237(6):108–128, 1977. 2, 3
+[26] Zhengqi Li and Noah Snavely. Cgintrinsics: Better intrinsic
+image decomposition through physically-based rendering. In
+European Conference on Computer Vision (ECCV), 2018. 2
+[27] Zhengqi Li and Noah Snavely. Learning intrinsic image de-
+composition from watching the world. In Proceedings of the
+IEEE conference on computer vision and pattern recognition,
+pages 9039–9048, 2018. 2
+[28] Zhengqin Li, Ting-Wei Yu, Shen Sang, Sarah Wang, Meng
+Song, Yuhan Liu, Yu-Ying Yeh, Rui Zhu, Nitesh Gun-
+davarapu, Jia Shi, Sai Bi, Hong-Xing Yu, Zexiang Xu, Kalyan
+Sunkavalli, Milos Hasan, Ravi Ramamoorthi, and Manmohan
+Chandraker. Openrooms: An open framework for photoreal-
+istic indoor scene datasets. In Proceedings of the IEEE/CVF
+Conference on Computer Vision and Pattern Recognition
+(CVPR), pages 7190–7199, 2021. 2
+[29] Yunfei Liu, Yu Li, Shaodi You, and Feng Lu. Unsupervised
+learning for intrinsic image decomposition from a single im-
+41760
+
+
+age. In Proceedings of the IEEE/CVF conference on computer
+vision and pattern recognition, pages 3248–3257, 2020. 2
+[30] Jundan Luo, Duygu Ceylan, Jae Shin Yoon, Nanxuan Zhao,
+Julien Philip, Anna Fr¨uhst¨uck, Wenbin Li, Christian Richardt,
+and Tuanfeng Wang. Intrinsicdiffusion: Joint intrinsic layers
+from latent diffusion models. In ACM SIGGRAPH 2024
+Conference Papers, New York, NY, USA, 2024. Association
+for Computing Machinery. 2, 6, 8, 1
+[31] Jundan Luo, Nanxuan Zhao, Wenbin Li, and Christian
+Richardt. Crefnet: Learning consistent reﬂectance estimation
+with a decoder-sharing transformer. IEEE Transactions on Vi-
+sualization and Computer Graphics, 30(9):6407–6420, 2024.
+6, 8
+[32] Yasuto Nagase, Takahiro Kushida, Kenichiro Tanaka, Takuya
+Funatomi, and Yasuhiro Mukaigawa. Shape from thermal
+radiation: Passive ranging using multi-spectral lwir measure-
+ments. In Proceedings of the IEEE/CVF Conference on Com-
+puter Vision and Pattern Recognition (CVPR), pages 12661–
+12671, 2022. 2
+[33] Sriram Narayanan, Mani Ramanagopal, Mark Sheinin,
+Aswin C Sankaranarayanan, and Srinivasa G Narasimhan.
+Shape from heat conduction. In European Conference on
+Computer Vision, pages 426–444. Springer, 2024. 2
+[34] Mani Ramanagopal, Sriram Narayanan, Aswin C. Sankara-
+narayanan, and Srinivasa G. Narasimhan. A theory of joint
+light and heat transport for lambertian scenes. In Proceedings
+of the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), pages 11924–11933, 2024. 2, 3, 5, 6, 8
+[35] Mike Roberts, Jason Ramapuram, Anurag Ranjan, Atulit Ku-
+mar, Miguel Angel Bautista, Nathan Paczan, Russ Webb, and
+Joshua M. Susskind. Hypersim: A photorealistic synthetic
+dataset for holistic indoor scene understanding. In Proceed-
+ings of the IEEE/CVF International Conference on Computer
+Vision (ICCV), pages 10912–10922, 2021. 2
+[36] Shogo Sato, Yasuhiro Yao, Taiga Yoshida, Takuhiro Kaneko,
+Shingo Ando, and Jun Shimamura. Unsupervised intrinsic
+image decomposition with lidar intensity. In Proceedings of
+the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition, pages 13466–13475, 2023. 3
+[37] Jianbing Shen, Xiaoshan Yang, Yunde Jia, and Xuelong Li.
+Intrinsic images using optimization. In CVPR 2011, pages
+3481–3487, 2011. 2, 6, 8
+[38] Roger Shepard. Mind sights: Original visual illusions, ambi-
+guities, and other anomalies, with a commentary on the play
+of mind in perception and art. 1990. 3
+[39] Kenichiro Tanaka, Nobuhiro Ikeya, Tsuyoshi Takatani, Hi-
+royuki Kubo, Takuya Funatomi, Vijay Ravi, Achuta Kadambi,
+and Yasuhiro Mukaigawa. Time-resolved far infrared light
+transport decomposition for thermal photometric stereo. IEEE
+Transactions on Pattern Analysis and Machine Intelligence,
+43(6):2075–2085, 2021. 2
+[40] Dmitry Ulyanov, Andrea Vedaldi, and Victor Lempitsky.
+Deep image prior. International Journal of Computer Vision,
+128:1867–1888, 2020. 5
+[41] Michael Vollmer and Klaus-Peter Mollmann. Fundamentals
+of Infrared Thermal Imaging, chapter 1, pages 1–106. John
+Wiley & Sons, Ltd, 2017. 4
+[42] Jiaye Wu, Sanjoy Chowdhury, Hariharmano Shanmugaraja,
+David Jacobs, and Soumyadip Sengupta. Measured albedo in
+the wild: Filling the gap in intrinsics evaluation. International
+Conference on Computational Photography, 2023. 1, 2
+[43] Zheng Zeng, Valentin Deschaintre, Iliyan Georgiev, Yannick
+Hold-Geoffroy, Yiwei Hu, Fujun Luan, Ling-Qi Yan, and
+Miloˇs Haˇsan. Rgb x: Image decomposition and synthesis
+using material- and lighting-aware diffusion models. In ACM
+SIGGRAPH 2024 Conference Papers, New York, NY, USA,
+2024. Association for Computing Machinery. 2, 6, 8
+[44] Daniel Zoran, Phillip Isola, Dilip Krishnan, and William T.
+Freeman. Learning ordinal relationships for mid-level vision.
+In 2015 IEEE International Conference on Computer Vision
+(ICCV), pages 388–396, 2015. 2
+41761

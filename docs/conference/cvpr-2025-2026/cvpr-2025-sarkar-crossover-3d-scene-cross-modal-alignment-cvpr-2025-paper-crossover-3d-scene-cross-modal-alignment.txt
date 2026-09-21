@@ -1,0 +1,445 @@
+Title: CrossOver: 3D Scene Cross-Modal Alignment
+
+URL Source: https://openaccess.thecvf.com/content/CVPR2025/papers/Sarkar_CrossOver_3D_Scene_Cross-Modal_Alignment_CVPR_2025_paper.pdf
+
+Published Time: Sun, 18 May 2025 23:06:05 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+# CrossOver: 3D Scene Cross-Modal Alignment 
+
+## Sayan Deb Sarkar 1 Ondrej Miksik 2 Marc Pollefeys 2, 3 Daniel Barath 3, 4 Iro Armeni 11Stanford University 2Microsoft Spatial AI Lab 3ETH Zurich 4HUN-REN SZTAKI 
+
+## sayands.github.io/crossover 
+
+## Abstract 
+
+Multi-modal 3D object understanding has gained signifi-cant attention, yet current approaches often assume com-plete data availability and rigid alignment across all modal-ities. We present CrossOver, a novel framework for cross-modal 3D scene understanding via flexible, scene-level modality alignment. Unlike traditional methods that require aligned modality data for every object instance, CrossOver learns a unified, modality-agnostic embedding space for scenes by aligning modalities – RGB images, point clouds, CAD models, floorplans, and text descriptions – with re-laxed constraints and without explicit object semantics. Leveraging dimensionality-specific encoders, a multi-stage training pipeline, and emergent cross-modal behaviors, CrossOver supports robust scene retrieval and object local-ization, even with missing modalities. Evaluations on Scan-Net and 3RScan datasets show its superior performance across diverse metrics, highlighting CrossOver’s adaptabil-ity for real-world applications in 3D scene understanding. 
+
+## 1. Introduction 
+
+In recent years, the need to align and transfer informa-tion across modalities has grown substantially, especially for tasks involving complex 3D environments. Such a ca-pability enables knowledge and experience transfer across modalities. For example, knowing the layout of kitchens in computer-aided design (CAD) format will provide guid-ance on how to build a new kitchen, such that it follows the layout of the most similar CAD floorplan. Current multi-modal approaches tackle 3D data align-ment of individual objects across modalities [18, 42, 43, 45], without including and considering scene context , mak-ing them challenging to extend effectively for scene-level understanding. These methods typically assume fully aligned, consistent datasets, where each modality is per-fectly corresponding to all others for each object. However, real-world scenarios rarely provide such complete modal-ity pairings. For example, a video of a room and its CAD model might share some spatial alignment but differ in    
+
+> Figure 1. CrossOver is a cross-modal alignment method for 3D scenes that learns a unified, modality-agnostic embedding space, enabling a range of tasks. For example, given the 3D CAD model of a query scene and a database of reconstructed point clouds, CrossOver can retrieve the closest matching point cloud and, if object instances are known, it can identify the individual locations of furniture CAD models with matched instances in the retrieved point cloud, using brute-force alignment. This capability has direct applications in virtual and augmented reality.
+
+data characteristics and object instances (hereby referred to as instances ) represented in the data (e.g., some instances could be missing in one modality, which is common be-tween real-world scenes and their CAD models). Also, achieving consistent instance segmentation across modali-ties is nearly impossible in practice. Thus, these approaches struggle when certain modalities are missing or incomplete, limiting their flexibility in practical applications [5]. We address the inherent limitations of strict object-level modality alignment by introducing a flexible scene-level 
+
+modality alignment approach that operates without prior in-formation during inference ( e.g ., semantic instance segmen-tation), unlike the current methods [34, 41]. Our method, namely CrossOver (Fig. 1), enables the learning of cross-modal behaviors and relationships, such as identifying sim-ilar objects or scenes across different modalities, like the virtual CAD scene based on a video of a real room. This capability extends beyond instance-level matching towards a unified, modality-agnostic understanding that supports seamless cross-modal interactions at the scene level. 
+
+CrossOver focuses on aligning five key scene modalities—RGB images, real-world point clouds, This CVPR paper is the Open Access version, provided by the Computer Vision Foundation. Except for this watermark, it is identical to the accepted version; the final published version of the proceedings is available on IEEE Xplore. 8985 CAD models, floorplan images, and text descriptions, in the feature space—going beyond the RGB-PC-Text triplets of prior work. Importantly, it is designed with the assumption that not all modalities are available for every data point. By employing a flexible training strategy, we allow CrossOver to leverage any available modality during training, without requiring fully aligned data across all modalities. This approach enables our encoders to learn emergent modality alignments, supporting cross-modal traversals even in cases with missing data. Our work is grounded in three key contributions: • Dimensionality-Specific Encoders: We introduce 1D, 2D, and 3D encoders tailored to each modality’s dimen-sionality, removing the need for explicit 3D scene graphs or semantic labels during inference. This optimizes fea-ture extraction for each modality and avoids reliance on consistent semantics, which is often hard to obtain. • Three-Stage Training Pipeline: Our pipeline progres-sively builds a modality-agnostic embedding space. First, object-level embeddings capture fine-grained modality relationships. Next, scene-level training develops unified scene representations without requiring all object pairs to align. Finally, dimensionality-specific encoders create semantic-free cross-modal embeddings. • Emergent Cross-Modal Behavior: CrossOver learns emergent modality behavior, despite not being explicitly trained on all pairwise modalities. It recognizes, e.g ., that 
+
+Scene i in the image modality corresponds to Scene i in the floorplan modality or its point cloud to the text one, with-out these modality pairs being present in training. This unified, modality-agnostic embedding space en-ables diverse tasks such as object localization and cross-modal scene retrieval, offering a flexible, scalable solution for real-world data that may lack complete pairings. 
+
+## 2. Related Work 
+
+Multi-modal Representation Learning aims to bridge data modalities by learning shared embeddings for cross-modal understanding and retrieval. A seminal work in this area is CLIP [32], which popularized the contrastive train-ing objective to learn a joint image-text embedding space. This framework has been extended to various tasks, such as video retrieval [27], unified vision-language modeling [26], and cross-modal alignment [16, 28]. In the 3D domain, PointCLIP [45] applied CLIP to point clouds by project-ing them into multi-view depth maps, leveraging pretrained 2D knowledge. Subsequent research has focused on multi-modality alignment, e.g . ImageBind [17] aligns six modali-ties in the 2D domain and shows the power of such represen-tation for generative tasks. In 3D, ULIP [42] and its succes-sor ULIP-2 [43] aim to learn unified representations among images, texts, and point clouds. Point-Bind [18] extends ImageBind [17] to 3D by aligning specific pairs of modal-ities using an InfoNCE loss [30]. While these methods ef-fectively capture object-level data, they struggle to differen-tiate similar instances within a scene, primarily focusing on isolated objects rather than complex scenes. Experiments in Section 4 demonstrate this limitation. A common limitation of these approaches is the as-sumption of perfect modality alignments and complete data for each instance, often relying on datasets like ShapeNet55 [6]. This assumption is impractical for real-world scenarios where data is often incomplete or not well-matched due to occlusions, dynamic changes, sensor limita-tions, or capture errors, such as in construction sites or robot navigation. Our work, CrossOver, addresses these chal-lenges using real-world datasets consisting of incomplete point clouds and noisy images captured using affordable sensors. Unlike prior methods, we do not require perfect modality alignments or complete data (e.g., point clouds). 
+
+3D Scene Understanding has driven extensive work on text-to-image and point cloud based instance localization and alignment within large maps [2, 14, 22]. Techniques like NetVLAD [2] and CamNet [14] enable place recog-nition and image-based localization by extracting global image descriptors. Recent work has leveraged 3D scene graphs for enhanced scene understanding [3, 21, 33], with methods like SGAligner [34] and SG-PGM [41] facilitating scene alignment through 3D scene graph matching. For dy-namic instance matching across long-term sparse environ-ments, LivingScenes [47] parses an evolving 3D environ-ment with an object-centric formulation. For cross-modal retrieval, approaches like ScanRefer [7] and ReferIt3D [1] localize objects in 3D scenes via natural language but rely on detailed annotations and fixed modality pairs. Meth-ods like 3DSSG [39] and “Where Am I” [8] extend scene retrieval across images and natural language using 3D scene graphs, yet they depend heavily on semantic annota-tions. SceneGraphLoc [29] performs image-to-scene-graph matching, using semantic information. Our approach di-verges from these by removing the need for semantics or explicit scene graphs, instead leveraging dimensionality-specific encoders and modality-agnostic embeddings for scene understanding without prior semantic knowledge. 
+
+Handling Missing Modalities and noisy data is a key chal-lenge in multi-modal learning [5]. Traditional approaches often assume full data availability, limiting their real-world applicability. Some methods address missing data through modality imputation or robust models [37, 40]. Baltrusaitis 
+
+et al . [5] highlight that many methods lack flexibility for incomplete or noisy data. Our framework tackles this by al-lowing independent mapping of each modality into a shared embedding space, enabling flexible cross-modal interac-tions in unstructured environments with sparse or unaligned data. Furthermore, emergent behavior in multi-modal mod-els, such as generalizing and inferring relationships beyond 8986 1D Encoder            
+
+> 🔥
+> Contrastive
+> Loss
+> Multi-modal
+> Fusion 🔥
+> Object-Level
+> Scene Level
+> Missing Modality
+> Scene-Level Multimodal Interaction
+> Modality
+> Pooling
+> Cross-Modal Interaction
+> Floorplan
+> Mesh
+> Facing the recycling bin, The couch
+> is to the right of the bed. The
+> couch is infront of the table.
+> Instance Referral
+> Multi-view Images
+> PointCloud
+> Contrastive
+> Loss
+> 3D Encoder Facing towards the stool, the refrigerator
+> is far to the right of the recyle bin.
+> The bed is to the right of the stool. ...
+> Referral
+> 🔥
+> 🔥
+> 1D Encoder
+> 🔥
+> 2D Encoder
+> 3D Encoder
+> 🔥
+> 🔥
+> Scene
+> Instance-Level Multimodal Interaction
+> Unified Dimensionality
+> Encoders
+> 2D Encoder
+> Object Modality
+> Multi-view Object Images
+
+Figure 2. Overview of CrossOver. Given a scene S and its instances Oi represented across different modalities I, P, M, R, F, the goal is to align all modalities within a shared embedding space. The Instance-Level Multimodal Interaction module captures modality interactions at the instance level within the context of a scene. This is further enhanced by the Scene-Level Multimodal Interaction module, which jointly processes all instances to represent the scene with a single feature vector FS . The Unified Dimensionality Encoders eliminate dependency on precise semantic instance information by learning to process each scene modality independently while interacting with FS .
+
+training data [17, 32], are promoted by structuring training around image embeddings as a common representation. By mapping other modalities into this shared space, CrossOver fosters organic cross-modal relationships, enabling unified understanding across diverse data types. 
+
+## 3. Method 
+
+Given a 3D scene S represented by various modalities, de-noted as Q = {I , P, M, R, F} , our objective is to develop a unified, modality-agnostic representation that maps inde-pendent modalities capturing the same 3D scene to a com-mon point in the embedding space. Here, I is a set of RGB images, P is a real-world reconstruction as a point cloud, 
+
+M is a digital mesh representation from computer aided design (CAD), R is textual data describing S within its sur-roundings, and F is a rasterized floorplan. Our proposed framework facilitates robust interactions across different modalities at both the comprising instances and scene levels, enhancing the multi-modal ( e.g ., point-cloud P and floorplan F) and same modal (e.g., textual data 
+
+R) understanding of 3D environments. We structure the de-velopment of the embedding space progressively, beginning with instance-level multi-modal interactions and culminat-ing in scene-level multi-modal interactions without requir-ing prior knowledge, such as semantic information about constituent instances. An overview of CrossOver is shown in Fig. 2. To demonstrate the capabilities of this unified, modality-agnostic embedding space, we evaluate: 1. Cross-modal instance retrieval : Given an observed modality Qj of a query instance Oi in a scene S (e.g ., mesh M or pointcloud P), we aim to retrieve any other modality Qk representing Oi within S.2. Cross-modal scene retrieval : Given a scene Si repre-sented by modality Qj (e.g ., image I or floorplan F), we aim to retrieve another modality Qk representing Si.
+
+3.1. Instance-Level Multi-Modal Interactions 
+
+First, we describe the pipeline used for learning a multi-modal embedding space for independent instances. This will provide a basis for the scene-level embeddings. We process each of the 1D ( R), 2D ( I), and 3D ( P and M)instance modalities with corresponding encoders 1:
+
+1D Encoder. An instance Oi can be represented by its tex-tual context in a scene S, using descriptions like “The chair is in front of the lamp” and “The chair is left of the table” .We term these descriptions as object referrals [20] and en-code each referral as f R 
+
+> ij
+
+using the pre-trained text encoder BLIP [23], where i is the instance of interest ( e.g ., chair) and j represents another instance in the scene ( e.g ., lamp, table, or another chair). Practically, we collect k object re-
+
+> 1
+
+The F modality is not used when learning an instance-level embed-ding since there is no notion of a floorplan in this scenario. 8987 ferrals per instance, resulting in F R 
+
+> i
+
+= {f R 
+
+> i1
+
+, . . . , f R 
+
+> ik
+
+}. To create a single feature vector f R 
+
+> i
+
+representing the instance’s context, we apply average pooling over F R 
+
+> i
+
+.
+
+2D Encoder. Given a collection IS of images capturing a scene S, we integrate multi-view and per-view multi-level visual embeddings for each Oi to encode f I 
+
+> i
+
+. Inspired by [29], for each Oi, we select the top Kview defined by largest visibility of Oi among IS and calculate multi-level bounding boxes around Oi {bv,l | l ∈ [0 , L )} within each view v. A pre-trained DinoV2 [12, 31] encoder processes the image crops defined by bv,l to give us the [CLS] to-kens per crop [44]. Subsequent average pooling operations aggregate these tokens into a singular feature vector f I 
+
+> i
+
+. In contrast to [29], we do not assume available camera poses. 
+
+3D Encoder. Given instance Oi and its corresponding real-world point cloud Pi and shape mesh Mi, we extract in-stance features ¯f P 
+
+> i
+
+and ¯f M 
+
+> i
+
+using a pretrained I2PMAE [46] point cloud encoder. Importantly, we do not utilize the se-mantic class [20, 48] of Oi in these operations. We con-catenate the 3D location of Pi and Mi to ¯f P 
+
+> i
+
+and ¯f M 
+
+> i
+
+,respectively, to form the instance tokens ˆf P 
+
+> i
+
+and ˆf M 
+
+> i
+
+. To introduce partial scene-level reasoning, we incorporate in-teractions between instances by integrating the instance to-kens and encoding the pairwise spatial relationships of an instance with all others in S within a transformer network. Similar to [20], we employ spatial-attention-based trans-formers, following [9, 48], to generate f P 
+
+> i
+
+and f M 
+
+> i
+
+. De-tails about the 3D location and spatial relationships are in Supp. For the mesh modality M, we sample points on the mesh surface to enable input to a point cloud encoder. We encode neither the 3D location nor the spatial pairwise rela-tion among instances, as we do not assume that the meshes are aligned with the scene geometry. All pre-trained encoders, which are frozen during train-ing, are followed by trainable projection layers. Dur-ing training, after encoding each modality, we apply a contrastive loss to enforce alignment of modality features within a joint embedding space. Unlike prior work that requires full data modality alignment [18, 43] or semantic scene graph [29, 34], CrossOver accommodates the practi-cal challenge that not all modalities may always be available by not requiring the presence of all modalities simultane-ously. Instead, it aligns all other modality embeddings with image space I. The loss function can be defined as: 
+
+LOi = Lf Ii ,f P 
+
+> i
+
++ Lf Ii ,f M 
+
+> i
+
++ Lf Ii ,f R 
+
+> i
+
+. (1) During training , CrossOver requires a base modality for every instance, to align other modalities with its feature space. We choose images I as the base modality due to their availability and strong encoder priors, though any sup-ported modality can serve this role. Crucially, no modality availability assumptions are made during inference , allow-ing any query-target modality pair. Our experiments (see Supp.) show that aligning to a single reference modality, rather than using all pairwise combinations as in prior work, improves performance. 
+
+3.2. Scene-Level Multi-Modal Interactions 
+
+We distill knowledge from instance-level modality encoders to scene-level encoders, allowing us to leverage instance-based insights during training and enabling scene-level re-trieval at inference without relying on 3D scene graphs or semantic instance information across modalities. 
+
+Multi-modal Scene Fusion. Given the instance features 
+
+f R 
+
+> i
+
+, f I 
+
+> i
+
+, f P 
+
+> i
+
+, and f M 
+
+> i
+
+for each instance Oi in scene S, we compute each of the scene level features f R, f I , f P , and 
+
+f M by first applying average pooling per modality to the features of all instances in S. We then perform a weighted fusion of these pooled features to learn a fixed-size multi-modal embedding FS :
+
+FS = X
+
+> q∈Q
+
+"
+
+exp( wq )
+
+P 
+
+> j∈Q\ q
+
+exp( wj ) f q
+
+#
+
+, (2) where j, q ∈ Q , wq and wj are modality-wise trainable at-tention weights. We use an MLP head to project the di-mensionality to our final representation space, resulting in an embedding that serves as a unified scene representation, capturing interactions across all modalities. In practice, this representation is flexible, adapting to data availability and specifically to any missing modalities. 
+
+3.3. Unified Dimensionality Encoders 
+
+The above scene-level encoder provides a unified, modality-agnostic embedding space; however, it requires semantic instance information consistent across modalities during in-ference, which is challenging to obtain in practice. To elim-inate this need, we design a single encoder per modality dimensionality ( i.e . 1D, 2D, and 3D) that directly processes raw data without needing additional information. Moreover, our experiments (Supp.) show that the scene-level encoder needs all modalities at inference to perform reasonably. 
+
+1D Encoder. Similar to Sec. 3.1, we use object referrals to describe scene context [48]. We randomly sample t = 10 
+
+referrals per scene and use a text encoder to form F1D .
+
+2D Encoder. Here, we consider both RGB and floorplan images. The floorplan F is represented as a top-view ortho-graphic projection image of the 3D layout with geometri-cally aligned shape meshes for furniture instances. Since a scene can be captured with multiple RGB images IS ,we employ a naive key-frame selection strategy to sample 
+
+N = 10 multi-view images (see Supp.). We process the images using a DinoV2 [31] encoder and concatenate the output [CLS] token and aggregated patch embeddings to form Fi 
+
+> 2D
+
+, i ∈ N . We pass each Fi 
+
+> 2D
+
+via an MLP projec-tion head and apply average pooling to generate F2D . In practice, we use the same encoder with shared weights for 8988 both RGB images IS and floorplan F; i.e ., inputs are not distinguished between RGB and floorplan during training. This is the first use of the floorplan modality in CrossOver and there is no pairwise modality interaction during training between it and the image modality, unlike other modalities. 
+
+3D Encoder. We utilize a sparse convolutional architec-ture with a residual network as the encoder, built with the Minkowski Engine [10]. Given an input point cloud 
+
+P ∈ RN ×3 containing N points, it is first quantized into M0
+
+voxels represented as V ∈ RM0×3. The model then pro-duces a full-resolution output feature map F3D ∈ RM0×D .The goal is to align each of the unified dimensionality en-coders with the scene-level multi-modal encoder. The loss function for unified training becomes: 
+
+Ls = αLFS ,F1D + βLFS ,F2D + γLFS ,F3D , (3) where, α, β, and γ are learnable hyper-parameters. Thus, our combined loss is as follows: 
+
+L = Ls + X
+
+> Oi∈S
+
+LOi (4) 
+
+3.4. Loss Definition 
+
+Given q = G(Qmi) and k = H(Qni), i ∈ B , two different encoder outputs for modalities Qm and Qn in minibatch B,we use a contrastive loss similar to [17]: 
+
+Lq,k = − log exp (qTi ki/τ )
+
+exp (qTi ki/τ ) + P  
+
+> j̸=i
+
+exp (qTi kj /τ ) . (5) Here, τ is a learnable temperature parameter, to modulate similarity between positive pairs. We consider every ex-ample j̸ = i in a minibatch B as a negative example. In practice, we use a symmetric loss for better convergence: 
+
+Lq,k + Lk,q . Although we pair each modality with the most prevalent one ( i.e ., I) to avoid the need for fully aligned modalities per data point during training, there are cases where not all modality pairs are available for a given data point. To enhance CrossOver’s flexibility, we account for these scenarios by masking the corresponding loss term for any unavailable modality pairs. 
+
+3.5. Inference 
+
+After training CrossOver with the loss objective defined in Eq. 4, we use the embedding feature vectors for retrieval tasks. Given a scene S containing O = {O i} instances each represented by one or more modalities from Q, we use our instance-level multi-modal encoders to perform cross-modal retrieval. Given Oi in query modality Qj and all other instances in target modality Qk, the goal is to re-trieve the Oi in Qk. For scene retrieval, we apply a simi-lar approach using our unified dimensionality encoders, ex-cept that instead of instances, we retrieve entire scenes. A schematic diagram for one modality pair is shown in Fig. 3. Scene     
+
+> Database
+> (Floorplans)
+> Query-to-Database
+> Similarity
+> 2D Encoder
+> 3D Encoder
+> Query Scene
+> (PointCloud)
+> Figure 3. Cross-modal Scene Retrieval Inference Pipeline.
+> Given a query modality ( P) that represents a scene, we obtain with the corresponding dimensionality encoder its feature vector ( F3D)in the shared cross-modal embedding space. We identify the clos-est feature vector ( F2D) in the target modality ( F) and retrieve the corresponding scene from a database of scenes in F.
+
+## 4. Experiments 
+
+Datasets. We train and evaluate CrossOver on ScanNet [11] and 3RScan [38]. We choose ScanNet for provid-ing comprehensive coverage of all modalities, and 3RScan for including more data on temporal scenes. For both, we use the object referrals from SceneVerse [20], which is a million-scale 3D vision-language dataset with 68 K3D indoor scenes comprising indoor scene understanding datasets and 2.5M vision-language pairs. In all evaluations, we use a model trained across all datasets (details in Supp.). 
+
+ScanNet [11] is an RGB-D video dataset containing 2.5 million views in more than 1500 scenes, annotated with 3D camera poses, surface reconstructions, and instance-level semantic segmentation; we obtain images and 3D point clouds. For mesh M and floorplan F, we use the Scan2CAD [4] dataset, which provides annotated keypoint pairs between CAD models from ShapeNet [6] and their counterpart objects in the scans. 3RScan [38] benchmarks instance relocalization, featuring 1428 RGB-D sequences across 478 indoor scenes, including rescans of the latter af-ter object relocation. It provides annotated 2D and 3D in-stance segmentation, camera trajectories, and reconstructed scan meshes. We obtain images and point clouds. 
+
+Evaluation Metrics. We assess the quality of our represen-tation by quantifying its ability to identify the same instance 
+
+Oi or scene Si across modalities, Qj and Qk. Extending image feature matching evaluation [25, 35], we compute the 
+
+instance matching recall as the ratio of correctly identified 
+
+Oi matches, given a database of instances. Additionally, we evaluate scene-level (instance) matching recall at thresholds of 25% , 50% , and 75% , indicating how many objects from a scene in modality Qj out of the total objects in the same scene we can match in modality Qk. This combined mea-sure shows instance matching failure within a scene. We further evaluate the challenging task of cross-modal scene retrieval within a database. For example, given a 8989 (a) Instance Matching Recall on ScanNet                                                                                   
+
+> Scannet [11] 3RScan [38]
+> Scene-level Recall ↑R@25 %R@50 %R@75 %R@25 %R@50 %R@75 %
+> I → P
+> ULIP-2 [43] 1.28 0.64 0.24 1.91 0.40 0.28 PointBind [18] 6.73 0.96 0.32 3.18 0.64 0.01 Inst. Baseline (Ours) 88.46 37.82 1.92 93.63 35.03 3.82 Ours 98.08 76.92 23.40 99.36 79.62 22.93
+> I → R
+> ULIP-2 [43] 98.12 96.21 60.34 98.66 85.91 36.91 PointBind [18] 98.22 95.17 62.07 100 87.25 41.61 Inst. Baseline (Ours) 99.31 97.59 71.13 100 92.62 55.03 Ours 99.66 98.28 76.29 100 97.32 67.79
+> P → R
+> ULIP-2 [43] 37.24 16.90 8.62 16.78 6.04 1.34 PointBind [18] 54.83 27.93 11.72 21.48 6.04 2.01 Inst. Baseline (Ours) 98.63 83.85 46.74 92.62 60.40 20.81 Ours 99.31 96.56 70.10 100 89.26 50.34
+
+(b) Scene-Level Matching Recall on ScanNet and 3RScan 
+
+Figure 4. Cross-Modal Instance Retrieval on ScanNet and 3RScan. (a) Even though CrossOver does not explicitly train all modality combinations, it achieves emergent behavior within the embedding space. The same applies to our Instance Baseline (Ours). CrossOver performs better than our self-baseline since it incorporates more scene context in the fusion of modalities. (b) Our method outperforms all baselines in all datasets, showcasing the robustness of learned cross-modal interactions. Instance Baseline (ours) CrossOver  PointBind 
+
+Top-k retrieved matches 
+
+k=1  k=2  k=3  k=4 
+
+Query Modality 
+
+Query Scene 
+
+(only for illustration) 
+
+Figure 5. Cross-Modal Scene Retrieval Qualitative Results on ScanNet. Given a scene in query modality F, we aim to retrieve the same scene in target modality P. While PointBind and the Instance Baseline do not retrieve the correct scene within the top-4 matches, CrossOver identifies it as the top-1 match. Notably, temporal scenes appear close together in CrossOver’s embedding space ( e.g ., k = 2 ,
+
+k = 3 ), with retrieved scenes featuring similar object layouts to the query scene, such as the red couch in k = 4 .8990 Scene-level Recall ↑
+
+Method R@25 % R@50 % R@75 %
+
+same-modal ( P → P )
+
+MendNet [15] 80.68 64.77 37.50 VN-DGCNN cls [13] 72.32 53.41 29.55 VN-ONet recon [13] 86.36 71.59 44.32 LivingScenes [47] 87.50 78.41 50.00 Ours 92.31 84.62 57.69 
+
+cross-modal (ours) 
+
+I → P 89.74 73.08 42.31 
+
+I → R 62.33 38.96 18.18 
+
+P → R 68.83 40.26 22.08 
+
+Table 1. Temporal Instance Matching on 3RScan [38]. Our method exhibits better performance in the same-modal task com-pared to baselines, despite not being specifically trained on this. It also performs well on cross-modal tasks. Lower performance when R is involved is expected, as descriptions are contextualized within the scene’s layout and may lose validity if objects rearrange. 
+
+query point cloud of a scene, we aim to retrieve its cor-responding 2D floorplan. This analysis includes multiple levels: (i) scene matching recall , or the model’s ability to retrieve the exact scene Si; (ii) scene category recall to test retrieval of a scene from the same category ( e.g ., re-trieving any kitchen when given a kitchen query in a multi-category database); (iii) temporal recall to evaluate whether the model can recover the same scene captured at a different time, accounting for potential object movement or removal; and (iv) intra-category recall , which assesses retrieval of a specific scene within a single-category database ( e.g ., re-trieving a particular kitchen from only kitchen scenes). This last metric uniquely requires a different database. 
+
+4.1. Instance Retrieval 
+
+Cross-Modal Instance Matching. Our goal is instance matching within the same scene where multiple instances of the same furniture ( e.g ., two identical chairs ) are commonly present. We showcase our results on ScanNet and 3RScan 
+
+datasets in Fig. 4. We compare CrossOver with pretrained multi-modal methods ULIP-2 [43] and PointBind [18] and our instance-level multi-modal encoder to highlight the im-portance of scene-level understanding in a cross-modal em-bedding space. As shown in Fig. 4a, our performance on ScanNet is robust across modalities, while baselines exhibit varying results. Current multi-modal methods are large pre-trained models with strong text encoders that boost perfor-mance for referral -based retrieval. While prior work trains on all pairwise modalities, we selectively train only in refer-ence to the image modality ( I). Yet, we still achieve robust performance across all modalities, even without direct inter-actions during training. Emergent interactions are in green. Similar trends appear in Fig. 4b for scene-level matching. 
+
+Temporal Instance Matching. Although not part of the learning objective, we evaluate CrossOver’s effectiveness                                                                                                                                                                                                            
+
+> Method Scene Category Recall ↑Temporal Recall ↑Intra-Category Recall ↑
+> top-1 top-5 top-10 top-1 top-5 top-10 top-1 top-3 top-5
+> I → P
+> ULIP-2 [43] 7.37 25.96 43.27 0.04 1.00 3.00 16.77 41.53 55.54 PointBind [18] 13.78 24.36 42.95 2.00 5.00 7.00 20.03 40.68 57.01 Inst. Baseline (Ours) 42.95 70.19 81.09 13.00 35.00 60.00 46.37 79.68 88.43
+> Ours 64.74 89.42 94.23 13.00 41.00 84.00 38.98 73.28 85.00
+> I → R
+> ULIP-2 [43] 41.92 57.73 61.86 1.00 2.00 8.00 19.48 42.18 56.69 PointBind [18] 49.48 70.45 80.07 2.00 6.00 12.00 19.19 41.54 55.85 Inst. Baseline (Ours) 49.14 71.48 80.07 8.00 28.00 46.00 28.00 62.33 72.62
+> Ours 57.39 82.82 87.63 3.00 25.00 51.00 29.04 57.85 70.75
+> P → R
+> ULIP-2 [43] 11.34 15.12 23.27 1.00 2.00 4.00 18.12 41.15 54.93 PointBind [18] 18.21 26.46 31.96 1.00 2.00 6.00 18.25 40.05 54.84 Inst. Baseline (Ours) 28.87 50.86 66.67 5.00 13.00 23.00 29.41 50.84 65.65 Ours 57.73 79.04 85.57 5.00 20.00 46.00 26.79 56.67 68.63
+> I → F
+> ULIP-2 [43] 38.46 55.77 64.42 1.00 2.00 10.00 18.48 39.09 55.96 PointBind [18] 35.58 62.82 72.76 1.00 11.00 21.00 20.03 43.08 58.62 Ours 58.01 81.09 89.10 8.00 32.00 61.00 28.57 55.67 71.77
+> P → F
+> ULIP-2 [43] 13.14 26.28 33.65 1.00 1.00 6.00 17.46 38.74 53.99 PointBind [18] 14.10 48.72 59.62 0.50 5.00 7.00 23.17 39.23 57.08 Ours 55.77 78.53 86.54 10.00 30.00 57.00 31.34 63.42 74.15
+> R → F
+> ULIP-2 [43] 8.25 29.21 40.21 1.00 2.00 5.00 18.24 41.80 55.35 PointBind [18] 14.43 27.15 48.45 1.00 5.00 8.00 13.64 38.32 54.20 Ours 54.64 74.91 80.41 6.00 17.00 35.00 23.00 51.37 66.84
+
+Table 2. Cross-Modal Scene Retrieval on ScanNet . We consis-tently outperform state-of-the-art methods and our self-baseline in most cases. The latter performs better in certain modality pairs on 
+
+intra-category , with the biggest gap observed in I → R ; this can be attributed to our less powerful text encoder. 
+
+Method Scene Matching Recall ↑ Temporal Recall ↑
+
+top-1 top-5 top-10 top-20 top-1 top-5 top-10 
+
+I → P 
+
+ULIP-2 [43] 1.27 5.10 7.01 12.74 0.04 4.26 12.77 PointBind [18] 1.27 4.46 9.55 17.20 2.13 4.26 8.51 Inst. Baseline (Ours) 8.92 30.57 43.31 64.33 0.04 19.15 42.55 Ours 14.01 49.04 66.88 83.44 12.77 36.17 70.21 
+
+I → R 
+
+ULIP-2 [43] 2.01 4.70 7.38 14.77 2.13 6.38 12.77 PointBind [18] 1.34 4.77 6.71 13.42 2.13 6.38 14.89 Inst. Baseline (Ours) 8.72 40.94 57.05 69.80 6.38 38.30 63.83 
+
+Ours 6.04 26.85 42.28 62.42 2.13 34.04 63.83 
+
+P → R 
+
+ULIP-2 [43] 0.67 3.36 6.71 12.75 2.13 6.38 6.38 PointBind [18] 0.67 3.36 6.71 13.42 2.13 6.38 6.38 Inst. Baseline (Ours) 0.76 14.09 24.83 36.24 0.04 14.89 27.66 Ours 6.71 19.46 32.31 51.01 8.51 27.66 51.06 
+
+Table 3. Cross-Modal Scene Retrieval on 3RScan . Similar per-formance to the ScanNet results in Fig. 6 is observed. 
+
+on temporal point cloud-based instance retrieval (same-modal) using scans acquired at different time intervals, with scene changes like object displacement and rearrange-ment. Tab. 1 shows a comparison on the 3RScan dataset, highlighting our method’s superior performance. This is a large gain, lying in the strong representational power of our multi-modal embedding space, which allows the encoder to efficiently extract each instance’s spatial and geometric features in dynamic scenes. Moreover, our method, while primarily evaluated in the same-modal setting, also demon-strates superior performance in the cross-modal scenario, shown in the second half of Tab. 1, further underlining the importance of scene-level multi-modal alignment to handle temporal variations in indoor scene understanding. 8991 top-K out of 312         
+
+> validation scans Figure 6. Cross-Modal Scene Retrieval on ScanNet (Scene Matching Recall). Plots show the top 1, 5, 10, 20 scene matching recall of different methods on three modality pairs: I → P ,I → R ,P → R . Ours and Instance Baseline have not been explicitly trained on
+> P → R . Results are computed on 306 scenes and showcase the superior performance of our approach. Once again, the difference between Ours and our self-baseline is attributed to the enhanced cross-modal scene-level interactions achieved with the unified encoders.
+
+4.2. Cross-Modal Scene Retrieval 
+
+We compare our cross-modal scene retrieval results with [18, 43] and our instance-level baseline. Since prior work does not address this task, we adapt their methods by averaging object embeddings per modality to create scene representations, treating our baseline similarly. Un-like CrossOver, these methods rely on semantic instance segmentation. Scene matching recall results on ScanNet 
+
+(Fig. 6) show that our unified encoders, not relying on se-mantics, consistently outperform prior methods in all pair-wise modalities and surpass our baseline. Detailed results on ScanNet and 3RScan are in Tabs. 2 and 3. Our method achieves overall scene understanding, even with small-scale object reconfigurations, as shown by its high temporal re-call. The lower performance of pretrained methods may stem from training biases that limit their robustness with real-world data, such as incomplete point clouds and blurry images. Qualitative results are in Fig. 5. 
+
+4.3. Missing Modalities 
+
+To demonstrate CrossOver’s ability to capture emergent modality behavior with non-overlapping training data points, we train CrossOver using different data repositories for each modality pair. Specifically, we use the ScanNet 
+
+dataset and split the image repository into two chunks of varying sizes. Training on image-point cloud ( I → P ) and image-mesh ( I → M ) using each chunk respectively, we expect to see an emergent behavior between point cloud and mesh ( P → M ). The results (Tab. 4) include top-1 and top-
+
+3 instance matching recall, as well as same and diff recall for evaluating intra- (e.g., identical chairs) and inter- (e.g., a chair and a table) object category performance within a scene. Although partial data availability decreases recall, our P → M matching only decreases by 3% even when using 25% I → P . This scenario is common in real-world applications, where certain modalities might be scarce.                                   
+
+> Available Data Instance Matching Recall ↑I → P (%) I → M (%) same diff top-1 top-3
+> 25 75 86.32 73.38 55.46 79.73 50 50 87.46 70.02 57.49 79.94 75 25 87.35 67.65 54.99 79.45 100 100 87.44 72.46 59.88 80.81
+> Table 4. Ablation on P → M instance matching on ScanNet
+> with non-overlapping data per modality pair. Despite modality pairs not sharing the same image repository, our method retains high performance even when a pair is underrepresented in the data.
+
+## 5. Conclusion 
+
+In summary, this work introduces CrossOver, a frame-work for flexible, scene-level cross-modal alignment with-out the need for semantic annotations or perfectly aligned data. CrossOver leverages a unified embedding space cen-tered on image features, allowing it to generalize across un-paired modalities and outperform existing methods in cross-modal scene retrieval and instance matching on real-world datasets. This approach addresses the limitations of tra-ditional multi-modal models and holds promise for prac-tical applications in areas like robotics, AR/VR, and con-struction monitoring. Although CrossOver excels in cross-modal instance matching, its scene retrieval generalizability could benefit from training on diverse indoor and outdoor datasets. CrossOver assumes a base modality per dataset, advancing prior work requiring perfect modality alignment. Further relaxation is a promising direction. Finally, explor-ing its embedding space for downstream scene understand-ing remains a key area. Future research can explore how our approach can be applied to dynamic scene reconstruc-tion and real-time navigation, thus leading to interactive and immersive mixed-reality experiences. 8992 6. Acknowledgements 
+
+This work was partially funded by the ETH RobotX re-search grant. 
+
+## References 
+
+[1] Panos Achlioptas, Ahmed Abdelreheem, Fei Xia, Mohamed Elhoseiny, and Leonidas J. Guibas. ReferIt3D: Neural lis-teners for fine-grained 3d object identification in real-world scenes. In 16th European Conference on Computer Vision (ECCV) , 2020. 2 [2] Relja Arandjelovi´ c, Petr Gron´ at, Akihiko Torii, Tom´ as Pa-jdla, and Josef Sivic. Netvlad: Cnn architecture for weakly supervised place recognition. 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR) , pages 5297–5307, 2015. 2 [3] Iro Armeni, Zhi-Yang He, JunYoung Gwak, Amir R Zamir, Martin Fischer, Jitendra Malik, and Silvio Savarese. 3d scene graph: A structure for unified semantics, 3d space, and cam-era. In Proceedings of the IEEE International Conference on Computer Vision , pages 5664–5673, 2019. 2 [4] Armen Avetisyan, Manuel Dahnert, Angela Dai, Manolis Savva, Angel X. Chang, and Matthias Niessner. Scan2cad: Learning cad model alignment in rgb-d scans. In The IEEE Conference on Computer Vision and Pattern Recognition (CVPR) , 2019. 5 [5] Tadas Baltruˇ saitis, Chaitanya Ahuja, and Louis-Philippe Morency. Multimodal machine learning: A survey and tax-onomy. IEEE transactions on pattern analysis and machine intelligence , 41(2):423–443, 2018. 1, 2 [6] Angel X. Chang, Thomas A. Funkhouser, Leonidas J. Guibas, Pat Hanrahan, Qi-Xing Huang, Zimo Li, Silvio Savarese, Manolis Savva, Shuran Song, Hao Su, Jianxiong Xiao, L. Yi, and Fisher Yu. Shapenet: An information-rich 3d model repository. ArXiv , abs/1512.03012, 2015. 2, 5 [7] Dave Zhenyu Chen, Angel X Chang, and Matthias Nießner. Scanrefer: 3d object localization in rgb-d scans using natural language. In European conference on computer vision , pages 202–221. Springer, 2020. 2 [8] Jiaqi Chen, Daniel Barath, Iro Armeni, Marc Pollefeys, and Hermann Blum. ”where am i?” scene retrieval with lan-guage. ArXiv , abs/2404.14565, 2024. 2 [9] Shizhe Chen, Pierre-Louis Guhur, Makarand Tapaswi, Cordelia Schmid, and Ivan Laptev. Language conditioned spatial relation reasoning for 3d object grounding. In Pro-ceedings of the 36th International Conference on Neural In-formation Processing Systems , Red Hook, NY, USA, 2024. Curran Associates Inc. 4 [10] Christopher Choy, JunYoung Gwak, and Silvio Savarese. 4d spatio-temporal convnets: Minkowski convolutional neural networks. In Proceedings of the IEEE Conference on Com-puter Vision and Pattern Recognition , pages 3075–3084, 2019. 5 [11] Angela Dai, Angel X. Chang, Manolis Savva, Maciej Hal-ber, Thomas Funkhouser, and Matthias Nießner. Scannet: Richly-annotated 3d reconstructions of indoor scenes. In 
+
+Proc. Computer Vision and Pattern Recognition (CVPR), IEEE , 2017. 5, 6, 14 [12] Timoth´ ee Darcet, Maxime Oquab, Julien Mairal, and Piotr Bojanowski. Vision transformers need registers, 2023. 4, 14 [13] Congyue Deng, Or Litany, Yueqi Duan, Adrien Poulenard, Andrea Tagliasacchi, and Leonidas J Guibas. Vector neu-rons: A general framework for so (3)-equivariant networks. In CVPR , 2021. 7 [14] Mingyu Ding, Zhe Wang, Jiankai Sun, Jianping Shi, and Ping Luo. Camnet: Coarse-to-fine retrieval for camera re-localization. In 2019 IEEE/CVF International Conference on Computer Vision (ICCV) , pages 2871–2880, 2019. 2 [15] Shivam Duggal, Zihao Wang, Wei-Chiu Ma, Sivabalan Manivasagam, Justin Liang, Shenlong Wang, and Raquel Ur-tasun. Mending neural implicit modeling for 3d vehicle re-construction in the wild. In WACV , 2022. 7 [16] Peng Gao, Shijie Geng, Renrui Zhang, Teli Ma, Rongyao Fang, Yongfeng Zhang, Hongsheng Li, and Yu Qiao. Clip-adapter: Better vision-language models with feature adapters. arXiv preprint arXiv:2110.04544 , 2021. 2 [17] Rohit Girdhar, Alaaeldin El-Nouby, Zhuang Liu, Mannat Singh, Kalyan Vasudev Alwala, Armand Joulin, and Ishan Misra. Imagebind: One embedding space to bind them all. In CVPR , 2023. 2, 3, 5, 15 [18] Ziyu Guo, Renrui Zhang, Xiangyang Zhu, Yiwen Tang, Xi-anzheng Ma, Jiaming Han, Kexin Chen, Peng Gao, Xianzhi Li, Hongsheng Li, and Pheng-Ann Heng. Point-bind & point-llm: Aligning point cloud with multi-modality for 3d understanding, generation, and instruction following, 2023. 1, 2, 4, 6, 7, 8, 11, 13, 14 [19] Georg Hess, Adam Tonderski, Christoffer Petersson, Kalle ˚Astr¨ om, and Lennart Svensson. Lidarclip or: How i learned to talk to point clouds. In Proceedings of the IEEE/CVF Win-ter Conference on Applications of Computer Vision , 2024. 12, 16 [20] Baoxiong Jia, Yixin Chen, Huangyue Yu, Yan Wang, Xuesong Niu, Tengyu Liu, Qing Li, and Siyuan Huang. Sceneverse: Scaling 3d vision-language learn-ing for grounded scene understanding. arXiv preprint arXiv:2401.09340 , 2024. 3, 4, 5, 14, 15 [21] Ue-Hwan Kim, Jin-Man Park, Taek-Jin Song, and Jong-Hwan Kim. 3-d scene graph: A sparse and semantic rep-resentation of physical environments for intelligent agents. 
+
+IEEE transactions on cybernetics , 50(12):4921–4933, 2019. 2[22] Manuel Kolmet, Qunjie Zhou, Aljosa Osep, and Laura Leal-Taixe. Text2Pos: Text-to-Point-Cloud Cross-Modal Lo-calization . In 2022 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , pages 6677–6686, Los Alamitos, CA, USA, 2022. IEEE Computer Society. 2 [23] Junnan Li, Dongxu Li, Caiming Xiong, and Steven C. H. Hoi. Blip: Bootstrapping language-image pre-training for unified vision-language understanding and generation. In In-ternational Conference on Machine Learning , 2022. 3, 14 [24] Ilya Loshchilov and Frank Hutter. Decoupled weight de-cay regularization. In International Conference on Learning Representations , 2017. 14 8993 [25] David G. Lowe. Distinctive image features from scale-invariant keypoints. Int. J. Comput. Vision , 60(2):91–110, 2004. 5 [26] Huaishao Luo, Lei Ji, Botian Shi, Haoyang Huang, Nan Duan, Tianrui Li, Jason Li, Taroon Bharti, and Ming Zhou. Univl: A unified video and language pre-training model for multimodal understanding and generation. arXiv preprint arXiv:2002.06353 , 2020. 2 [27] Huaishao Luo, Lei Ji, Ming Zhong, Yang Chen, Wen Lei, Nan Duan, and Tianrui Li. CLIP4Clip: An empirical study of clip for end to end video clip retrieval. arXiv preprint arXiv:2104.08860 , 2021. 2 [28] Yiwei Ma, Guohai Xu, Xiaoshuai Sun, Ming Yan, Ji Zhang, and Rongrong Ji. X-CLIP:: End-to-end multi-grained con-trastive learning for video-text retrieval. arXiv preprint arXiv:2207.07285 , 2022. 2 [29] Yang Miao, Francis Engelmann, Olga Vysotska, Federico Tombari, Marc Pollefeys, and D´ aniel B´ ela Bar´ ath. Scene-GraphLoc: Cross-Modal Coarse Visual Localization on 3D Scene Graphs. In EuropeanConference on Computer Vision (ECCV) , 2024. 2, 4, 12, 14, 15, 16 [30] Aaron van den Oord, Yazhe Li, and Oriol Vinyals. Repre-sentation learning with contrastive predictive coding. arXiv preprint arXiv:1807.03748 , 2018. 2 [31] Maxime Oquab, Timoth´ ee Darcet, Theo Moutakanni, Huy V. Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernandez, Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, Rus-sell Howes, Po-Yao Huang, Hu Xu, Vasu Sharma, Shang-Wen Li, Wojciech Galuba, Mike Rabbat, Mido Assran, Nico-las Ballas, Gabriel Synnaeve, Ishan Misra, Herve Jegou, Julien Mairal, Patrick Labatut, Armand Joulin, and Piotr Bo-janowski. Dinov2: Learning robust visual features without supervision, 2023. 4, 14 [32] Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sastry, Amanda Askell, Pamela Mishkin, Jack Clark, Gretchen Krueger, and Ilya Sutskever. Learning transferable visual models from natural language supervision. In International Conference on Machine Learning , 2021. 2, 3, 14 [33] Antoni Rosinol, Arjun Gupta, Marcus Abate, Jingnan Shi, and Luca Carlone. 3d dynamic scene graphs: Actionable spatial perception with places, objects, and humans. arXiv preprint arXiv:2002.06289 , 2020. 2 [34] Sayan Deb Sarkar, Ondrej Miksik, Marc Pollefeys, Daniel Barath, and Iro Armeni. Sgaligner : 3d scene alignment with scene graphs. Proceedings of the IEEE International Con-ference on Computer Vision (ICCV) , 2023. 1, 2, 4, 12 [35] Paul-Edouard Sarlin, Daniel DeTone, Tomasz Malisiewicz, and Andrew Rabinovich. SuperGlue: Learning feature matching with graph neural networks. In CVPR , 2020. 5 [36] Sai Shubodh, Mohammad Omama, Husain Zaidi, Udit Singh Parihar, and Madhava Krishna. Lip-loc: Lidar image pre-training for cross-modal localization. 2024. 12, 16 [37] Yao-Hung Hubert Tsai, Paul Pu Liang, Amir Zadeh, Louis-Philippe Morency, and Ruslan Salakhutdinov. Learn-ing factorized multimodal representations. arXiv preprint arXiv:1806.06176 , 2018. 2 [38] Johanna Wald, Armen Avetisyan, Nassir Navab, Federico Tombari, and Matthias Nießner. Rio: 3d object instance re-localization in changing indoor environments. In Proceed-ings of the IEEE/CVF International Conference on Com-puter Vision , pages 7658–7667, 2019. 5, 6, 7, 14 [39] Johanna Wald, Helisa Dhamo, Nassir Navab, and Federico Tombari. Learning 3d semantic scene graphs from 3d indoor reconstructions. In Conference on Computer Vision and Pat-tern Recognition (CVPR) , 2020. 2 [40] Renjie Wu, Hu Wang, and Hsiang-Ting Chen. A compre-hensive survey on deep multimodal learning with missing modality. arXiv preprint arXiv:2409.07825 , 2024. 2 [41] Yaxu Xie, Alain Pagani, and Didier Stricker. Sg-pgm: Partial graph matching network with semantic geometric fusion for 3d scene graph alignment and its downstream tasks. arXiv preprint arXiv:2403.19474 , 2024. 1, 2 [42] Le Xue, Mingfei Gao, Chen Xing, Roberto Mart´ ın-Mart´ ın, Jiajun Wu, Caiming Xiong, Ran Xu, Juan Carlos Niebles, and Silvio Savarese. Ulip: Learning unified representation of language, image and point cloud for 3d understanding. 
+
+arXiv preprint arXiv:2212.05171 , 2022. 1, 2 [43] Le Xue, Ning Yu, Shu Zhang, Junnan Li, Roberto Mart´ ın-Mart´ ın, Jiajun Wu, Caiming Xiong, Ran Xu, Juan Carlos Niebles, and Silvio Savarese. Ulip-2: Towards scalable mul-timodal pre-training for 3d understanding, 2023. 1, 2, 4, 6, 7, 8, 11, 13, 14 [44] Jiawei Yang, Katie Z Luo, Jiefeng Li, Congyue Deng, Leonidas J. Guibas, Dilip Krishnan, Kilian Q Weinberger, Yonglong Tian, and Yue Wang. Dvt: Denoising vision trans-formers. arXiv preprint arXiv:2401.02957 , 2024. 4 [45] Renrui Zhang, Ziyu Guo, Wei Zhang, Kunchang Li, Xu-peng Miao, Bin Cui, Yu Qiao, Peng Gao, and Hongsheng Li. Pointclip: Point cloud understanding by clip. arXiv preprint arXiv:2112.02413 , 2021. 1, 2 [46] Renrui Zhang, Liuhui Wang, Yu Jiao Qiao, Peng Gao, and Hongsheng Li. Learning 3d representations from 2d pre-trained models via image-to-point masked autoencoders. 
+
+2023 IEEE/CVF Conference on Computer Vision and Pat-tern Recognition (CVPR) , pages 21769–21780, 2022. 4, 14 [47] Liyuan Zhu, Shengyu Huang, and Iro Armeni Kon-rad Schindler. Living scenes: Multi-object relocalization and reconstruction in changing 3d environments. In The IEEE Conference on Computer Vision and Pattern Recog-nition (CVPR) , 2024. 2, 7 [48] Zhu Ziyu, Ma Xiaojian, Chen Yixin, Deng Zhidong, Huang Siyuan, and Li Qing. 3d-vista: Pre-trained transformer for 3d vision and text alignment. In ICCV , 2023. 4, 14 8994

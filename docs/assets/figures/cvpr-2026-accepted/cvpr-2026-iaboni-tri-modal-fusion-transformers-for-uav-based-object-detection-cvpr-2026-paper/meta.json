@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "extractor": "pymupdf-images",
+  "figures": [
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-iaboni-tri-modal-fusion-transformers-for-uav-based-object-detection-cvpr-2026-paper/fig-001.webp",
+      "caption": "",
+      "page": 2,
+      "index": 1,
+      "width": 1369,
+      "height": 644
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-iaboni-tri-modal-fusion-transformers-for-uav-based-object-detection-cvpr-2026-paper/fig-002.webp",
+      "caption": "",
+      "page": 3,
+      "index": 2,
+      "width": 733,
+      "height": 269
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-iaboni-tri-modal-fusion-transformers-for-uav-based-object-detection-cvpr-2026-paper/fig-003.webp",
+      "caption": "",
+      "page": 5,
+      "index": 3,
+      "width": 4138,
+      "height": 1397
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-iaboni-tri-modal-fusion-transformers-for-uav-based-object-detection-cvpr-2026-paper/fig-004.webp",
+      "caption": "",
+      "page": 8,
+      "index": 4,
+      "width": 1092,
+      "height": 1080
+    }
+  ]
+}

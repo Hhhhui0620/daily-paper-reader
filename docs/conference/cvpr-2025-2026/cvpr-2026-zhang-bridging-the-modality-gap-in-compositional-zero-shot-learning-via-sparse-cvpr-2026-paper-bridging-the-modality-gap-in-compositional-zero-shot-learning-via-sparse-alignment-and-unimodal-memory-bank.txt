@@ -1,0 +1,428 @@
+Title: Bridging the Modality Gap in Compositional Zero-Shot Learning via Sparse Alignment and Unimodal Memory Bank
+
+URL Source: https://openaccess.thecvf.com/content/CVPR2026/papers/Zhang_Bridging_the_Modality_Gap_in_Compositional_Zero-Shot_Learning_via_Sparse_CVPR_2026_paper.pdf
+
+Published Time: Sat, 16 May 2026 16:46:51 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+# Bridging the Modality Gap in Compositional Zero-Shot Learning via Sparse Alignment and Unimodal Memory Bank 
+
+# Yang Zhang 1,2, Zhixiang Chi 3, Xudong Yan 1,2, Yang Wang 4, Songhe Feng 1,2*
+
+> 1
+
+# School of Computer Science and Technology, Beijing Jiaotong University, Beijing, China  
+
+> 2
+
+# Key Laboratory of Big Data and Artificial Intelligence in Transportation (Beijing Jiaotong University), Ministry of Education  
+
+> 3
+
+# Department of Electrical and Computer Engineering, University of Toronto, Canada 
+
+> 4
+
+# Department of Computer Science and Software Engineering, Concordia University, Canada 
+
+# {chefzhang,xud yan,shfeng }@bjtu.edu.cn 
+
+# {zhxchi }@ece.utoronto.ca, {yang.wang }@concordia.ca 
+
+# Abstract 
+
+Compositional Zero-Shot Learning (CZSL) aims to rec-ognize unseen attribute-object compositions with learned primitives (attribute and object) knowledge from seen com-positions. While previous approaches gain their notable performance through the powerful cross-modal alignment of CLIP, they often overlook the modality gap, an inherent constraint stemming from information-imbalanced train-ing data. In this work, we propose SAM, a novel Sparse Alignment and Unimodal Memory Bank to effectively bridg-ing modality gap for CZSL. Specifically, we conduct sparse alignment that links textual representations directly to their semantically pertinent visual patches. This direct linking serves to prune redundant visual data and counter the infor-mation imbalance in image-text pairs. Subsequently, with the sparsely aligned visual information as its guidance, the 
+
+visual adaptive condensation module adaptively fuses these critical cues into a unified representation. Finally, we intro-duce a dynamically updated unimodal memory bank that stores samples from both seen and unseen compositions. This bank serves a dual purpose: it bypasses the modal-ity gap through visual-only classification and concurrently strengthens generalization to unseen compositions. Exper-iments on three benchmarks demonstrate that our method gains significant improvements over CLIP-based methods under closed-world and open-world settings. 
+
+# 1. Introduction 
+
+Humans can recognize novel concepts by recombining fa-miliar components. For instance, even without prior expo-
+
+> *Corresponding author.
+
+sure, a black swan can be identified by combining the con-cepts of swan and black [18, 29]. Compositional Zero-Shot Learning (CZSL) [12, 14, 21, 28, 30, 51, 52, 62] aims to endow models with this ability: Given training on seen at-tribute–object pairs (e.g., white swan , black cat), the model must generalize to unseen compositions (e.g., black swan )by disentangling and recombining primitives. Recent CZSL approaches build on the powerful visual–semantic space of CLIP [35], pre-trained on large-scale image–text pairs. To improve the recognition of attribute–object composi-tions, techniques have explored enhanced visual–text align-ment [27], primitive disentanglement [9], priority calibra-tion [20], and semantic mining [47, 60]. While these meth-ods achieve strong performance, they still inherit fundamen-tal limitations of CLIP. In particular, the modality gap [23] caused by information imbalance [37] remains unresolved. The modality gap [23] refers to the geometric separa-tion of image and text embeddings in the visual–semantic space of CLIP. As a result, image embeddings tend to be similarly close to many text categories, rather than tightly aligned with their corresponding descriptions. Research findings have attributed the modality gap to contrastive loss [23, 55] or temperature parameter [39, 41], but recent ev-idence points to a deeper cause: information imbalance in training image–text pairs [37]. Captions usually describe only salient objects, whereas images encode richer de-tails . This mismatch weakens the supervision signal from matched pairs, as illustrated in Fig. 1a. The imbalance is especially harmful in fine-grained tasks such as CZSL, where salient attributes can easily be contaminated by the surrounding context. Building upon the proven success [32, 61, 65] of bridging the modality gap for enhanced per-formance, our work tackles this challenge by targeting the underlying information imbalance .This CVPR paper is the Open Access version, provided by the Computer Vision Foundation. Except for this watermark, it is identical to the accepted version; the final published version of the proceedings is available on IEEE Xplore. 5553 Vision Encoder        
+
+> CLS CLS
+> Ignored
+> a photo of white
+> cat and gray sofa
+> a photo of
+> white cat Ground truth label
+> Misalignment Patchfy
+> CLS Class tokens Patch tokens (a) Illustration of information imbalance Vision Encoder
+> CLS Patchfy
+> CLS a photo of
+> white cat
+> a photo of
+> white cat Ground truth label
+> Alignment
+> Dropped patch/tokens (b) Visual reduction by token drop.
+
+Figure 1. a) shows that the vision side encodes excessive information relative to the ground-truth text label; b) demonstrates a simple vision-token reduction to align the information from both modalities better. Table 1. AUC and modality gap on C-GQA dataset. # Tokens AUC Full (AUC) 14.3 Drop (AUC) 14.7 
+
+∆ +0.4 Full (gap) 0.15 Drop (gap) 0.14 
+
+∆ -0.01 
+
+We observe that prior works typically discard patch to-kens and rely solely on the CLS token (Fig. 1a), which aggregates all visual information and often includes redun-dancy. We hypothesize that the imbalance can be mitigated if less information is forced into the CLS token. To validate this, we conduct a pilot experiment (see Sec. 3): finetun-ing CLIP with LoRA [58] (Full) while randomly dropping patch tokens at the input (Drop). As shown in Fig. 1b and Tab. 1, even this naive variant yields notable AUC gains and gap reduction on C-GQA [29]. Building on the observation that reducing visual context improves balance across modalities, we propose a princi-pled three-stage framework, SAM (Sparse Alignment and Unimoal Memory Bank). Prior methods rely on the CLS 
+
+token as the visual representation, which encodes global in-formation and often includes irrelevant context, while out-put patch tokens are simply discarded (Fig. 1a). Inspired by CLIP-based segmentation methods [5, 22] that use patch tokens at the output for local prediction, we instead exploit patch tokens to restore image–text balance in CZSL by sup-pressing irrelevant visual information. In Stage I , for each composition text prompt, we align it with the most semanti-cally congruent patch token (via Max operation), yielding a sparse set of selected patches. This information-balanced training quickly adapts CLIP to attribute–object recogni-tion as the two modalities become better aligned. However, naive rule-based token selection is overly rigid, since some relevant patches may be discarded. We therefore introduce 
+
+Stage II , a Visual Adaptive Condensation (VAC) module that consolidates all patch features into a unified represen-tation. VAC is guided by soft labels from Stage I, enabling it to recover contextually relevant information while remain-ing regulated by the reduced visual signals from Stage I. Fi-nally, in Stage III , we maintain a memory bank that stores high-confidence visual representations from VAC. During inference, the memory is updated with predictions on both seen and unseen compositions. This provides visual clas-sification references intra-modal and accelerates adaptation to unseen compositions, further mitigating the modality gap in cross-modal alignment. The main contributions are summarized as follows: 1) We design a Sparse Alignment (SA) training paradigm tai-lored to the characteristics of CZSL downstream tasks, ef-fectively mitigating modality gap issue. 2) We propose the Visual Adaptive Condensation (VAC) module to adap-tively excavate and compress critical visual information into a consolidate representation, preserve the informa-tion balance between image-text pairs. 3) We devise a 
+
+Dynamically Updated Memory Bank that bypasses modal-ity gap issue by provides pure-visual modality classification references while accelerating adaptation to unseen compo-sitions. 4) Extensive experiments demonstrate significant improvements over existing state-of-the-art methods. 
+
+# 2. Related Work 
+
+Compositional Zero-Shot Learning aims to recognize un-seen attribute–object compositions by exploiting attributes and objects learned from seen compositions. Existing meth-ods largely follow two paradigms. The first [21, 26, 28–30] treats each composition as a single entity and aligns it di-rectly with the corresponding attribute–object word embed-ding. The second [7, 15, 19, 45, 53] disentangles attributes and objects, training separate classifiers to enhance compo-sitional reasoning. Recently, CLIP [35] has been increas-ingly adopted, leveraging their strong cross-modal align-ment and broad knowledge to advance CZSL performance [1, 9, 20, 27, 31, 34, 47, 63]. However, current approaches often rely on CLIP alignment capabilities while neglecting its inherent modality gap, which limits performance, par-ticularly in fine-grained CZSL. We show that strategically reducing visual information can substantially mitigate this gap, leading to improvements beyond prior works. 
+
+Modality Gap was first identified in [23], which de-scribed it as a geometric phenomenon in which embeddings of different modalities occupy disjoint regions of the shared embedding space of CLIP. The mismatches between image-text pairs push all visual and text embeddings away from each other, and cause image embeddings to tend to be sim-ilarly close to text prompts of many categories, rather than tightly aligned with their corresponding descriptions [61]. 5554 Subsequent studies (e.g., [39, 41]) suggested that the tem-perature parameter can partially regulate this gap. Several works [32, 61, 65] bridge the modality gap to improve the performance on downstream tasks. More recently, [37] pro-vided a rigorous analysis, linking the gap to information im-balance in image–text pairs, where the model faces an align-ment–consistency trade-off. Inspired by these findings, we selectively reduce visual information to align with textual data in the CZSL task, building an information-balanced paradigm that mitigates the modality gap. 
+
+Retrieval-Augmented Models were first introduced in NLP, where external memory is integrated into inference phase via retrieval mechanisms. Recently, [59] employs a 
+
+k-nearest neighbor classifier to boost classification with-out fine-tuning. [42] retrieves samples from external or generated sources. [36] leverages retrieved prompts to re-fine CLIP representations, while [11] builds a database of primitive knowledge from training data. However, these databases are typically static and lack access to unseen com-positions, which limits their effectiveness in CZSL. There-fore, we propose a dynamically updated memory bank that archives seen samples and selectively incorporates reliable test instances during inference. 
+
+# 3. Preliminaries 
+
+Problem Formulation. Compositional zero-shot learning (CZSL) aims at learning a model from seen compositions to recognize unseen compositions that share the same prim-itives. Given an attribute set A = {a1, a 2, . . . , a |A| } and an object set O = {o1, o 2, . . . , o |O| }, the composition set is defined as C = {c1, c 2, . . . , c |C| }, where each com-position is composed of attribute and object c = ( a, o ).The composition set C is divided into disjoint seen com-position set Cs and the unseen composition set Cu, where 
+
+Cs ∩ C u = ∅ and Cs ∪ C u = C. According to the stan-dard generalized zero-shot learning [29], model can only access images in Cs during training, while the testing set C
+
+contains both seen and unseen compositions. Here, we can define the training set as Dtr = {(x, c )|x ∈ X tr , c ∈ C s}
+
+and testing set as Dts = {(x, c )|x ∈ X ts , c ∈ C} . In the closed-world setting, only the known compositions (all compositions in the dataset) are considered. In the open-world setting [13, 26, 48], the test set contains all possible compositions, i.e., C = A × O , which is more challenging. 
+
+Visual Representations . Given an input image x ∈
+
+RH×W ×3, visual encoder ϕvis of CLIP outputs a se-quence of visual tokens (features) denoted as V =[vCLS , v1, . . . , vL] ∈ R(L+1) ×D , where [v1, . . . , vL] are L
+
+patch tokens and vCLS is the class token which aggregates global information. 
+
+Textual Representations . Prevailing approaches em-ploy learnable soft prompts tailored to attributes, ob-jects, and their compositions to generate textual rep-Random token drop       
+
+> Label: Brown platform Baseline VAC (ours)
+> Figure 2. Top: Observation between modality gap and perfor-mance (AUC) on C-GQA dataset. We randomly drop patches with a certain probability (%) at the input, achieving a straightforward form of visual information reduction. More results in Tab 5. Bot-tom: and example of attention visualization.
+
+resentations. Specifically, the prompts are denoted as 
+
+θa = [p1
+
+> a
+
+, . . . , pma , wa], θo = [p1
+
+> o
+
+, . . . , pmo , wo] and 
+
+θc = [ p1 
+
+> c
+
+, . . . , pmc , wa, wo], respectively. Among them, “a photo of ” is used to initialize p1: ma , p1: mo and p1: mc , and 
+
+wa and wo are vocabulary of the attribute and object. These soft prompts are then fed into text encoder ψtext of CLIP to generate textual representations, denoted as ta, to and tc.
+
+Standard Cross-Modal Alignment. Prevailing CZSL methods conventionally employ the CLIP native alignment mechanism to calculate the probability using the [CLS] to-ken. Here, τ is the temperature parameter of pre-trained CLIP. All representations in the prediction process are l2-normalized, and we omit the notation for simplicity: 
+
+p(ci|x) = exp (vcls · tic/τ )
+
+P|C s| 
+
+> k=1
+
+exp (vcls · tkc /τ ) , (1) 
+
+Motivations. Prior works adopt the cross-modal align-ment in Eq. 1, overlooking CLIP’s key limitation: modal-ity gap [23], which stems from information imbalance [37] between visual ( vCLS ) and textual ( tc) representations. As shown in Fig. 1a, the global visual representation vCLS of-ten carries redundant context beyond its textual label. We argue that this imbalance can be alleviated by sup-pressing excess visual information. A naive approach is to randomly drop input patch tokens, so that less visual infor-mation is aggregated to vCLS . To validate this, we extend the pilot experiment in Fig. 1b and Tab. 1 by varying the drop rate, and measure the modality gap using Relative Modality Gap (RMG) [37]. As shown in Fig. 2 (Top), high drop rates 5555 ddd 
+
+> Text Encoder Visual Encoder
+> ···
+> Visual Adaptive Condensation
+> Memory Bank
+
+··· 
+
+> Visual Reduction
+
+(a) Stage I Sparse Alignment 
+
+(b) Stage II Visual Adaptive Condensation 
+
+(c) Stage III 
+
+> Textual Memory Bank
+
+··· 
+
+··· 
+
+> Visual
+> Update
+> Store
+> Sparse Guidance
+
+Figure 3. The overview of SAM. (a) Stage I : We perform Sparse Alignment between patch and text representation by reducing redundant visual information, detailed in Fig. 7. (b) Stage II : With the sparse guidance from sparse alignment, Visual Adaptive Condensation is learned to adaptively condense critical visual cues and stores condensed representations of seen compositions in a Memory Bank . (c) 
+
+Stage III : During inference, we dynamically update the bank with reliable test samples from all compositions, and combine predictions from three modules for final results. 
+
+discard too much visual content and degrade performance, whereas moderate rates improve both accuracy and align-ment. Notably, AUC gains coincide with reduced RMG, confirming that controlled vision reduction is an effective strategy for modality balance. Motivated by these observations, we aim to reduce re-dundant visual content in a principled way. Random to-ken dropping, however, removes useful information, dis-rupts semantic relations, and requires manual threshold tun-ing. Inspired by CLIP-based segmentation methods [5, 22], where patch tokens represent local regions, we retain all patches during processing and modulate visual information at the output through token-level representations. As shown in Fig. 2 (top), our Sparse Alignment (SA) and 
+
+Visual Adaptive Condensation (VAC) improve performance while narrowing the modality gap. Fig. 2 (bottom) further illustrates the effect: the baseline vCLS over-attends to both the Brown bear and the Brown platform , since they share the “Brown” attribute, whereas our VAC focuses only on the correct Brown platform leading to more sparse attention. 
+
+# 4. Methods 
+
+4.1. Sparse Alignment 
+
+Instead of relying on the global vCLS token, we shift to local representations by modulating the full set of output features 
+
+V ∈ R(L+1) ×D . We compute similarity scores between all tokens in V and the textual representations of seen com-positions Tc ∈ R|C s|× D , and each composition c select the patch token with the highest semantic relevance sc via a 
+
+max( ·) operation: 
+
+sc = L+1 
+
+max  
+
+> l=1
+
+Sl,c , for c = 1 , 2, . . . , |C s|, where S = V T ⊤ 
+
+> c
+
+,
+
+(2) with S ∈ R(L+1) ×|C s| denoting patch-to-composition simi-larities, and all representations are ℓ2-normalized. The intu-ition is that each patch token encodes a local region, and se-lecting the most informative token for each textual represen-tation preserves discriminative features while suppressing redundant visual information. As only a subset of patches is retained, this process yields a sparse alignment between vi-sual and textual representations, which we denote as Stage I: Sparse Alignment (SA) . The resulting similarity scores 
+
+s ∈ R|C s| for all compositions are then used for reformulat-ing the learning objective as follows: 
+
+psa (ci|x) = exp (si/τ )
+
+P|C s| 
+
+> k=1
+
+exp (sk/τ ) ,
+
+Lc = − 1
+
+|D tr |
+
+X
+
+> x∈D tr
+
+log psa (ci|x),
+
+(3) Furthermore, we directly align textual representations of primitives with visual representations without explicit disentanglement , thus fully preserving the powerful cross-modal alignment capability of CLIP. Specifically, the learn-ing objectives for primitives ( La and Lo) are similar to com-positions, by replacing Tc in Eq.2 with Ta or To followed by Eq. 3. The base training loss is defined as: 
+
+Lbase = Lc + La + Lo. (4) To assess the role of patch tokens, we blend predic-tions from SA and the [CLS] token as (1 − W ) × SA +5556 1Figure 4. Left: Performance trend of C-GQA when SA is blended with the [CLS] token. Right: Ratio of patches selected by SA and proportion of top-response tokens that match the GT of C-GQA. 
+
+W × [CLS] . As Fig.4 (left) shows, reducing the con-tribution of patch tokens in sparse alignment clearly de-creases performance, indicating that the [CLS] token in-troduces excess visual information that contaminates align-ment. Fig. 4 (right) quantifies the sparsity of our alignment: only ∼25% of patches exhibit high class-specific activation (blue bar). Furthermore, in most samples on C-GQA, the highest-response tokens matching the label originate from patch tokens rather than the [CLS] token (gray bar). These results validate that our patch-level operation alleviates in-formation imbalance, thereby addressing the modality gap. 
+
+4.2. Visual Adaptive Condensation 
+
+Although SA effectively reduces visual information to es-tablish an information balance in the training data, such vi-sual reduction may discard semantically valuable cues that are crucial for model. To mitigate this limitation, we in-troduce Stage II: Visual Adaptive Condensation (VAC) ,which adaptively aggregates essential information across all patches. This design compensates for potential information loss introduced by SA while preserving the benefits. Specifically, VAC employs a learnable query embedding 
+
+q ∈ R1×D together with a stack of K processing blocks. The query embedding dynamically attends to and aggre-gates semantically important information from all tokens in 
+
+V [3, 4], without being restricted to any single patch. Each block incorporates multi-head cross-attention mechanisms [43] and feed-forward network (FFN) [25] to enable adap-tive information extraction and refinement. The condensed representation produced by the query embedding, denoted as vq , is then used for prediction, with the learning objective for VAC formulated as: 
+
+pvac (ci|x) = exp (vq · tic/τ )
+
+P|C s| 
+
+> k=1
+
+exp (vq · tkc /τ ) ,
+
+Lvac c = − 1
+
+|D tr |
+
+X
+
+> x∈D tr
+
+log pvac (ci|x)
+
+(5) Similar to SA, we also utilize vq for primitives prediction without representation disentanglement. The prediction and learning objective ( Lvac a and Lvac o ) formulae follow a simi-lar form to Eq 5 and are omitted here for brevity. We denote the base learning objective for VAC module as follows: 
+
+Lvac base = Lvac c + Lvac a + Lvac o . (6) To ensure that condensed representation vq captures cru-cial semantic information while suppressing redundant vi-sual details, we introduce a distillation objective [6, 8, 40, 54, 56] that preserves the reduced visual signal in SA, which is formally defined as: 
+
+Lkl = − 1
+
+|D tr |
+
+X
+
+> x∈D tr
+
+pvac log( pvac 
+
+psa 
+
+), (7) where psa and pvac denote the composition predictions pro-duced by SA and VAC, respectively. By minimizing the Kullback-Leibler divergence [17] between these two prob-abilistic distributions, the distillation objective encourages 
+
+vq to adaptively retain the critical visual information pre-served by SA. The overall loss for VAC can be denoted as: 
+
+Lvac = (1 − α) · L vac base + α · L kl , (8) where α is a weight coefficient that balances the contribu-tion of distillation loss. 
+
+4.3. Dynamically Updated Memory Bank 
+
+To further address modality gap, we propose Stage III: Dynamically Updated Memory Bank , which stores sev-eral condensed visual representations for each composition. Then we leverage the memory bank to retrieve visual proto-types for each test sample. This enables a unimodal, visual-only classification, which inherently bypasses the modality gap and enhances recognition at test-time [46, 49]. Specifically, we construct a memory bank [11, 59] B ∈
+
+R|C|× N ×D , where N is the memory size for each compo-sition, C denotes the total number of compositions. High-confidence samples from VAC are dynamically select to up-date the bank according to: 
+
+Bi,j = vq , if arg max pvac = i and H(pvac ) < T i,j ,
+
+(9) where i and j represent the j-th stored sample in the i-th composition, H(·) is the entropy [38] of the prediction. No-tably, the j-th stored sample has the highest entropy Ti,j 
+
+in the i-th composition. This update process replaces the stored sample with the highest entropy with the current sam-ple. During inference, the memory bank is continuously updated with test samples. Next, we formalize the classification procedure based on the memory bank. For each input sample vq , prototypes 
+
+P of all compositions are retrieved from the memory bank through a query operation, formulated as: 
+
+pi = softmax (( vq · BTi, :)/τ mb )Bi, :,pmb (ci|x) = exp (vq · pi/τ )
+
+P|C|  
+
+> k=1
+
+exp (vq · pk/τ ) , (10) 5557 Method UT-Zappos MIT-States C-GQA S U HM AUC S U HM AUC S U HM AUC 
+
+CLIP [ICML’21] [35] 15.8 49.1 15.6 5.0 30.2 46.0 26.1 11.0 7.5 25.0 8.6 1.4 CoOp [IJCV’22] [66] 52.1 49.3 34.6 18.8 34.4 47.6 29.8 13.5 20.5 26.8 17.1 4.4 CSP [ICLR’23] [31] 64.2 66.2 46.6 33.0 46.6 49.9 36.3 19.4 28.8 26.8 20.6 6.2 DFSP [CVPR’23] [27] 66.7 71.7 47.2 36.0 46.9 52.0 37.3 20.6 38.2 32.0 27.1 10.5 PLID [ECCV’24] [1] 67.3 68.8 52.4 38.7 49.7 52.4 39.0 22.1 38.8 33.0 27.9 11.0 CDS [CVPR’24] [20] 63.9 74.8 52.7 39.5 50.3 52.9 39.2 22.4 38.3 34.2 28.1 11.1 Troika [CVPR’24] [9] 66.8 73.8 54.6 41.7 49.0 53.0 39.3 22.1 41.0 35.7 29.4 12.4 LogiCzsl [CVPR’25] [47] 69.6 74.9 57.8 45.8 50.8 53.9 40.5 23.4 44.4 39.4 33.3 15.3 ClusPro [ICLR’25] [34] 70.7 76.0 58.5 46.6 52.1 54.0 40.7 23.8 44.3 37.8 32.8 14.9 
+
+SAM-CZSL 73.3 76.8 62.0 50.0 53.2 53.0 40.8 24.0 45.8 39.5 34.8 16.2  
+
+> Table 2. The experimental results on closed-world settings.
+
+where τmb is a temperature coefficient during retrieval which is empirically set to 0.1 for all datasets. pi indi-cates the sample-adaptive prototype of the i-th composition, 
+
+Bi, : are the stored samples of i-th composition. To enable inference on unseen compositions when no visual samples are available, we initially insert the textual representations into memory bank. Notably, the updates and predictions of memory bank operated in training-free manner, thus do not introduce significant computational costs during inference. Meanwhile, we do not make any changes to the default ar-rival order of the test samples, and related analysis can be found in Supp §B. 
+
+4.4. Training and Inference 
+
+Training . We propose two learning objectives for SA (Eq. 4) and VAC (Eq. 8) modules, and the detailed training scheme can be found in Supp §D. Inference. The final pre-diction is derived by integrating the outputs from the three modules mentioned above, and the overall process can be formulated as follows: 
+
+ˆp(c|x) = β · ¯psa (c|x) + (1 − β) · (¯ pvac (c|x) + γ · pmb (c|x)) ,
+
+(11) where ¯psa (c|x) and ¯pvac (c|x) can be decomposed into the following terms: 
+
+¯p(c|x) = p(c|x) + p(a|x) · p(o|x). (12) 
+
+# 5. Experiments 
+
+5.1. Experimental settings 
+
+Datasets. We conduct experiments on three benchmarks: UT-Zappos [57], MIT-States [10] and C-GQA [29]. 
+
+Evaluation Metric. Following generalized CZSL meth-ods [26, 29], our method is evaluated on both seen and un-seen compositions. Here, we report four metrics, such as Seen Accuracy (S), Unseen Accuracy (U), Harmonic Mean (HM) and Area Under Curve (AUC). 
+
+Implement Details. We adopt pre-trained CLIP ViT-L/14 model [35] as our backbone. Following previous works [34], we tune the visual encoder of CLIP with LoRA [58]. The detailed experimental settings are in Supp §A. 
+
+5.2. Comparison to State-of-the-Arts 
+
+In this section, we compare our SAM with several state-of-the-art (SOTA) approaches across three widely-used bench-marks under both closed-world setting Tab. 2 and open-world setting Tab. 3. In closed-world setting, our proposed SAM achieves the best performance on almost all metrics across all three datasets. Specifically, our SAM achieves the best AUC of 50.0, 24.0, and 16.2, along with the best HM of 62.0, 40.8, and 34.8 across the three datasets. More-over, our proposed SAM attains the highest seen accuracy (S) and nearly the best unseen accuracy (U) across all three datasets. In open-world setting, our proposed SAM still out-performs the top-leading methods across all three datasets. To be specific, our SAM achieves the state-of-the-art AUC and HM with 42.3 (54.8), 9.4 (23.1) and 4.6 (15.3) on three datasets. According to seen accuracy and unseen accuracy, our method still outperforms other competing methods. In summary, the comprehensive results demonstrate that our proposed Sparse Alignment training framework effectively mitigates the modality gap, exhibiting strong robustness across datasets and settings. Comparison with more meth-ods can be found in Supp §B. 
+
+5.3. Ablation Study 
+
+Main components. We conduct a deep investigation of the key components in our SAM, including Sparse Alignment (SA), Visual Adaptive Condensation (VAC) and Dynami-cally Updated Memory Bank. As shown in Tab. 4, the experiments are conducted as follows: 1) Lbase applies the SA training paradigm to mitigate the modality gap. 2) 
+
+Lqbase trains VAC with a conventional cross-entropy objec-tive. 3) Lkl leverages the reduced visual signal guide the 5558 Method UT-Zappos MIT-States C-GQA S U HM AUC S U HM AUC S U HM AUC 
+
+CLIP [ICML’21] [35] 15.7 20.6 11.2 2.2 30.1 14.3 12.8 3.0 7.5 4.6 4.0 0.3 CoOp [IJCV’22] [66] 52.1 31.5 28.9 13.2 34.6 9.3 12.3 2.8 21.0 4.6 5.5 0.7 CSP [ICLR’23] [31] 64.1 44.1 38.9 22.7 46.3 15.7 17.4 5.7 28.7 5.2 6.9 1.2 DFSP [CVPR’23] [27] 66.8 60.0 44.0 30.3 47.5 18.5 19.3 6.8 38.3 7.2 10.4 2.4 PLID [ECCV’24] [1] 67.6 55.5 46.6 30.8 49.1 18.7 20.0 7.3 39.1 7.5 10.6 2.5 CDS [CVPR’24] [20] 64.7 61.3 48.2 32.3 49.4 21.8 22.1 8.5 37.6 8.2 11.6 2.7 Troika [CVPR’24] [9] 66.4 61.2 47.8 33.0 48.8 18.7 20.1 7.2 40.8 7.9 10.9 2.7 LogiCzsl [CVPR’25] [47] 69.6 63.7 50.8 36.2 50.7 21.4 22.4 8.7 43.7 9.3 12.6 3.4 ClusPro [ICLR’25] [34] 71.0 66.2 54.1 39.5 51.2 22.1 23.0 9.3 41.6 8.3 11.6 3.0 
+
+SAM-CZSL 72.9 66.7 54.8 42.3 52.9 21.2 23.1 9.4 45.5 11.5 15.3 4.6  
+
+> Table 3. The experimental results on open-world settings.
+
+UT-Zappos MIT-States C-GQA 
+
+S U HM AUC S U HM AUC S U HM AUC 
+
+Baseline 66.7 69.8 51.0 37.5 48.0 52.5 37.9 21.2 44.2 37.2 31.6 14.3 +Lbase 67.6 75.5 56.6 44.4 50.3 51.9 39.1 22.0 44.6 38.5 33.4 15.2 +Lqbase 70.3 75.7 58.1 46.2 50.4 52.3 39.2 22.2 45.4 38.5 34.0 15.6 +Lkl 72.1 76.4 60.2 48.6 51.5 52.6 39.6 23.0 45.5 38.9 34.3 15.8 
+
++Memory Bank 72.9 76.4 61.4 49.3 52.9 52.6 40.1 23.4 45.7 38.9 34.6 16.0 
+
++Dynamically Update 73.3 76.8 62.0 50.0 53.2 53.0 40.8 24.0 45.8 39.5 34.8 16.2  
+
+> Table 4. Ablation studies on main innovations.
+
+VAC module to adaptively extract critical visual informa-tion. 4) Memory Bank stores samples only for seen compo-sitions. 5) Dynamically Update stored samples for seen and unseen compositions during inference simultaneously and continuously [2, 24]. As we can see in Tab. 4, SA ( Lbase )establishes an information-balanced training paradigm and yields significant improvements across three datasets. VAC (Lqbase and Lkl ) guided by the reduced visual informa-tion in SA [64], further adaptively excavates critical vi-sual information, leading to additional performance im-provements. Memory Bank bypasses the modality gap by providing visual-modality classification references, improv-ing seen accuracy. Finally, Dynamically Update enhances both seen and unseen accuracy by continuously enriching the memory bank during inference. More detailed ablation study can be found in Supp §B. 
+
+Relationship between Modality Gap and AUC. We present a comprehensive analysis of the relationship be-tween the modality gap (RMG) and AUC. As illustrated in Tab 5, the trend on Baseline, SA, and VAC module consis-tently demonstrates that a smaller modality gap correlates with a higher AUC. This finding aligns with the conclusions presented in [61] and [37]. Noisy samples in MIT-States predominantly cause its larger modality gap. 
+
+Operations in Sparse Alignment. In Sparse Align-Method UT-Zappos MIT-States C-GQA 
+
+RMG ↓ AUC ↑ RMG ↓ AUC ↑ RMG ↓ AUC ↑
+
+Base 0.1825 37.5 0.1947 21.2 0.1450 14.3 +SA 0.1271 44.4 0.1831 22.0 0.1394 15.2 +VAC 0.1072 48.6 0.1792 23.0 0.1338 15.8  
+
+> Table 5. Relationship between Modality Gap and AUC
+
+Method C-GQA UT-Zappos 
+
+S U HM AUC S U HM AUC 
+
+Mean 44.2 35.7 32.0 13.9 68.6 71.0 53.8 41.1 Attention 44.9 34.3 30.9 13.5 66.2 75.6 51.8 40.1 Linear 44.6 36.8 32.5 14.5 63.9 73.5 50.1 37.5 
+
+Max 44.6 38.5 33.4 15.2 67.6 75.5 56.6 44.4  
+
+> Table 6. Operations in Sparse Alignment.
+
+ment, we leverage a simple yet effective max operation to achieve visual information reduction. Here, we conduct ex-periments on different operations: Mean pooling and learn-able patch-specific weight (Attention or Linear layer) in Tab. 6. Mean pooling cannot focus on critical patches, as it produces a uniform contribution from all patches. We then obtain patch-specific weight by conduct attention or linear layer on visual patches to decide which patch is discarded. 5559 1
+
+Successful Cases Failure Cases UT-Zappos C-GQA 
+
+> Baseline Ours Ground Truth Baseline Ours Ground Truth
+> patent.leather boots.ankle synthetic boots.ankle synthetic boots.ankle leather boots.ankle nylon boots.ankle nylon boots.ankle synthetic shoes.flats canvas shoes.flats canvas shoes.flats leather sandals satin sandals satin sandals
+> shoes.clogs.and.mules sheepskin slippers suede slippers
+> leather shoes.boat.shoes synthetic shoes.oxfords leather shoes oxfords
+> dark shirt black shirt black shirt
+> brown lamp brown table brown table
+> wood closet small closet small closet colorful shirt gray shirt gray shirt
+> white shirt red scarf maroon scarf
+> white pot yellow car driving car
+
+Figure 5. Qualitative results in UT-Zappos and C-GQA. Green indicates the right prediction and red denotes the wrong prediction. 1      
+
+> green book white tail
+> Baseline VAC
+> brown pillow heavy cloud
+> input input baseline baseline VAC VAC
+
+Figure 6. Visualization of VAC. 
+
+However, without guidance from textual information, the effectiveness is not as good as the simple max operation. 
+
+Dataset Method S U HM AUC 
+
+C-GQA Troika 41.0 35.7 29.4 12.4 Troika + SA 41.9 36.1 30.7 13.1 
+
+UT-Zappos Troika 66.8 73.8 54.6 41.7 Troika + SA 70.0 72.9 55.2 43.1 
+
+Table 7. Sparse Alignment in Troika 
+
+Improvements of Sparse Alignment in Troika. The sparse alignment (SA) we proposed is a straightforward plug-and-play training paradigm. To validate its effective-ness, we integrate SA into SOTA method Troika [9] for comprehensive evaluation. As shown in Tab. 7, sparse alignment does not introduce additional learnable param-eters, and improves AUC from 12.4 to 13.1 in C-GQA and from 41.7 to 43.1 in UT-Zappos, respectively. 
+
+Visualization of Visual Adaptive Condensation. To qualitatively evaluate whether the VAC module indeed ex-ploits the critical patches, we visualize the attention weights of VAC and baseline (last layer of CLIP) in Fig. 6. As we can see, the VAC module adaptively excavates criti-cal visual information while minimizing attention to re-dundant details, such as “ cat ” in “ green book ”, “ leaf ” in “white tail ” and “ word ” in “ heavy cloud ”. More visual-ization results are in §C. 
+
+5.4. Qualitative Results 
+
+We present qualitative results in Fig. 5, including both suc-cessful and failure cases compared with the baseline. As we can see, SAM effectively attends to the primary ob-ject without being distracted by redundant visual cues, such as “ brown lamp ” vs. “ brown table ” or “ colorful shirt ” vs. “gray shirt ”. In failure cases, although the model may mis-classify a composition, it usually captures at least one prim-itive correctly. These errors often arise from semantic sim-ilarity (e.g., “ red ” vs. “ maroon ”, “ suede ” vs. “ sheepskin ”), which obscures the distinction between relevant and redun-dant information and leads to incorrect predictions. More qualitative results can be found in Supp §C. 
+
+# 6. Conclusion 
+
+Through the analysis of the modality gap, we propose an Sparse Alignment (SA) training paradigm that establishes an information balance between image-text pairs by reduc-ing redundant visual information. Subsequently, we intro-duce a Visual Adaptive Condensation (VAC) module, which adaptively captures critical visual information guided by SA. Finally, we design a unimodal memory bank to per-form classification within the visual modality, bypassing the modality gap. 5560 Acknowledgments 
+
+This work was supported by the Fundamental Research Funds for the Central Universities (2024YJS037), Natural Science Foundation of Hebei Province (No.F2025105018) and the Beijing Natural Science Foundation (No.L259051, No.4242046). 
+
+# References 
+
+[1] Wentao Bao, Lichang Chen, Heng Huang, and Yu Kong. Prompting language-informed distribution for compositional zero-shot learning. arXiv preprint arXiv:2305.14428 , 2023. 2, 6, 7, 3 [2] Zhixiang Chi, Li Gu, Huan Liu, Yang Wang, Yuanhao Yu, and Jin Tang. Metafscil: A meta-learning approach for few-shot class incremental learning. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 14166–14175, 2022. 7 [3] Zhixiang Chi, Li Gu, Tao Zhong, Huan Liu, YUANHAO YU, Konstantinos N Plataniotis, and Yang Wang. Adapt-ing to distribution shift by visual domain prompt generation. In The Twelfth International Conference on Learning Repre-sentations , 2024. 5 [4] Zhixiang Chi, Li Gu, Huan Liu, Ziqiang Wang, Yanan Wu, Yang Wang, and Konstantinos N Plataniotis. Learning to adapt frozen clip for few-shot test-time domain adaptation. In The Thirteenth International Conference on Learning Representations , 2025. 5 [5] Zhixiang Chi, Yanan Wu, Li Gu, Huan Liu, Ziqiang Wang, Yang Zhang, Yang Wang, and Konstantinos N Platanio-tis. Plug-in feedback self-adaptive attention in clip for training-free open-vocabulary segmentation. arXiv preprint arXiv:2508.20265 , 2025. 2, 4 [6] Shayan Mohajer Hamidi, Xizhen Deng, Renhao Tan, Lin-feng Ye, and Ahmed Hussein Salamah. How to train the teacher model for effective knowledge distillation. In Euro-pean Conference on Computer Vision , pages 1–18. Springer, 2024. 5 [7] Shaozhe Hao, Kai Han, and Kwan-Yee K Wong. Learning at-tention as disentangler for compositional zero-shot learning. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 15315–15324, 2023. 2[8] Geoffrey Hinton, Oriol Vinyals, and Jeff Dean. Distill-ing the knowledge in a neural network. arXiv preprint arXiv:1503.02531 , 2015. 5 [9] Siteng Huang, Biao Gong, Yutong Feng, Min Zhang, Yiliang Lv, and Donglin Wang. Troika: Multi-path cross-modal trac-tion for compositional zero-shot learning. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 24005–24014, 2024. 1, 2, 6, 7, 8, 3, 4 [10] Phillip Isola, Joseph J Lim, and Edward H Adelson. Discov-ering states and transformations in image collections. In Pro-ceedings of the IEEE Conference on Computer Vision and Pattern Recognition , pages 1383–1391, 2015. 6 [11] Chenchen Jing, Yukun Li, Hao Chen, and Chunhua Shen. Retrieval-augmented primitive representations for composi-tional zero-shot learning. In Proceedings of the AAAI Con-ference on Artificial Intelligence , pages 2652–2660, 2024. 3, 5[12] Shyamgopal Karthik, Massimiliano Mancini, and Zeynep Akata. Revisiting visual product for compositional zero-shot learning. In NeurIPS 2021 Workshop on Distribution Shifts: Connecting Methods and Applications , 2021. 1 [13] Shyamgopal Karthik, Massimiliano Mancini, and Zeynep Akata. Kg-sp: Knowledge guided simple primitives for open world compositional zero-shot learning. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 9336–9345, 2022. 3 [14] Muhammad Gul Zain Ali Khan, Muhammad Ferjad Naeem, Luc Van Gool, Alain Pagani, Didier Stricker, and Muham-mad Zeshan Afzal. Learning attention propagation for compositional zero-shot learning. In Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision , pages 3828–3837, 2023. 1 [15] Hanjae Kim, Jiyoung Lee, Seongheon Park, and Kwanghoon Sohn. Hierarchical visual primitive experts for composi-tional zero-shot learning. In Proceedings of the IEEE/CVF International Conference on Computer Vision , pages 5675– 5685, 2023. 2 [16] Diederik P Kingma and Jimmy Ba. Adam: A method for stochastic optimization. arXiv preprint arXiv:1412.6980 ,2014. 1 [17] Solomon Kullback and Richard A Leibler. On information and sufficiency. The annals of mathematical statistics , 22(1): 79–86, 1951. 5 [18] Brenden M Lake. Towards more human-like concept learn-ing in machines: Compositionality, causality, and learning-to-learn . PhD thesis, Massachusetts Institute of Technology, 2014. 1 [19] Xiangyu Li, Xu Yang, Kun Wei, Cheng Deng, and Muli Yang. Siamese contrastive embedding network for composi-tional zero-shot learning. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition ,pages 9326–9335, 2022. 2 [20] Yun Li, Zhe Liu, Hang Chen, and Lina Yao. Context-based and diversity-driven specificity in compositional zero-shot learning. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 17037– 17046, 2024. 1, 2, 6, 7, 3 [21] Yong-Lu Li, Yue Xu, Xiaohan Mao, and Cewu Lu. Symme-try and group in attribute-object compositions. In Proceed-ings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 11316–11325, 2020. 1, 2 [22] Feng Liang, Bichen Wu, Xiaoliang Dai, Kunpeng Li, Yinan Zhao, Hang Zhang, Peizhao Zhang, Peter Vajda, and Diana Marculescu. Open-vocabulary semantic segmentation with mask-adapted clip. In Proceedings of the IEEE/CVF Con-ference on Computer Vision and Pattern Recognition , pages 7061–7070, 2023. 2, 4 [23] Victor Weixin Liang, Yuhui Zhang, Yongchan Kwon, Ser-ena Yeung, and James Y Zou. Mind the gap: Understanding the modality gap in multi-modal contrastive representation learning. Advances in Neural Information Processing Sys-tems , 35:17612–17625, 2022. 1, 2, 3 5561 [24] Huan Liu, Li Gu, Zhixiang Chi, Yang Wang, Yuanhao Yu, Jun Chen, and Jin Tang. Few-shot class-incremental learning via entropy-regularized data-free replay. In European Con-ference on Computer Vision , pages 146–162. Springer, 2022. 7[25] Ze Liu, Yutong Lin, Yue Cao, Han Hu, Yixuan Wei, Zheng Zhang, Stephen Lin, and Baining Guo. Swin transformer: Hierarchical vision transformer using shifted windows. In 
+
+Proceedings of the IEEE/CVF International Conference on Computer Vision , pages 10012–10022, 2021. 5 [26] Zhe Liu, Yun Li, Lina Yao, Xiaojun Chang, Wei Fang, Xi-aojun Wu, and Abdulmotaleb El Saddik. Simple primi-tives with feasibility-and contextuality-dependence for open-world compositional zero-shot learning. IEEE Transactions on Pattern Analysis and Machine Intelligence , 2023. 2, 3, 6, 1[27] Xiaocheng Lu, Song Guo, Ziming Liu, and Jingcai Guo. De-composed soft prompt guided fusion enhancing for compo-sitional zero-shot learning. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition ,pages 23560–23569, 2023. 1, 2, 6, 7, 3 [28] Ishan Misra, Abhinav Gupta, and Martial Hebert. From red wine to red tomato: Composition with context. In Proceed-ings of the IEEE Conference on Computer Vision and Pattern Recognition , pages 1792–1801, 2017. 1, 2 [29] Muhammad Ferjad Naeem, Yongqin Xian, Federico Tombari, and Zeynep Akata. Learning graph embeddings for compositional zero-shot learning. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 953–962, 2021. 1, 2, 3, 6 [30] Tushar Nagarajan and Kristen Grauman. Attributes as op-erators: factorizing unseen attribute-object compositions. In 
+
+Proceedings of the European Conference on Computer Vi-sion (ECCV) , pages 169–185, 2018. 1, 2 [31] Nihal V Nayak, Peilin Yu, and Stephen Bach. Learning to compose soft prompts for compositional zero-shot learning. In The Eleventh International Conference on Learning Rep-resentations , 2023. 2, 6, 7, 3 [32] Changdae Oh, Junhyuk So, Hoyoon Byun, YongTaek Lim, Minchul Shin, Jong-June Jeon, and Kyungwoo Song. Geodesic multi-modal mixup for robust fine-tuning. Ad-vances in Neural Information Processing Systems , 36: 52326–52341, 2023. 1, 3 [33] PyTorch. torch.optim.lr scheduler.steplr. https : / / pytorch.org/docs/stable/generated/torch. optim.lr_scheduler.StepLR.html , 2025. 1 [34] Hongyu Qu, Jianan Wei, Xiangbo Shu, and Wenguan Wang. Learning clustering-based prototypes for composi-tional zero-shot learning. In The Thirteenth International Conference on Learning Representations , 2025. 2, 6, 7, 3 [35] Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sastry, Amanda Askell, Pamela Mishkin, Jack Clark, et al. Learn-ing transferable visual models from natural language super-vision. In International Conference on Machine Learning ,pages 8748–8763. PMLR, 2021. 1, 2, 6, 7, 3 [36] Jintao Rong, Hao Chen, Tianxiao Chen, Linlin Ou, Xinyi Yu, and Yifan Liu. Retrieval-enhanced visual prompt learning for few-shot classification. arXiv preprint arXiv:2306.02243 ,2023. 3 [37] Simon Schrodi, David T Hoffmann, Max Argus, Volker Fis-cher, and Thomas Brox. Two effects, one trigger: On the modality gap, object bias, and information imbalance in con-trastive vision-language models. In The Thirteenth Interna-tional Conference on Learning Representations , 2025. 1, 3, 7[38] Claude E Shannon. A mathematical theory of communi-cation. The Bell system technical journal , 27(3):379–423, 1948. 5 [39] Peiyang Shi, Michael C Welle, M˚ arten Bj¨ orkman, and Dan-ica Kragic. Towards understanding the modality gap in clip. In ICLR 2023 workshop on multimodal representation learn-ing: perks and pitfalls , 2023. 1, 3 [40] Hugo Touvron, Matthieu Cord, Matthijs Douze, Francisco Massa, Alexandre Sablayrolles, and Herv´ e J´ egou. Training data-efficient image transformers & distillation through at-tention. In International Conference on Machine Learning ,pages 10347–10357. PMLR, 2021. 5 [41] Vishaal Udandarao. Understanding and fixing the modality gap in vision-language models. Master’s thesis, University of Cambridge , 32, 2022. 1, 3 [42] Vishaal Udandarao, Ankush Gupta, and Samuel Albanie. Sus-x: Training-free name-only transfer of vision-language models. In Proceedings of the IEEE/CVF International Con-ference on Computer Vision , pages 2725–2736, 2023. 3 [43] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszko-reit, Llion Jones, Aidan N Gomez, Łukasz Kaiser, and Illia Polosukhin. Attention is all you need. Advances in Neural Information Processing Systems , 30, 2017. 5 [44] Henan Wang, Muli Yang, Kun Wei, and Cheng Deng. Hier-archical prompt learning for compositional zero-shot recog-nition. In International Joint Conference on Artificial Intel-ligence , page 3, 2023. 3 [45] Qingsheng Wang, Lingqiao Liu, Chenchen Jing, Hao Chen, Guoqiang Liang, Peng Wang, and Chunhua Shen. Learning conditional attributes for compositional zero-shot learning. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 11197–11206, 2023. 2[46] Ziqiang Wang, Zhixiang Chi, Yanan Wu, Li Gu, Zhi Liu, Konstantinos Plataniotis, and Yang Wang. Distribution align-ment for fully test-time adaptation with dynamic online data streams. In European Conference on Computer Vision , pages 332–349. Springer, 2024. 5 [47] Peng Wu, Xiankai Lu, Hao Hu, Yongqin Xian, Jianbing Shen, and Wenguan Wang. Logiczsl: Exploring logic-induced representation for compositional zero-shot learning. In Proceedings of the Computer Vision and Pattern Recogni-tion Conference , pages 30301–30311, 2025. 1, 2, 6, 7, 3 [48] Yanan Wu, Zhixiang Chi, Yang Wang, and Songhe Feng. Metagcd: Learning to continually learn in generalized cat-egory discovery. In Proceedings of the IEEE/CVF inter-national conference on computer vision , pages 1655–1665, 2023. 3 [49] Yanan Wu, Zhixiang Chi, Yang Wang, Konstantinos N Pla-taniotis, and Songhe Feng. Test-time domain adaptation by 5562 learning domain-aware batch normalization. In Proceed-ings of the AAAI Conference on Artificial Intelligence , pages 15961–15969, 2024. 5 [50] Guangyue Xu, Parisa Kordjamshidi, and Joyce Chai. Prompting large pre-trained vision-language models for compositional concept learning. arXiv preprint arXiv:2211.05077 , 2022. 3 [51] Xudong Yan and Songhe Feng. Tomcat: Test-time com-prehensive knowledge accumulation for compositional zero-shot learning. arXiv preprint arXiv:2510.20162 , 2025. 1, 4, 5[52] Xudong Yan, Songhe Feng, Yang Zhang, Jian Yang, Yueguan Lin, and Haojun Fei. Leveraging mllm embeddings and attribute smoothing for compositional zero-shot learn-ing. arXiv preprint arXiv:2411.12584 , 2024. 1 [53] Muli Yang, Cheng Deng, Junchi Yan, Xianglong Liu, and Dacheng Tao. Learning unseen concepts via hierarchi-cal decomposition and composition. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 10248–10256, 2020. 2 [54] Linfeng Ye, Shayan Mohajer Hamidi, Renhao Tan, and EN-HUI YANG. Bayes conditional distribution estimation for knowledge distillation based on conditional mutual informa-tion. In The Twelfth International Conference on Learning Representations , 2024. 5 [55] Linfeng Ye, Zhixiang Chi, Konstantinos N Plataniotis, and En-hui Yang. Normalized conditional mutual information surrogate loss for deep neural classifiers. arXiv preprint arXiv:2601.02543 , 2026. 1 [56] Linfeng Ye, Shayan Mohajer Hamidi, Zhixiang Chi, Guang Li, Mert Pilanci, Takahiro Ogawa, Miki Haseyama, and Kon-stantinos N. Plataniotis. ASMIL: Attention-stabilized multi-ple instance learning for whole-slide imaging. In The Four-teenth International Conference on Learning Representa-tions , 2026. 5 [57] Aron Yu and Kristen Grauman. Fine-grained visual compar-isons with local learning. In Proceedings of the IEEE Con-ference on Computer Vision and Pattern Recognition , pages 192–199, 2014. 6 [58] Maxime Zanella and Ismail Ben Ayed. Low-rank few-shot adaptation of vision-language models. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 1593–1603, 2024. 2, 6, 1, 5 [59] Renrui Zhang, Wei Zhang, Rongyao Fang, Peng Gao, Kun-chang Li, Jifeng Dai, Yu Qiao, and Hongsheng Li. Tip-adapter: Training-free adaption of clip for few-shot classifi-cation. In European Conference on Computer Vision , pages 493–510. Springer, 2022. 3, 5 [60] Yang Zhang and Songhe Feng. Enhancing domain-invariant parts for generalized zero-shot learning. In Proceedings of the 31st ACM International Conference on Multimedia ,pages 6283–6291, 2023. 1 [61] Yuhui Zhang, Jeff Z HaoChen, Shih-Cheng Huang, Kuan-Chieh Wang, James Zou, and Serena Yeung. Diagnosing and rectifying vision models using language. arXiv preprint arXiv:2302.04269 , 2023. 1, 2, 3, 7 [62] Yang Zhang, Songhe Feng, and Jiazheng Yuan. Continual compositional zero-shot learning. International Joint Con-ference on Artificial Intelligence , 2024. 1 [63] Zhaoheng Zheng, Haidong Zhu, and Ram Nevatia. Caila: Concept-aware intra-layer adapters for compositional zero-shot learning. In Proceedings of the IEEE/CVF Winter Con-ference on Applications of Computer Vision , pages 1721– 1731, 2024. 2, 3 [64] Tao Zhong, Zhixiang Chi, Li Gu, Yang Wang, Yuanhao Yu, and Jin Tang. Meta-dmoe: Adapting to domain shift by meta-distillation from mixture-of-experts. Advances in Neural In-formation Processing Systems , 35:22243–22257, 2022. 7 [65] Chenliang Zhou, Fangcheng Zhong, and Cengiz ¨Oztireli. Clip-pae: Projection-augmentation embedding to extract rel-evant features for a disentangled, interpretable and control-lable text-guided face manipulation. In ACM SIGGRAPH 2023 Conference Proceedings , pages 1–9, 2023. 1, 3 [66] Kaiyang Zhou, Jingkang Yang, Chen Change Loy, and Ziwei Liu. Learning to prompt for vision-language models. In-ternational Journal of Computer Vision , 130(9):2337–2348, 2022. 6, 7, 3 5563

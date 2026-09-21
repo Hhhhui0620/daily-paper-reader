@@ -1,0 +1,380 @@
+Title: Uncertainty-Aware Modality Fusion for Unaligned RGB-T Salient Object Detection
+
+URL Source: https://openaccess.thecvf.com/content/CVPR2026/papers/Wang_Uncertainty-Aware_Modality_Fusion_for_Unaligned_RGB-T_Salient_Object_Detection_CVPR_2026_paper.pdf
+
+Published Time: Sat, 16 May 2026 16:54:15 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+# Uncertainty-Aware Modality Fusion for Unaligned RGB-T Salient Object Detection 
+
+## Mianzhao Wang 1,2,3 , Fan Shi 1,2,3, *
+
+## , Xu Cheng 1,2,3 , Chen Jia 1,2,3 , Shengyong Chen 1,2,3 1School of Computer Science and Engineering, Tianjin University of Technology 
+
+> 2
+
+## Engineering Research Center of Learning-Based Intelligent System (Ministry of Education) 
+
+> 3
+
+## Key Laboratory of Computer Vision and System (Ministry of Education) 
+
+wmz@stud.tjut.edu.cn, shifan@email.tjut.edu.cn, xu.cheng@ieee.org, jiachen@email.tjut.edu.cn, sy@ieee.org 
+
+## Abstract 
+
+Unaligned RGB-T salient object detection (SOD) remains challenging due to severe cross-modal spatial discrepan-cies and unreliable feature fusion. Existing methods of-ten assume perfect alignment or rely on geometric reg-istration, which is computationally demanding and sensi-tive to cross-modal inconsistencies. To address these limi-tations, we propose an uncertainty-aware modality fusion network (UMFNet) that reformulates RGB-T SOD as an uncertainty-aware representation learning problem. Specif-ically, the proposed uncertainty alignment module (UAM) models pixel-wise features as Gaussian latent distributions to estimate local uncertainty and identify cross-modal con-sistency regions within the feature space, thereby achiev-ing implicit alignment without explicit registration. Fur-thermore, the confidence-guided global modulation (CGM) mechanism leverages confidence maps derived from un-certainty estimation to adaptively regulate the fusion of RGB and thermal features, enhancing salient cues in re-liable regions while suppressing noisy or inconsistent in-formation. Extensive experiments on five unaligned and three aligned RGB-T SOD benchmarks demonstrate that UMFNet achieves state-of-the-art performance across di-verse alignment conditions. 
+
+## 1. Introduction 
+
+Salient object detection (SOD) aims to automatically iden-tify and segment the most visually significant objects from complex scenes [17, 22], serving key roles in tasks like ob-ject tracking and scene understanding. While RGB-based methods perform well under good lighting, they often fail in challenging conditions such as low light or rain [3, 9]. In 
+
+> *Corresponding author. Thermal Image Visible Image
+
+Encoder Encoder 
+
+Attention 
+
+> Fused Flatten Features
+> Concatenate
+> Thermal Image Visible Image
+
+Encoder Encoder  
+
+> Uncertainty Modeling
+
+Modulation 
+
+> Uncertainty-aware Aligned Features
+> Thermal Image Visible Image
+
+Encoder Encoder 
+
+Addition 
+
+> Fused Aligned Features
+> Deformable and Warp
+> (c) Our Uncertainty-aware Modality RGB-T Fusion
+
+(b) Unaligned RGB-T Fusion (a) Traditional RGB-T Fusion 
+
+Figure 1. Pipelines of different Unaligned RGB-T fusion methods. (a) Traditional RGB-T Fusion. (b) Unaligned RGB-T Fusion. (c) Our Uncertainty-aware Modality RGB-T Fusion. 
+
+contrast, thermal infrared imaging is less affected by illu-mination and weather, offering more stable structural cues [33, 39]. Leveraging the complementary properties of RGB and thermal modalities, RGB-T SOD has gained growing attention for improving detection robustness and accuracy in complex environments [2]. Despite remarkable advances in RGB-T fusion methods, most existing methods rely on the idealized assumption that RGB and thermal images are perfectly spatially aligned [10], as shown in Fig.1(a). However, this assumption of-ten breaks down in real-world applications due to differ-ences in imaging mechanisms and sensor placement [18]. This CVPR paper is the Open Access version, provided by the Computer Vision Foundation. Except for this watermark, it is identical to the accepted version; the final published version of the proceedings is available on IEEE Xplore. 41489 As a result, RGB and thermal images frequently exhibit varying degrees of spatial misalignment [36]. Such cross-modal misalignment introduces significant discrepancies at the pixel level, leading to feature distortion and semantic inconsistency during feature fusion. These issues increase the risk of erroneous information integration and ultimately degrade detection performance [37]. Motivated by the limi-tations of existing methods under spatial misalignment, we focus on designing RGB-T SOD models capable of cross-modal fusion without relying on explicit registration. To address cross-modal misalignment, most existing methods adopt explicit geometric registration strategies [25, 41]. For example, in RGB-T object detection, affine trans-formation prediction and deformable convolutions have been employed to achieve object-level alignment [18, 40], as shown in Fig.1(b). However, these methods are com-putationally intensive and highly sensitive to parallax, oc-clusion, and modality degradation, which often compro-mises robustness and generalization. To mitigate the re-liance on precise geometric alignment, recent studies have investigated alternative mechanisms such as high-level se-mantic guidance [13], cross-modal attention [8], local win-dow matching [34], and graph-based structural constraints [38]. These methods help alleviate accumulated noise and feature distortions. Nonetheless, in pixel-level tasks such as SOD, especially under semantically ambiguous con-ditions, these methods remain insufficient in addressing cross-modal pixel-wise alignment. Therefore, achieving cross-modal pixel-wise consistency and learning robust aligned thermal representations without relying on ex-plicit geometric registration has become a critical chal-lenge in RGB-T SOD .After obtaining the aligned thermal features, existing methods typically enhance cross-modal complementarity by injecting them into RGB features through attention-based strategies [24]. However, due to the inherent dif-ferences in semantic distributions between RGB and ther-mal modalities, the spatial reliability of the aligned fea-tures remains significantly uneven [32]. If such unreli-able information is ignored during the fusion process, er-roneous information from modality conflicts or low-quality regions may be introduced, leading to fusion bias and degra-dation of the discriminative capacity of the original RGB features [44]. These effects are particularly severe in un-aligned scenes, where the semantic gap between the two modalities tends to widen [4]. In such cases, conventional attention-based strategies not only struggle to identify unre-liable information within the thermal features but also fail to effectively exploit the complementary strengths of RGB and thermal data. Thus, dynamically evaluating the local reliability of aligned thermal features during the fusion stage, while effectively suppressing unreliable noise, has emerged as the second key challenge in RGB-T SOD. 
+
+In this paper, we propose the uncertainty-aware modal-ity fusion network (UMFNet) to address the aforemen-tioned challenges of cross-modal unaligned fusion. In contrast to methods that rely on explicit geometric regis-tration, UMFNet formulates cross-modal alignment as an uncertainty-aware representation learning problem within the feature distribution space. Specifically, we design an uncertainty alignment module (UAM) that models pixel-wise uncertainty by reconstructing modality-specific fea-tures as Gaussian latent distributions. This strategy enables the learning of robust local feature representations within each modality, while leveraging the latent distribution space to capture cross-modal consistency. Furthermore, we intro-duce a confidence-guided global modulation (CGM) mech-anism, where confidence maps derived from uncertainty es-timation serve as gating signals to adaptively regulate the integration of aligned infrared features into RGB represen-tations. This mechanism facilitates globally reliable fusion by attenuating the influence of uncertain regions, thereby suppressing noise and enhancing the stability and accuracy of saliency prediction. Extensive experiments demonstrate that UMFNet achieves state-of-the-art performance on both aligned and unaligned datasets, thus validating both its ef-fectiveness and robustness. Our main contributions are: • We introduce UMFNet that reformulates unaligned RGB-T fusion via feature-space uncertainty modeling. Within UMFNet, the proposed UAM module models pixel-wise features as Gaussian latent distributions, allowing for the discovery of local cross-modal consistency and enabling robust alignment without explicit registration. • To enhance the reliability of cross-modal fusion, we pro-pose the CGM module that leverages pixel-wise confi-dence maps generated by UAM to adaptively regulate RGB and thermal feature fusion, strengthening saliency representation in high-confidence regions while suppress-ing unreliable information in low-confidence regions. • Extensive experiments on five unaligned and three aligned RGB-T saliency detection datasets demonstrate that UAMF effectively handles cross-modal misalign-ment while maintaining strong performance under ideal registration, confirming its robustness and generalization across varying alignment conditions. 
+
+## 2. Related Work 
+
+2.1. RGB-T Salient Object Detection 
+
+RGB-T SOD leverages the complementary properties of visible and thermal infrared modalities to enhance object localization under challenging conditions [27]. By fusing heterogeneous cross-modal cues, these methods offer ro-bust performance against illumination variations and tex-ture deficiencies, facilitating effective perception in night-time and degraded environments [11]. With the advance-41490 ment of deep learning, CNN-based dual-stream architec-tures have become the standard [12, 14, 31], with cross-modal interaction evolving from late fusion to more sophis-ticated intermediate strategies [5]. To further refine saliency representation, attention mechanisms are widely integrated across spatial and channel dimensions [19, 45]. More re-cently, Transformer-based models have been introduced to RGB-T SOD to exploit their superior global dependency modeling [16, 35]. For instance, HRTransNet [23] com-bines attention-based modality injection with dual-path re-finement to achieve high-quality multi-resolution fusion. Despite these developments, most existing methods oper-ate under the assumption of spatially aligned inputs, which constrains their practical applicability. To bridge this gap, our work targets unaligned RGB-T salient object detection and proposes a framework specifically designed to maintain robustness under spatial misalignment. 
+
+2.2. Unaligned Multi-modal Fusion 
+
+In real-world scenarios, such as UAV-based systems, RGB and thermal images often exhibit spatial misalignment due to inherent sensor discrepancies [13, 43]. This misalign-ment hinders effective feature fusion and significantly de-grades detection and segmentation performance. To address this, specialized fusion strategies have been developed for unaligned cross-modal settings [40, 42]. In object detec-tion, Fu et al. [8] mitigate reliance on image-level reg-istration by dynamically aggregating keypoints in the fea-ture space via deformable attention. Within the context of salient object detection, Lyu et al. [18] integrate con-trastive learning with frequency-domain modeling to en-hance alignment using FFT-based operations. Wang et al. [34] employ asymmetric window partitioning to establish correspondences, leveraging deformable convolutions for fine-grained refinement. Building upon this, PCNet [36] introduces a semantic-guided alignment scheme that pri-oritizes target regions to effectively suppress background noise. Despite these advances, most existing methods rely on deep learning-based geometric registration, which often lacks robustness and generalizability in complex scenarios. To overcome these limitations, we reformulate unaligned RGB-T SOD as a problem of uncertainty-aware representa-tion learning in the feature space. 
+
+## 3. The Proposed Method 
+
+3.1. Overview 
+
+To address the unaligned RGB-T SOD, we propose the uncertainty-aware modality fusion network (UMFNet). As illustrated in Fig.2, UMFNet takes RGB and thermal in-frared images as input and extracts multi-scale features us-ing two parallel Swin Transformer backbones. In the cross-modal alignment stage, we propose the uncertainty align-ment module (UAM) to address structural discrepancies be-tween the visible and thermal modalities. UAM projects the original visible and thermal features into latent Gaus-sian representations with pixel-wise uncertainty, enabling continuous spatial modeling within each modality through reparameterization-based sampling. This probabilistic rep-resentation facilitates the discovery of semantically consis-tent regions across modalities without relying on explicit registration, resulting in aligned thermal features. Building on this, we further introduce the confidence-guided global modulation (CGM) module, which leverages the variance estimates from UAM to generate a confidence map. This map guides the fusion of visible and aligned thermal fea-tures through both spatial and channel-wise modulation, ef-fectively enhancing the adaptability of feature fusion. Fi-nally, the fused multi-scale features are progressively up-sampled in the decoder, and saliency and boundary maps are predicted in parallel at multiple resolutions. 
+
+3.2. Uncertainty Alignment Module 
+
+In RGB-T salient object detection, visible images offer rich textures, while thermal images emphasize structural cues under low-light or occluded conditions [9]. However, due to modality differences, salient objects often exhibit spatial shifts and semantic inconsistency, which can impair fusion and introduce false responses in complex scenes [28, 36]. To mitigate the above issue, we propose the uncertainty alignment module (UAM), which encodes each modality’s deterministic features as pixel-wise latent Gaussians with learnable uncertainty. This representation forms a locally continuous latent space within each modality, enabling the discovery of cross-modal consistency regions. Specifically, given the visible features Fv ∈ RC×H×W
+
+and thermal features Ft ∈ RC×H×W extracted from the backbone, we construct a pixel-wise latent Gaussian distri-bution for each modality M ∈ { Fv, Ft}, facilitating intra-modal structure estimation and uncertainty modeling. The Gaussian distribution is defined as follows: 
+
+zM (p) ∼ N  μM (p), σ 2 
+
+> M
+
+(p) (1) Here, μM (p) denotes the mean, representing the estimated feature value of modality M at pixel location p, which in-herits the semantic information from the original features. 
+
+σ2 
+
+> M
+
+(p) denotes the variance, reflecting the uncertainty of the estimation. Both parameters are adaptively learned from each modality via a lightweight attention mechanism. In contrast to conventional fusion strategies such as element-wise addition, the proposed distribution-based method does not assume strict spatial alignment between modalities. In-stead, it constructs a locally continuous latent feature space within each modality. Although pixels across modalities may be spatially misaligned, their corresponding latent Gaussian distributions can exhibit overlapping regions in 41491 Swin Transformer 
+
+𝐀𝐀𝐀𦐀𝐀 1
+
+Swin Transformer Block 1
+
+Swin Transformer Block 2
+
+Swin Transformer Block 2𝐀𕀀𝐀 2
+
+Swin Transformer Block 3
+
+Swin Transformer Block 3
+
+Swin Transformer Block 4
+
+Swin Transformer Block 4𝐀𐠀𝐀 2𝐀𕀀𝐀 1 𝐀𐠀𝐀 1 𝐀𕀀𝐀 3 𝐀𐠀𝐀 3 𝐀𕀀𝐀 4 𝐀𐠀𝐀 4
+
+Upsampling Block 1
+
+Upsampling Block 2
+
+Upsampling Block 3
+
+Upsampling Block 4          
+
+> CCCC
+> Attention
+> 𝐀 𝐀 𝐀 𝐀 , 𝐀 𝐀 2𝐀
+> 𝐀 𝐀 𝐀 𝐀 , 𝐀 𝐀 2𝐀 𝐀 𝐀 𝐀 𝐀𝐀 𝐀 , 𝐀 𝐀 𝐀𝐀
+> 2𝐀 𝐀 𝐀 2𝐀 𝐀 𝐀 2𝐀
+> Confidence Generator
+> 𝐀 𝐀
+> 𝐀 𝐀 𝐀𝐀
+> 𝐀 𝐀
+> 𝐀 𝐀
+> 𝐀 𝐀
+> 𝐀 𝐀
+> 𝐀 𝐀
+
+⨁⨁
+
+> ⊝
+
+⨀⨀⨀⨀⨀
+
+Predictor 
+
+ℒ𝐀𝐀 ℒ𝐀𝐀𝐀 ℒ𝐀𝐀 ℒ𝐀𝐀𝐀 ℒ𝐀𝐀 ℒ𝐀𝐀𝐀 ℒ𝐀𝐀 ℒ𝐀𝐀𝐀 
+
+> 𝐀 𝐀
+> 𝐀 𝐀
+> Attention
+> 𝐀 𝐀
+
+Uncertainty Alignment Module (UAM) 
+
+> Attention MLP BN Attention
+
+Confidence-Guided Global Modulation (CGM)  
+
+> 𝐀 𝐀𝐀𝐀𝐀𝐀
+> 𝐀𞀀 . 5 , 𝐀𞀀 . 6
+> 𝐀 Spatial-aware modulation Sigmoid
+> Channel-aware modulation
+> AvgPool  Conv Conv ReLU ReLU Conv Conv
+> Saliency Supervision Boundary Supervision
+> C
+
+⨁ 
+
+> ⊝
+
+⨀
+
+> Concatenate Element-wise Multiplication Element-wise Addition Element Subtraction Thermal Image Visible Image Output
+
+Figure 2. Overview of the proposed UMFNet framework. The encoder–decoder network performs RGB–T feature fusion for salient object segmentation. Unaligned visible and thermal image pairs are used as inputs. The encoder integrates the baseline backbone with UAM and CGM for feature fusion. Multi-scale intermediate supervision with saliency and boundary losses refines object localization and boundaries. 
+
+the feature space. This enables the model to establish im-plicit alignment by leveraging local regions with high se-mantic and structural consistency. Then, to obtain latent representations suitable for down-stream interaction, we sample from the distribution using the reparameterization trick: 
+
+˜zM (p) = μM (p) + σM (p) ⊙ ε(p), ε(p) ∼ N (0 , I ) (2) The sampled feature ˜zM preserves the structural informa-tion of the original representation and enables more reliable estimation in complex regions. Moreover, to curb overcon-fident activations that lead to alignment drift, the following KL divergence regularization term is incorporated to con-strain the modality-specific latent distributions: 
+
+DKL = 12
+
+ σ2 
+
+> M
+
++ μ2 
+
+> M
+
+− 1 − log σ2
+
+> M
+
+ (3) Here, μM and σ2 
+
+> M
+
+denote the mean and variance of the pixel-wise Gaussian distribution learned for modality M .This term measures the divergence between the current latent distribution and the standard normal distribution 
+
+N (0 , 1) . We compute the average KL divergence across all pixel locations to obtain the modality-level regulariza-tion loss DM
+
+> KL
+
+, which helps suppress unstable activations in low-confidence regions during training. Subsequently, to further establish structural alignment between modalities, we construct a conditionally fused dis-tribution based on ˜zFv and ˜zFt :
+
+zFvt ∼ N (μFvt , σ 2 
+
+> Fvt
+
+), ˜zFvt = μFvt + σFvt ⊙ ε (4) Here, μFvt (p) and σ2 
+
+> Fvt
+
+(p) are jointly inferred from the la-tent representations ˜zFv and ˜zFt using a lightweight atten-tion network. Unlike ˜zFv and ˜zFt , which capture intra-modal structural estimations, ˜zFvt reflects the underlying alignment between modalities. Although the original fea-tures are spatially misaligned, ˜zFvt enables semantic align-ment by identifying overlapping regions in the latent Gaus-sian spaces of both modalities. Finally, we feed the latent representation ˜zFt of the in-frared modality and its corresponding cross-modal consis-tency representation ˜zFvt into a mapping function to gener-ate the aligned feature map ˜Ft. In this way, the UAM mod-ule transforms modality alignment from traditional pixel-level spatial registration to probabilistic alignment in the la-tent space, effectively alleviating the challenges caused by geometric discrepancies and modality heterogeneity. 
+
+3.3. Confidence-Guided Global Modulation 
+
+Although the aligned infrared feature ˜Ft is obtained, its ef-fective fusion with RGB features remains challenging [33]. Existing attention-based methods often ignore the spatially varying reliability of infrared data, leading to noise in re-gions of modality conflict or degradation [8]. To mitigate this, we introduce a confidence-guided global modulation (CGM) module, which uses the pixel-wise variance σ2 
+
+> M
+
+(p)
+
+from UAM as an uncertainty prior to generate a confidence map that adaptively gates the fusion process. Specifically, based on the variance σ2 
+
+> M
+
+(p) from the UAM module, we generate a confidence map Conf( p) to dynami-cally assess the structural reliability across spatial locations and modulate the injection strength of the infrared features 41492 F align during fusion. It is defined as: 
+
+Conf( p) = σ
+
+ 1
+
+T h ([InvU Fv (p), InvU Ft (p)]) 
+
+
+
+(5) Here, InvU Fv (p) and InvU Ft (p) are feature reliability maps from visible and infrared modalities, indicating the confidence of each pixel. h(·) is a lightweight pixel-wise convolution modeling their fusion. T is a learnable scaling factor, and σ(·) is the Sigmoid function that nor-malizes the output to [0 , 1] , yielding the final confidence map Conf( p). This confidence map adaptively models the reliability differences across modalities after alignment, suppressing noise from unreliable regions. To compute 
+
+InvU M (p), we apply a Softplus smoothing followed by an exponential transformation to the log-variance log σ2 
+
+> M
+
+(p) of each modality. It is defined as: 
+
+InvU M (p)−1 = 1
+
+C
+
+> C
+
+X
+
+> c=1
+
+exp  s(log σ2
+
+> M,c
+
+(p))  + ϵ (6) Here, C denotes the number of channels, and ϵ > 0 is a small constant for numerical stability. A higher value of 
+
+InvU M (p) indicates greater confidence in the feature esti-mation of modality M at location p.Then, the confidence map Conf( p) serves as a modula-tion gate to guide the reliable fusion of infrared and RGB features. Specifically, a channel-wise scaling factor γt and bias βt are generated via global average pooling and nonlin-ear transformation from the aligned infrared feature ˜Ft. The confidence map C( p) is then broadcast along the channel di-mension and combined with γt and βt to perform channel-aware modulation. 
+
+Fm = ( γt · Fv + βt) · Conf  (7) Here, Fm denotes the channel-modulated feature represen-tation. To further control the spatial-aware modulation, we predict a spatial prior map Pt from ˜Ft , which indicates regions more suitable for feature enhancement. This prior is element-wise multiplied with the confidence map to pro-duce a fusion mask ˜Pt = Pt · Conf , effectively suppressing the risk of incorrect injection in unreliable areas. Finally, we compute the difference between the channel-modulated features Fm and the visible features Fv as a residual signal, which is then multiplied by ˜Pt to perform spatial modulation. The final fused output is formulated as: 
+
+Ff used = Fv + ˜Pt · (Fm − Fv ) (8) This design provides both flexibility and numerical stability by adaptively adjusting fusion strength. When confidence is low, unreliable infrared features are effectively suppressed, preventing noisy information from propagating through the network. In summary, CGM performs confidence-guided fusion by combining channel modulation and spatial gating, enabling robust and adaptive integration of infrared cues while enhancing salient region representation. 
+
+3.4. Loss Function 
+
+To achieve joint optimization of structural modeling, cross-modal alignment and semantic fusion in RGB-T salient ob-ject detection, we construct a unified multi-task loss frame-work. This framework consists of three main objectives in-cluding saliency supervision, boundary modeling and latent distribution regularization. In the saliency branch, binary cross-entropy loss is applied to the four multi-scale predic-tions from the decoder and the final fused output. In the boundary branch, considering the frequent edge ambiguity in real-world scenarios, we adopt a combination of stan-dard BCE loss [21], Dice loss and a tolerant Dice loss [31]. The tolerant Dice loss applies max pooling to the ground-truth boundary map to relax strict pixel-wise alignment con-straints. In the regularization branch, we incorporate the regularization from the UAM module into the overall opti-mization objective to enforce the stability of the latent dis-tributions and suppress over-activation in low-confidence regions. The overall loss function is defined as: 
+
+Ltotal = λ1 · L sal + λ2 · L bd + λ3 ·
+
+
+
+DFv 
+
+> KL
+
++ DFt
+
+> KL
+
+
+
+(9) where Lsal denotes the supervision loss for the final saliency map. Lbd corresponds to the compound bound-ary loss in the boundary branch. DFv 
+
+> KL
+
+and DFt 
+
+> KL
+
+are the KL divergence regularization terms in the proposed UAM, respectively. λ1 to λ3 are weighting factors balancing the contributions of each sub-task during training. 
+
+## 4. Experiment 
+
+4.1. Implementation Details 
+
+Datasets. We evaluate our method on both unaligned and aligned RGB-T datasets. UVT20K [36] is a large-scale un-aligned dataset containing 20,000 training pairs and 20,000 test pairs. Additional unaligned test sets include UVT2000 [34], un-VT821 [28], un-VT1000 [28], and un-VT5000 [28]. For aligned data, VT5000 [29] provides training and test splits, and VT821 [30] and VT1000 [26] are test sets. 
+
+Metrics. We employ three widely used metrics, including S-measure [6], E-measure [7], and weighted F-measure [1]. 
+
+Training and Optimization. The proposed network is implemented using PyTorch and trained on 4 NVIDIA GTX3090 GPUs. The backbone is initialized with the Swin-B pre-trained model [15], while the remaining param-eters are randomly initialized. All input images are resized to 384 × 384 . The Adam optimizer is adopted with a batch size of 64 and an initial learning rate of 5 × 10 −5, which is decreased by a factor of 10 every 100 epochs. The training process is conducted for a total of 200 epochs. 41493 Table 1. Quantitative comparisons on two unaligned and three weakly aligned datasets. The best results are marked in bold. 
+
+Method Source UVT20K [36] UVT2000 [34] un-VT5000 [28] un-VT1000 [28] un-VT821 [28] 
+
+Sα ↑ ES ↑ F wβ ↑ Sα ↑ ES ↑ F wβ ↑ Sα ↑ ES ↑ F wβ ↑ Sα ↑ ES ↑ F wβ ↑ Sα ↑ ES ↑ F wβ ↑
+
+MIDD [27] TIP21 0.836 0.838 0.715 0.778 0.768 0.553 0.830 0.845 0.720 0.893 0.909 0.834 0.843 0.848 0.740 CGFNet [31] TCSVT21 0.830 0.827 0.689 0.764 0.749 0.520 0.833 0.843 0.703 0.894 0.908 0.826 0.837 0.841 0.724 SwinNet [16] TCSVT21 0.841 0.887 0.728 0.790 0.821 0.591 0.837 0.901 0.744 0.892 0.938 0.839 0.854 0.906 0.768 TNet [5] TMM22 0.856 0.884 0.769 0.792 0.806 0.610 0.858 0.902 0.784 0.904 0.936 0.863 0.876 0.909 0.809 DCNet [28] TIP22 0.809 0.842 0.715 0.767 0.800 0.588 0.812 0.861 0.737 0.876 0.911 0.839 0.817 0.858 0.738 HRTrans [23] TCSVT22 0.852 0.870 0.724 0.758 0.753 0.529 0.872 0.903 0.767 0.916 0.939 0.853 0.873 0.891 0.775 MCFNet [19] AI23 0.842 0.866 0.757 0.774 0.786 0.593 0.836 0.873 0.761 0.895 0.928 0.857 0.850 0.882 0.780 LSNet [45] TIP23 0.835 0.857 0.700 0.763 0.762 0.530 0.847 0.889 0.745 0.897 0.928 0.835 0.842 0.870 0.741 LAFB [35] TCSVT24 0.847 0.888 0.756 0.778 0.800 0.591 0.851 0.911 0.783 0.904 0.946 0.867 0.834 0.883 0.777 SACNet [34] TMM24 0.852 0.902 0.750 0.795 0.833 0.616 0.862 0.933 0.799 0.910 0.957 0.874 0.876 0.930 0.810 PCNet [36] AAAI25 0.871 0.911 0.808 0.819 0.862 0.679 0.879 0.935 0.839 0.922 0.964 0.904 0.893 0.938 0.854 UMFNet - 0.890 0.918 0.836 0.837 0.855 0.708 0.914 0.955 0.887 0.941 0.972 0.927 0.908 0.942 0.870 
+
+4.2. Comparison with the State-of-the-Art Methods 
+
+To demonstrate the effectiveness of the proposed method, we compare it with 12 state-of-the-art RGB-T SOD ap-proaches, including MIDD [27], CGFNet [31], SwinNet [16], TNet [5], DCNet [28], HRTransNet [23], MCFNet [19], LSNet [45], CAVER [20], LAFB [35], SACNet [34], and PCNet [36]. Notably, DCNet, SACNet, and PCNet are specifically designed for unaligned RGB-T SOD. All results are obtained either from the original papers or by reproduc-ing the authors’ released code with default parameters. 
+
+Quantitative Evaluation. Table 1 presents the quantita-tive comparison results of the proposed UMFNet on two un-aligned datasets UVT20K and UVT2000 and three weakly aligned datasets un-VT5000, un-VT1000, and un-VT821. Compared with thirteen state-of-the-art methods, UMFNet achieves the best performance across all five datasets in three key evaluation metrics Sα, ES , and F wβ , comprehen-sively demonstrating its strong adaptability and stability un-der various scenarios and alignment deviations. Particularly on the most challenging unaligned dataset UVT20K, UMFNet achieves Sα, ES , and F wβ scores of 0.890, 0.918, and 0.836, respectively, surpassing the sub-optimal method PCNet by 1.9%, 0.7%, and 2.8%. This demonstrates its remarkable robustness under conditions lacking spatial consistency. Similarly, on the weakly aligned datasets un-VT5000 and un-VT1000, UMFNet at-tains F wβ scores of 0.882 and 0.925, showing significant im-provements of 8.3% and 5.1% over SACNet, further verify-ing its superior generalization ability in handling structural misalignment and visual shift scenarios. Table 2 further presents the performance of UMFNet on three standard aligned datasets VT5000, VT1000, and VT821. The results indicate that UMFNet achieves over-all superior performance compared with existing compet-ing methods. In summary, whether on unaligned, weakly aligned, or standard aligned datasets, UMFNet demon-strates highly stable performance superiority. 
+
+Table 2. Quantitative comparisons on three aligned datasets. The best results are marked in bold.                                                                                                                                                 
+
+> Method Source VT5000 [29] VT1000 [26] VT821 [30]
+> Sα↑ES↑Fwβ↑Sα↑ES↑Fwβ↑Sα↑ES↑Fwβ↑
+> MIDD [27] TIP21 0.868 0.897 0.763 0.915 0.933 0.856 0.871 0.895 0.760 CGFNet [31] TCSVT21 0.883 0.922 0.831 0.923 0.944 0.900 0.881 0.912 0.829 SwinNet [16] TCSVT21 0.912 0.942 0.865 0.938 0.947 0.896 0.904 0.926 0.847 TNet [5] TMM22 0.895 0.927 0.895 0.929 0.937 0.937 0.899 0.919 0.904 DCNet [28] TIP22 0.871 0.920 0.822 0.922 0.948 0.902 0.876 0.912 0.819 HRTrans [23] TCSVT22 0.912 0.945 0.871 0.938 0.945 0.900 0.906 0.929 0.853 MCFNet [19] AI23 0.887 0.924 0.848 0.932 0.944 0.903 0.891 0.918 0.845 LSNet [45] TIP23 0.877 0.915 0.827 0.925 0.935 0.887 0.878 0.911 0.827 LAFB [35] TCSVT24 0.893 0.931 0.841 0.932 0.945 0.905 0.884 0.915 0.817 SACNet [34] TMM24 0.917 0.957 0.888 0.942 0.958 0.927 0.906 0.932 0.859 PCNet [36] AAAI25 0.920 0.958 0.891 0.943 0.973 0.926 0.915 0.945 0.873 UMFNet -0.926 0.963 0.903 0.951 0.978 0.940 0.930 0.960 0.907
+
+Qualitative Evaluation. As shown in Fig. 3, a qualitative comparison is conducted between UMFNet and several rep-resentative state-of-the-art methods on the unaligned dataset UVT20K under a variety of challenging scenes. The visual comparisons cover typical situations, including false tar-gets (Row 1), complex backgrounds (Row 2), multi-object scenes (Row 3), small-object scenes (Row 4), and low-illumination conditions (Row 5). In the false-target sce-nario, thermal images almost fail to provide valid cues, while UMFNet accurately suppresses misleading regions. Under complex backgrounds, unaligned thermal modalities lack salient target information, while UMFNet effectively captures discriminative spatial–semantic features. In multi-object scenes, the correspondence between unaligned ther-mal and RGB images becomes ambiguous, but UMFNet maintains clear object boundaries and correct associations. For small-object scenes, unaligned thermal cues introduce distracting noise, whereas UMFNet preserves fine details with precise localization. Finally, under low-light con-ditions, the RGB modality suffers from severe semantic degradation and unreliable thermal guidance, but UMFNet still achieves robust and visually coherent saliency predic-tions, demonstrating its superior resilience to spatial mis-alignment and illumination variation. 41494 Visible Image Thermal Image GT UMFNet PCNet SACNet LFAB HRTrans LSNet SwinNet Figure 3. Visual comparisons with other state-of-the-art methods on the unaligned dataset UVT20K [36], including false targets (Row 1), complex backgrounds (Row 2), multiple salient objects (Row 3), small objects (Row 4), and low illumination (Row 5). Table 3. Quantitative comparisons on two unaligned datasets. The best results are marked in bold.                                                                                 
+
+> Method UVT20K [36] UVT2000 [34]
+> Sα↑ES↑Fwβ↑Sα↑ES↑Fwβ↑
+> 1baseline 0.868 0.897 0.763 0.915 0.933 0.856 2w/o CGM 0.912 0.942 0.865 0.938 0.947 0.896 3w/o UAM 0.895 0.927 0.895 0.929 0.937 0.937 4w/o DKL 0.871 0.920 0.822 0.922 0.948 0.902 5w/o Conf 0.887 0.924 0.848 0.932 0.944 0.903 6w/o CAM 0.877 0.915 0.827 0.925 0.935 0.887 7w/o SAM 0.893 0.931 0.841 0.932 0.945 0.905 8w/o Lbd 0.917 0.957 0.888 0.942 0.958 0.958 9UMFNet 0.926 0.963 0.903 0.951 0.978 0.940
+
+4.3. Ablation Studies 
+
+4.3.1. Effectiveness of each component 
+
+To evaluate the contribution of each major component in UMFNet, we conduct ablation experiments on the UVT20K and UVT2000 datasets. We compare the complete model with several simplified variants. The baseline model, which removes both the UAM and CGM modules, represents a straightforward fusion approach without alignment or un-certainty modeling. The variant “w/o UAM” retains CGM but disables the probabilistic alignment between modalities. In contrast, the variant “w/o CGM” uses aligned features but excludes the confidence-aware fusion strategy. Among these, the baseline model exhibits the lowest performance, indicating that simple fusion is inadequate for handling un-aligned RGB and thermal inputs. Introducing UAM leads to significant improvements in both the F wβ and ES metrics on both datasets. This demonstrates that the latent Gaus-
+
+Table 4. Quantitative comparisons on two aligned datasets. The best results are marked in bold.                                                                
+
+> Fusion Layers UVT20K [36] UVT2000 [34] 1234Sα↑ES↑Fwβ↑Sα↑ES↑Fwβ↑
+> 1✓✓✓✓0.895 0.927 0.895 0.929 0.937 0.937 2✓✓✓0.883 0.922 0.831 0.923 0.944 0.900 3✓✓0.868 0.897 0.763 0.915 0.933 0.856 4✓✓✓0.912 0.942 0.865 0.938 0.947 0.896 5✓✓0.926 0.963 0.903 0.951 0.978 0.940
+
+sian representation with pixel-wise uncertainty effectively enhances cross-modal consistency. When CGM is incorpo-rated, the model’s performance improves further, particu-larly in scenarios involving unreliable or noisy thermal sig-nals. CGM contributes by adaptively weighting the fusion process based on the estimated confidence of each modality. The full UMFNet achieves optimal performance across all metrics, validating that UAM facilitates semantic alignment while CGM strengthens fusion robustness. Their synergy ensures accurate RGB-T SOD, particularly under challeng-ing spatial misalignment and modality variations. 
+
+4.3.2. UAM and CGM Analysis 
+
+To further evaluate the contributions of specific compo-nents in UMFNet, we conduct additional ablation studies focusing on UAM and CGM, as shown in Table 3. Re-moving the KL divergence regularization from UAM (“w/o 
+
+DKL ”) leads to a clear performance drop, suggesting that distribution-level constraints are essential for stabilizing la-tent representations and avoiding overconfident activations. Disabling the confidence prior in CGM (“w/o Conf”) also reduces robustness, as the model becomes less effective 41495 (a) (b) (c) (d) (e) (f) Figure 4. Feature visualization of multi-scale fusion configura-tions. (a) Saliency prediction. (b) Boundary prediction. (c–f) Feature maps from the first to fourth fusion layers. From top to bottom: (1) all layers fused, (2) layers 2 to 4 fused, (3) layers 3 to 4 fused, (4) layers 1 to 3 fused, and (5) layers 1 to 2 fused. 
+
+at suppressing noise in uncertain regions. In addition, re-moving the channel-aware modulation (“w/o CAM”) weak-ens semantic discrimination across feature channels, while removing the spatial-aware modulation (“w/o SAM”) re-duces spatial precision in localization. These results indi-cate that both components play distinct but complementary roles in enhancing the fusion process. Finally, eliminating the boundary loss supervision (“w/o Lbd ”) leads to less ac-curate object contours, confirming the importance of struc-tural guidance for refining segmentation quality. 
+
+4.3.3. Multi-scale Fusion Analysis 
+
+We conduct an ablation study to examine the impact of in-serting UAM and CGM at different feature levels within the encoder-decoder hierarchy. As shown in Table 4, insert-ing UAM and CGM into shallow fusion layers achieves the best results. Shallow features contain more heterogeneous modality information, making early alignment more effec-tive for reducing cross-modal discrepancies. In contrast, deep features are semantically consistent across modalities and thus require less alignment. This demonstrates that shallow-scale fusion better supports efficient RGB-T fea-ture integration. Furthermore, the visualizations in Fig. 4 present feature responses from the first to the fourth fusion layers under various insertion configurations, demonstrat-ing how shallow-layer fusion effectively enhances structural consistency and preserves fine-grained boundary details. 
+
+4.3.4. Performance Analysis 
+
+We evaluate the computational efficiency of UMFNet against the baseline and other methods, as reported in Ta-                            
+
+> Table 5. Performance and speed analysis of the proposed method.
+> Type Methods GFLOPs Params (M) FPS 1baseline 126.38 213.18 24.76 2w/o UAM 125.68 217.52 24.01 3w/o CGM 125.42 217.17 21.51 4PCNet [36] 148.36 291.75 11.31 5SACNet [34] 143.33 300.12 22.85 6UMFNet 126.10 217.60 22.16
+
+ble 5. UMFNet achieves an excellent trade-off between ac-curacy and efficiency, requiring 126.10 GFLOPs, 217.60M parameters, and running at 22.16 FPS. In comparison, PC-Net [36] and SACNet [34] are considerably more compu-tationally demanding, with PCNet operating at only 11.31 FPS, while SACNet, despite a similar runtime of 22.85 FPS, consumes significantly more FLOPs and parameters. The ablation variants, “w/o UAM” and “w/o CGM,” show that removing either module leads to only marginal differences in computational complexity but slightly reduces inference speed and overall performance. This demonstrates that both modules enhance feature fusion effectiveness while intro-ducing minimal computational overhead. 
+
+## 5. Conclusion 
+
+This paper introduces a novel UMFNet for unaligned RGB-T SOD that addresses the challenges of cross-modal spatial misalignment and unreliable feature fusion. Instead of re-lying on explicit geometric registration, UMFNet reformu-lates the alignment problem as uncertainty-aware represen-tation learning within a probabilistic feature space, enabling more robust and adaptive fusion across modalities. The pro-posed UAM models local pixel-wise features as Gaussian latent distributions to estimate cross-modal consistency and mitigate feature distortion caused by misalignment. In ad-dition, the CGM mechanism employs confidence maps de-rived from uncertainty estimation to adaptively regulate in-frared–RGB fusion, enhancing salient representations in re-liable regions while suppressing noise in uncertain areas. Therefore, UMFNet achieves alignment-free cross-modal consistency and adaptive fusion, delivering accurate and stable saliency detection with strong robustness and gen-eralization on both aligned and unaligned RGB-T datasets. 
+
+## 6. Acknowledgement 
+
+This work was supported by National Natural Science Foundation of China (NSFC) (62272342 and T2422015), Natural Science Foundation of Tianjin Municipality (CN) (23JCJQJC00070), Tianjin Municipal Science and Technology Program (CN) (24PTLYHZ00320). 41496 References 
+
+[1] Radhakrishna Achanta, Sheila Hemami, Francisco Estrada, and Sabine Susstrunk. Frequency-tuned salient region de-tection. In 2009 IEEE conference on computer vision and pattern recognition , pages 1597–1604. IEEE, 2009. 5 [2] Geng Chen, Qingyue Wang, Bo Dong, Ruitao Ma, Nian Liu, Huazhu Fu, and Yong Xia. Em-trans: Edge-aware multi-modal transformer for rgb-d salient object detection. IEEE Transactions on Neural Networks and Learning Systems , 36 (2):3175–3188, 2024. 1 [3] Liyuan Chen, Ming-Hsuan Yang, Jian Pu, and Zhonglong Zheng. Triplenet: Exploiting complementary features and pseudo-labels for semi-supervised salient object detection. 
+
+IEEE Transactions on Image Processing , 2025. 1 [4] Shenglun Chen, Xinzhu Ma, Hong Zhang, Haojie Li, Baoli Sun, and Zhihui Wang. Real-time depth completion with multimodal feature alignment. IEEE Transactions on Neural Networks and Learning Systems , 2025. 2 [5] Runmin Cong, Kepu Zhang, Chen Zhang, Feng Zheng, Yao Zhao, Qingming Huang, and Sam Kwong. Does thermal re-ally always matter for rgb-t salient object detection? IEEE Transactions on Multimedia , 25:6971–6982, 2022. 3, 6 [6] Deng-Ping Fan, Ming-Ming Cheng, Yun Liu, Tao Li, and Ali Borji. Structure-measure: A new way to evaluate foreground maps. In Proceedings of the IEEE international conference on computer vision , pages 4548–4557, 2017. 5 [7] Deng-Ping Fan, Cheng Gong, Yang Cao, Bo Ren, Ming-Ming Cheng, and Ali Borji. Enhanced-alignment mea-sure for binary foreground map evaluation. arXiv preprint arXiv:1805.10421 , 2018. 5 [8] Haolong Fu, Jin Yuan, Guojin Zhong, Xuan He, Jiacheng Lin, and Zhiyong Li. Cf-deformable detr: an end-to-end alignment-free model for weakly aligned visible-infrared ob-ject detection. In Proceedings of the Thirty-Third Interna-tional Joint Conference on Artificial Intelligence. Jeju , 2024. 2, 3, 4 [9] Chao Hao, Zitong Yu, Xin Liu, Jun Xu, Huanjing Yue, and Jingyu Yang. A simple yet effective network based on vi-sion transformer for camouflaged object and salient object detection. IEEE Transactions on Image Processing , 2025. 1, 3[10] Jiahao He, Keren Fu, Xiaohong Liu, and Qijun Zhao. Samba: A unified mamba-based framework for general salient object detection. In Proceedings of the Computer Vision and Pat-tern Recognition Conference , pages 25314–25324, 2025. 1 [11] Fushuo Huo, Xuegui Zhu, Lei Zhang, Qifeng Liu, and Yu Shu. Efficient context-guided stacked refinement network for rgb-t salient object detection. IEEE Transactions on Circuits and Systems for Video Technology , 32(5):3111–3124, 2021. 2[12] Fushuo Huo, Xuegui Zhu, Qian Zhang, Ziming Liu, and Wenchao Yu. Real-time one-stream semantic-guided refine-ment network for rgb-thermal salient object detection. IEEE Transactions on Instrumentation and Measurement , 71:1– 12, 2022. 3 [13] Chang Liu, Xin Ma, Xiaochen Yang, Yuxiang Zhang, and Yanni Dong. Como: Cross-mamba interaction and offset-guided fusion for multimodal object detection. Information Fusion , page 103414, 2025. 2, 3 [14] Jiang-Jiang Liu, Qibin Hou, Ming-Ming Cheng, Jiashi Feng, and Jianmin Jiang. A simple pooling-based design for real-time salient object detection. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 3917–3926, 2019. 3 [15] Ze Liu, Yutong Lin, Yue Cao, Han Hu, Yixuan Wei, Zheng Zhang, Stephen Lin, and Baining Guo. Swin transformer: Hierarchical vision transformer using shifted windows. In 
+
+Proceedings of the IEEE/CVF international conference on computer vision , pages 10012–10022, 2021. 5 [16] Zhengyi Liu, Yacheng Tan, Qian He, and Yun Xiao. Swinnet: Swin transformer drives edge-aware rgb-d and rgb-t salient object detection. IEEE Transactions on Circuits and Systems for Video Technology , 32(7):4486–4497, 2021. 3, 6 [17] Ziyang Luo, Nian Liu, Wangbo Zhao, Xuguang Yang, Dingwen Zhang, Deng-Ping Fan, Fahad Khan, and Junwei Han. Vscode: General visual salient and camouflaged ob-ject detection with 2d prompt learning. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 17169–17180, 2024. 1 [18] Pengfei Lyu, Pak-Hei Yeung, Xiaosheng Yu, Xiufei Cheng, Chengdong Wu, and Jagath C Rajapakse. Efficient fourier filtering network with contrastive learning for uav-based un-aligned bi-modal salient object detection. IEEE Transactions on Geoscience and Remote Sensing , 2025. 1, 2, 3 [19] Shuai Ma, Kechen Song, Hongwen Dong, Hongkun Tian, and Yunhui Yan. Modal complementary fusion network for rgb-t salient object detection. Applied Intelligence , 53(8): 9038–9055, 2023. 3, 6 [20] Youwei Pang, Xiaoqi Zhao, Lihe Zhang, and Huchuan Lu. Caver: Cross-modal view-mixed transformer for bi-modal salient object detection. IEEE Transactions on Image Pro-cessing , 32:892–904, 2023. 6 [21] Jinming Su, Jia Li, Yu Zhang, Changqun Xia, and Yonghong Tian. Selectivity or invariance: Boundary-aware salient ob-ject detection. In Proceedings of the IEEE/CVF international conference on computer vision , pages 3799–3808, 2019. 5 [22] Ke Sun, Zhongxi Chen, Xianming Lin, Xiaoshuai Sun, Hong Liu, and Rongrong Ji. Conditional diffusion models for cam-ouflaged and salient object detection. IEEE Transactions on Pattern Analysis and Machine Intelligence , 2025. 1 [23] Bin Tang, Zhengyi Liu, Yacheng Tan, and Qian He. Hrtransnet: Hrformer-driven two-modality salient object de-tection. IEEE Transactions on Circuits and Systems for Video Technology , 33(2):728–742, 2022. 3, 6 [24] Hao Tang, Zechao Li, Dong Zhang, Shengfeng He, and Jin-hui Tang. Divide-and-conquer: Confluent triple-flow net-work for rgb-t salient object detection. IEEE Transactions on Pattern Analysis and Machine Intelligence , 2024. 2 [25] Chao Tian, Zikun Zhou, Yuqing Huang, Gaojun Li, and Zhenyu He. Cross-modality proposal-guided feature min-ing for unregistered rgb-thermal pedestrian detection. IEEE Transactions on Multimedia , 26:6449–6461, 2024. 2 [26] Zhengzheng Tu, Tian Xia, Chenglong Li, Xiaoxiao Wang, Yan Ma, and Jin Tang. Rgb-t image saliency detection via 41497 collaborative graph learning. IEEE Transactions on Multi-media , 22(1):160–173, 2019. 5, 6 [27] Zhengzheng Tu, Zhun Li, Chenglong Li, Yang Lang, and Jin Tang. Multi-interactive dual-decoder for rgb-thermal salient object detection. IEEE Transactions on Image Processing ,30:5678–5691, 2021. 2, 6 [28] Zhengzheng Tu, Zhun Li, Chenglong Li, and Jin Tang. Weakly alignment-free rgbt salient object detection with deep correlation network. IEEE Transactions on Image Pro-cessing , 31:3752–3764, 2022. 3, 5, 6 [29] Zhengzheng Tu, Yan Ma, Zhun Li, Chenglong Li, Jieming Xu, and Yongtao Liu. Rgbt salient object detection: A large-scale dataset and benchmark. IEEE Transactions on Multi-media , 25:4163–4176, 2022. 5, 6 [30] Guizhao Wang, Chenglong Li, Yunpeng Ma, Aihua Zheng, Jin Tang, and Bin Luo. Rgb-t saliency detection benchmark: Dataset, baselines, analysis and a novel approach. In Chi-nese Conference on Image and Graphics Technologies , pages 359–369. Springer, 2018. 5, 6 [31] Jie Wang, Kechen Song, Yanqi Bao, Liming Huang, and Yunhui Yan. Cgfnet: Cross-guided fusion network for rgb-t salient object detection. IEEE Transactions on Circuits and Systems for Video Technology , 32(5):2949–2961, 2021. 3, 5, 6[32] Jie Wang, Guoqiang Li, Jie Shi, and Jinwen Xi. Weighted guided optional fusion network for rgb-t salient object detec-tion. ACM Transactions on Multimedia Computing, Commu-nications and Applications , 20(5):1–20, 2024. 2 [33] Jie Wang, Guoqiang Li, Hongjie Yu, Jinwen Xi, Jie Shi, and Xueying Wu. Intra-modality self-enhancement mirror net-work for rgb-t salient object detection. IEEE Transactions on Circuits and Systems for Video Technology , 2024. 1, 4 [34] Kunpeng Wang, Danying Lin, Chenglong Li, Zhengzheng Tu, and Bin Luo. Alignment-free rgbt salient object detec-tion: Semantics-guided asymmetric correlation network and a unified benchmark. IEEE Transactions on Multimedia , 26: 10692–10707, 2024. 2, 3, 5, 6, 7, 8 [35] Kunpeng Wang, Zhengzheng Tu, Chenglong Li, Cheng Zhang, and Bin Luo. Learning adaptive fusion bank for multi-modal salient object detection. IEEE Transactions on Circuits and Systems for Video Technology , 34(8):7344– 7358, 2024. 3, 6 [36] Kunpeng Wang, Keke Chen, Chenglong Li, Zhengzheng Tu, and Bin Luo. Alignment-free rgb-t salient object detection: A large-scale dataset and progressive correlation network. In Proceedings of the AAAI Conference on Artificial Intel-ligence , pages 7780–7788, 2025. 2, 3, 5, 6, 7, 8 [37] Kunpeng Wang, Zhengzheng Tu, Chenglong Li, Zhengyi Liu, and Bin Luo. Unified-modal salient object detection via adaptive prompt learning. IEEE Transactions on Circuits and Systems for Video Technology , 2025. 2 [38] Qishun Wang, Zhengzheng Tu, Chenglong Li, and Bo Jiang. Multimodal spatio-temporal graph learning for alignment-free rgbt video object detection. arXiv preprint arXiv:2504.11779 , 2025. 2 [39] Wen Yin, Bin Benjamin Zhu, Yulai Xie, Pan Zhou, and Dan Feng. Backdoor attacks on bimodal salient object detection with rgb-thermal data. In Proceedings of the 32nd ACM International Conference on Multimedia , pages 4110–4119, 2024. 1 [40] Maoxun Yuan, Xiaorong Shi, Nan Wang, Yinyan Wang, and Xingxing Wei. Improving rgb-infrared object detection with cascade alignment-guided transformer. Information Fusion ,105:102246, 2024. 2, 3 [41] Lu Zhang, Zhiyong Liu, Xiangyu Zhu, Zhan Song, Xu Yang, Zhen Lei, and Hong Qiao. Weakly aligned feature fusion for multimodal object detection. IEEE Transactions on Neural Networks and Learning Systems , 2021. 2 [42] Tianlu Zhang, Xiaoyi He, Qiang Jiao, Qiang Zhang, and Jun-gong Han. Amnet: Learning to align multi-modality for rgb-t tracking. IEEE Transactions on Circuits and Systems for Video Technology , 34(8):7386–7400, 2024. 3 [43] Zhicheng Zhao, Wei Zhang, Yun Xiao, Chenglong Li, and Jin Tang. Reflectance-guided progressive feature alignment network for all-day uav object detection. IEEE Transactions on Geoscience and Remote Sensing , 2025. 3 [44] Heng Zhou, Zhenxi Zhang, Chengyang Li, Chunna Tian, Yongqiang Xie, Zhongbo Li, and Xiao-Jun Wu. Deformation-resilient multigranularity learning for un-aligned rgb–t semantic segmentation. IEEE Transactions on Neural Networks and Learning Systems , 2025. 2 [45] Wujie Zhou, Yun Zhu, Jingsheng Lei, Rongwang Yang, and Lu Yu. Lsnet: Lightweight spatial boosting network for de-tecting salient objects in rgb-thermal images. IEEE Transac-tions on Image Processing , 32:1329–1340, 2023. 3, 6 41498

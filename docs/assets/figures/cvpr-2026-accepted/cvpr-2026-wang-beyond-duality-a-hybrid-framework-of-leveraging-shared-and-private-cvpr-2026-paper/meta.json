@@ -1,0 +1,94 @@
+{
+  "version": 2,
+  "extractor": "pymupdf-images",
+  "figures": [
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-wang-beyond-duality-a-hybrid-framework-of-leveraging-shared-and-private-cvpr-2026-paper/fig-001.webp",
+      "caption": "",
+      "page": 3,
+      "index": 1,
+      "width": 640,
+      "height": 480
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-wang-beyond-duality-a-hybrid-framework-of-leveraging-shared-and-private-cvpr-2026-paper/fig-002.webp",
+      "caption": "",
+      "page": 3,
+      "index": 2,
+      "width": 640,
+      "height": 480
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-wang-beyond-duality-a-hybrid-framework-of-leveraging-shared-and-private-cvpr-2026-paper/fig-003.webp",
+      "caption": "",
+      "page": 3,
+      "index": 3,
+      "width": 640,
+      "height": 480
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-wang-beyond-duality-a-hybrid-framework-of-leveraging-shared-and-private-cvpr-2026-paper/fig-004.webp",
+      "caption": "",
+      "page": 3,
+      "index": 4,
+      "width": 934,
+      "height": 638
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-wang-beyond-duality-a-hybrid-framework-of-leveraging-shared-and-private-cvpr-2026-paper/fig-005.webp",
+      "caption": "",
+      "page": 3,
+      "index": 5,
+      "width": 935,
+      "height": 639
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-wang-beyond-duality-a-hybrid-framework-of-leveraging-shared-and-private-cvpr-2026-paper/fig-006.webp",
+      "caption": "",
+      "page": 3,
+      "index": 6,
+      "width": 935,
+      "height": 639
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-wang-beyond-duality-a-hybrid-framework-of-leveraging-shared-and-private-cvpr-2026-paper/fig-007.webp",
+      "caption": "",
+      "page": 3,
+      "index": 7,
+      "width": 508,
+      "height": 932
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-wang-beyond-duality-a-hybrid-framework-of-leveraging-shared-and-private-cvpr-2026-paper/fig-008.webp",
+      "caption": "",
+      "page": 3,
+      "index": 8,
+      "width": 284,
+      "height": 488
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-wang-beyond-duality-a-hybrid-framework-of-leveraging-shared-and-private-cvpr-2026-paper/fig-009.webp",
+      "caption": "",
+      "page": 8,
+      "index": 9,
+      "width": 1200,
+      "height": 301
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-wang-beyond-duality-a-hybrid-framework-of-leveraging-shared-and-private-cvpr-2026-paper/fig-010.webp",
+      "caption": "",
+      "page": 8,
+      "index": 10,
+      "width": 1200,
+      "height": 301
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-wang-beyond-duality-a-hybrid-framework-of-leveraging-shared-and-private-cvpr-2026-paper/fig-011.webp",
+      "caption": "",
+      "page": 8,
+      "index": 11,
+      "width": 1200,
+      "height": 299
+    }
+  ]
+}

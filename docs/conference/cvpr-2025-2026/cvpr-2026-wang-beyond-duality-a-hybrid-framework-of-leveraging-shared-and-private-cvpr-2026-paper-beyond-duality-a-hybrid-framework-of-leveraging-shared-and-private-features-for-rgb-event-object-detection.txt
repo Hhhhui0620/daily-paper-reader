@@ -1,0 +1,410 @@
+Title: Beyond Duality: A Hybrid Framework of Leveraging Shared and Private Features for RGB-Event Object Detection
+
+URL Source: https://openaccess.thecvf.com/content/CVPR2026/papers/Wang_Beyond_Duality_A_Hybrid_Framework_of_Leveraging_Shared_and_Private_CVPR_2026_paper.pdf
+
+Published Time: Sat, 16 May 2026 16:46:41 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+# Beyond Duality: A Hybrid Framework of Leveraging Shared and Private Features for RGB-Event Object Detection 
+
+# Keyao Wang 1 Shuai Liu 1,2 *
+
+# Hengda Shi 1 Lukui Shi 1 Haiyong Chen 11School of Artificial Intelligence, Hebei University of Technology, Tianjin, China 
+
+> 2
+
+# Tianjin Institute of Advanced Technology, Tianjin, China 
+
+# Abstract 
+
+RGB-Event object detection is able to capture clear and de-tailed features of the target while maintaining high-speed information collection. It is suitable for high dynamic or harsh environments and has become a research hotspot in recent years. The existing RGB-Event object detectors all struggle to fully utilize the fusion features of two modal-ities, but do not explicitly disentangle shared vs. private features to dedicated branches. To fully tap into the po-tential of single features, we propose a frequency-domain coherence-based Shared and Private Features Decoupling method for RGB-Event object detection, SPFD network. First, we design a FCFS module to separate shared and private features by exploring the spectral energy distribu-tion differences between dual modalities. Then, we de-sign a TriAdapt Encoder to process the shared and pri-vate features, selectively emphasizing texture-rich RGB fea-tures in static regions and motion-sensitive event features in dynamic regions, thereby achieving a robust balance be-tween spatial detail and temporal awareness. Finally, a TriInject Decoder is proposed to emphasize the most dis-criminative modality features dynamically. Experimental results on the DSEC-Det and PKU-DAVIS-SOD datasets demonstrate that our model achieves competitive perfor-mance with state-of-the-art methods. Our codes are avail-able at https://github.com/git-KeYw/SPFD .
+
+# 1. Introduction 
+
+RGB-Event object detection [9] belongs to multimodal ob-ject detection methods, which integrates the advantages of both RGB and event modalities. On the one hand, it can capture relatively static objects and preserve texture infor-mation. On the other hand, it maintains fast capture capabil-ity and performs well in challenging scenarios such as high-speed motion, low-illumination environments, etc. There- 
+
+> *Corresponding author. Email: 2023078@hebut.edu.cn Encoder Encoder Fusion Decoder (Detector) RGB Event Output
+> (a) Existing methods Separate RGB-Private Event-Private Shared
+> Feature Reorganization
+> Encoder
+> Feature Injection
+> Decoder RGB Event Output
+> (b) Ours
+
+Figure 1. Comparison of our method with existing methods. Our method reorganizes shared and private features based on data char-acteristics, instead of undifferentiated fusion (existing methods). 
+
+fore, RGB-Event object detection could further enhance vi-sual perception capabilities in recent years, especially in au-tonomous driving [2, 6, 23, 26, 42]. The key challenge in RGB-Event object detection lies in exploiting information from both modalities effectively and appropriately. Early multimodal detection frameworks [7, 15, 36, 44] typically adopt simple features concatenation, entire features interaction or post-processing strategies to fuse event and RGB modalities. Although these early ap-proaches achieve accuracy improvements, the fusion pro-cess remains superficial and does not explore the deep-level information of each modality. Later methods [2, 3, 18] leverage Transformer architecture to build the spatiotem-poral dynamics of event streams and RGB frames, which enables direct RGB-Event interaction and yields stronger fusion and detection performance. However, existing RGB-Event methods aim to fully uti-This CVPR paper is the Open Access version, provided by the Computer Vision Foundation. Except for this watermark, it is identical to the accepted version; the final published version of the proceedings is available on IEEE Xplore. 4415 lize the fused information of both modalities, without ex-plicitly modeling and preserving modality-specific features that may be critical under challenging conditions. For ex-ample, in low-light scenarios where the RGB camera fails to perceive objects, event cameras can still capture motion information, which we define as the Event-private features. Conversely, when objects are relatively static with respect to the camera (e.g., vehicles moving at the same veloc-ity as the ego vehicle), the Event stream produces few re-sponses, and only the RGB modality can capture such in-formation—defined as the RGB-private features. For this specific scenario, simply fusing the two modalities is insuf-ficient to harness the distinctive strengths of each individ-ual modality. To fully tap into private features, we conduct analysis on bimodal modality and separate them into private features (RGB-private and Event-private) and shared fea-tures (overlapping section between two modality features). As shown in Fig. 1(b), our method reorganizes shared and modality-private features based on data characteristics and apply them in the encoder and decoder, instead of undif-ferentiated fusion like existing methods(Fig. 1(a)), in the setting of frame-based RGB–Event detectors that perform feature-level fusion. In this paper, we propose a frequency-domain coherence-based Shared and Private Features Decou-pling method for RGB-Event object detection, SPFD network. The SPFD network separates private features and shared features in the frequency domain (Frequency-domain Coherence-based Feature Separation module, FCFS), and applies above private features and shared features in both encoder (TriAdapt Encoder) and decoder (TriInject Decoder) appropriately. Specifically, the FCFS module adopts the Fourier transform on the RGB features and event features to project them into the frequency domain, respectively. And the FCFS module leverages spectral coherence to derive shared and private features. Then, the TriAdapt Encoder selects the most informative modality features in each spatial location and fuses the shared features and private features, to provide accurate memories for subsequent decoder adaptively. Finally, both the private features and the memories are passed into the TriInject Decoder, where layer-wise asymmetric private feature injection is applied to boost the final detection accuracy, especially for the positioning accuracy of bounding boxes. Experimental results on the DSEC-Det [13] and PKU-DAVIS-SOD [18] datasets demonstrate that our model achieves competitive performance with state-of-the-art methods. In summary, our contributions are as follows: 1. A SPFD network is designed for RGB-Event object de-tection, which explicitly leverage shared and private fea-tures, achieving satisfactory results in challenging sce-narios. 2. A frequency-domain disentanglement module is pro-posed to separate shared and private features between RGB and Event modalities. 3. A TriAdapt Encoder interacts with shared and private features adaptively, which is designed to provide repre-sentative features for the decoder. 4. A TriInject Decoder is proposed to boost detection accu-racy by injecting dual-modality private features in each decoder layer for precise adjustments. 
+
+# 2. Related Work 
+
+2.1. Transformer-based Object Detection 
+
+The original DETR [5] introduces an end-to-end framework for object detection, employing the Transformer architec-ture for the first time in this task and achieving a unified pre-diction and bipartite matching mechanism. However, it suf-fers from slow convergence and inefficient feature utiliza-tion during training. To address these limitations, a series of works [20, 24, 41] have improved its defects. Deformable-DETR [45] introduces sparse multi-scale deformable atten-tion to enhance sampling efficiency and accelerate conver-gence. Building upon these works, MI-DETR [28] im-proves DETR with parallel multi-queries and U-shaped fea-ture interaction, but it remains single-modal and lacks ex-plicit cross-modal modeling for multimodal detection. 
+
+2.2. RGB-Event Fusion Framework 
+
+The core challenge in fusing Event and RGB modalities lies in effectively extracting and exploiting their complemen-tary information. Feature-level fusion strategies have been widely adopted to leverage the strengths of both modalities. FPN-Fusion [36] performs multi-level feature aggregation by connecting fused representations across layers. SOD-Former [18] introduces a self-attention-based adaptive fu-sion mechanism. SFNet [25] restores missing information through cross-modal global spatial similarity computation, while CAFR [3] progressively fuses multi-modal features from coarse to fine via a cross-attention mechanism. In or-der to produce better fused features, some work [14, 21, 35] has also brought new ideas to the RGB-Event fusion. How-ever, most existing methods adopt uniform processing for low-information regions of both modalities, which leads to redundant computation and an overemphasis on shared features, thereby weakening the exploitation of modality-specific characteristics. 
+
+2.3. Frequency-Domain Feature Disentanglement 
+
+In multimodal self-supervised learning, DeCUR [38] pro-poses to disentangle the shared and modality-specific fea-tures of different modalities through contrastive represen-tation learning, thereby improving the robustness of the shared backbone representation. However, the disentan-4416 TriAdapt Encoder 
+
+> Frame flow Event flow Fused flow Object queries
+> FFN&Norm FFT
+
+FCFS Module TriInject Decoder   
+
+> Cross-Modality Feature Composition
+> RGB Event Spectral Coherence Shared
+> FFN MSDA linear  linear MHSA
+> +
+> qvvq
+> FFT IFFT IFFT IFFT
+> Event private
+> RGB private
+> Shared
+> Features Decoupling
+> Cross Attention Cross Attention
+
+Event Input RGB Input 
+
+> Coherence Computation
+
+Backbone Backbone     
+
+> ++Select
+> G∈ [0,1]
+> er
+> XYOxyz#
+> z$
+> z$
+> z%
+> z#z&z%z#𝑈 '
+> 𝑈 &
+> ×𝑳 M
+
+Output Figure 2. Overview of the SPFD framework. SPFD follows a DETR-style design with three stages: (i) a FCFS module that leverages frequency-domain coherence to separate shared versus private features; (ii) a TriAdapt encoder that consolidates private feature conditioned on the shared feature; and (iii) a TriInject decoder that adaptively injects the appropriate modality-private features into the decoder. 
+
+gled features in DeCUR are not explicitly utilized for down-stream tasks, which limits its practical applicability in mul-timodal detection and recognition scenarios. In visual tasks, frequency-domain features have been ex-tensively applied in image enhancement, reconstruction and detection. For instance, FcaNet [32] introduces a multi-frequency attention module within feature channels to ex-plicitly model the importance of different frequency bands, thereby enhancing the representational capacity of convo-lutional networks. In the field of object detection, several studies leverage the energy distribution in the frequency domain to enhance feature discriminability. For example, HiLo Transformer [29] strengthens fine-grained edge rep-resentation via high–low frequency separation, effectively improving small-object detection performance. In multimodal visual tasks, the value of frequency-domain modeling becomes even more significant [31, 37, 43]. Due to the differences in spectral responses across modalities (e.g., RGB, infrared and Event data), frequency-domain transformation can be utilized to measure inter-modal coherence and complementarity [1, 22, 34]. Re-cently, learnable spectral filtering strategies have also emerged, including models such as Spectral Attention Fu-sion [17] and FreqFormer [8], which employ trainable band-pass filters or spectral attention matrices to adaptively sup-press modality discrepancies. However, no prior work has deeply analyzed the relationship between the private fea-tures and the shared features between modalities. 
+
+# 3. Method 
+
+3.1. Overall Framework 
+
+Given an RGB image I ∈ RW ×H×3 and its corresponding event image E ∈ RW ×H×3, the proposed SPFD network aims to generate the bounding boxes Bi(xi, y i, w i, h i)Ki=1 
+
+and the corresponding category labels {Ci}Ki=1 of K ob-jects. As illustrated in Fig. 2, the overall framework follows the DETR-style architecture and consists of three key com-ponents: the Frequency-domain Coherence-based Feature Separation module (FCFS), the TriAdapt Encoder and the TriInject Decoder. We use backbone network to extract the event features x and the RGB features y, respectively. The FCFS module transforms x, y into the frequency domain 
+
+X, Y , where private energy components are selectively en-hanced according to their spectral characteristics. The mod-ule then disentangles shared features Zs between modalities and private features ( Zr and Ze) for subsequent process-ing. Afterward, the three feature streams are fed into the TriAdapt Encoder, which leverages the shared representa-4417 tion to guide the private branches, forming a semantically consistent yet modality-complementary memory represen-tation. Finally, the TriInject Decoder receives the multi-level memory features and injects private information into each decoding layer, adaptively controlling the contribu-tions of RGB and event features across different semantic depths. 
+
+3.2. Frequency-domain Coherence-based Feature Separation 
+
+To obtain accurate shared and private features from RGB and event modalities, we design a Frequency-domain Coherence-based Feature Separation (FCFS) module. Un-like traditional spatial convolution or attention-based mech-anisms, the FCFS module operates in the frequency domain and utilizes spectral statistics to characterize the semantic correlation and uniqueness between modalities by analyz-ing the coherence of spectral energy [1]. As shown in Fig. 3, the entire process consists of three stages: spectrum statis-tics, coefficient calculations and feature separation. This design enables a more interpretable cross-modal feature ex-traction process. IFFT IFFT IFFT  
+
+> +YX𝑺 𝒙𝒙
+> 𝑺 𝒚𝒚
+> 𝑺 𝒙#
+> M$
+> M%
+> M&
+> 𝜸 𝟐
+> 𝜼 z%
+> z$
+> z&
+> Figure 3. Frequency-domain Coherence-based Feature Separation module (FCFS).
+
+Spectrum statistics. We transform both RGB features and event features into the frequency domain via a two-dimensional Fast Fourier Transform (FFT), respectively: 
+
+X = F(x), Y = F(y), (1) where F(·) denotes the unitary FFT operator. Then, we compute the power and cross spectra to de-scribe the energy distribution and coupling relationship be-tween modalities: 
+
+Sxx = |X|2 + ε, Syy = |Y |2 + ε, Sxy = X · Y , (2) where Y denotes the complex conjugate of Y and ε is a small stabilization term. The |Sxy |2 reflects the joint reso-nance strength of the two modalities, and Sxx , S yy denote the power spectral density of x and y, respectively. 
+
+Coefficient calculation. To provide the separate basis for RGB and event features, we introduce two key coefficients: spectral coherence γ2 and strength balance η.The spectral coherence γ2 is the spectral coherence which judges the linear correlation of two signals in the frequency domain, quantifying whether the two frequency components vary synchronously [1]. It is defined as: 
+
+γ2 = |Sxy |2
+
+Sxx Syy 
+
+, (3) When γ2 → 1, the two modalities exhibit highly synchro-nized responses at that frequency, implying similar struc-tural textures or contours—interpreted as shared semantic features. Conversely, when γ2 → 0, the responses are largely uncorrelated, indicating private features such as dy-namic edges in the event stream or illumination textures in RGB. By introducing spectral coherence, the model explic-itly distinguishes cross-modal consistency and discrepancy in the frequency domain, providing a physically grounded basis for shared–private feature disentanglement. Because RGB and event modalities naturally differ in their energy distributions—RGB tends to dominate lower frequencies, while event data responds more sensitively at higher frequencies [27, 33], directly using γ2 may lead to biased estimates dominated by the stronger modality. We introduce a strength balance term η to balance the response magnitudes across modalities. 
+
+η =
+
+pSxx Syy 
+
+Sxx + Syy + ε . (4) 
+
+η constrains the energy ratio and balances the response magnitudes across modalities. When one modality exhibits excessive spectral energy in a certain band, the denomina-tor of η amplifies, suppressing that overdominant response. This adaptive normalization stabilizes the coherence esti-mation and ensures statistical equilibrium between modali-ties. 
+
+Feature separation. We define a shared mask Ms to rep-resent the semantic consistency between RGB and event modalities at different frequencies. By combining spec-tral coherence and the strength balance term, we derive the shared mask Ms:
+
+Ms = σ
+
+ γ2 · η − τT
+
+
+
+, (5) where σ(·) is the sigmoid function, τ is a coherence thresh-old, and T is temperature factor, which controls smooth-ness. Regions with both high coherence and balanced spec-tral energy (large γ2 and η) are assigned higher Ms values. Conversely, regions with low coherence are down-weighted and reserved as private components. Similarly, to extract RGB-private features and Event-private features, we further design the private masks Mr
+
+and Me for RGB and Event, respectively. 
+
+Mr = (1 − Ms) · |Sxx − Syy |
+
+Sxx + Syy + ε · Sxx 
+
+Sxx + Syy 
+
+, (6) 4418 Me = (1 − Ms) · |Sxx − Syy |
+
+Sxx + Syy + ε · Syy 
+
+Sxx + Syy 
+
+. (7) We normalize Ms, Mr and Me at the same spectral po-sition and obtain three complementary frequency-domain features: 
+
+Zs = Ms ⊙ 12 (X + Y ), Zr = Mr ⊙ X, Ze = Me ⊙ Y. 
+
+(8) Lastly, above frequency-domain features are trans-formed back to the spatial domain by inverse FFT, where 
+
+zs represents the cross-modal shared features that captures consistent object semantics while filtering out private noise, whereas zr and ze preserve the private details of RGB and Event. 
+
+zs = F−1(Zs), zr = F−1(Zr ), ze = F−1(Ze). (9) 
+
+3.3. TriAdapt Encoder 
+
+In Transformer-style detectors, the encoder provides high-quality location-aware features rich in global contextual in-formation. For RGB-Event bimodal object detection task, how to effectively utilize the shared features and private fea-tures is critical for the prediction results. To achieve adap-tive selection and robust balancing between two private fea-tures, we propose TriAdapt Encoder. As shown in Fig. 4, the TriAdapt Encoder employs multi-scale Deformable At-tention [45] and a learnable Gating Mechanism to guide the interaction between two private features and update new fused memory. Specifically, the TriAdapt Encoder tends to rely more on RGB features in regions with rich textures, while in highly dynamic regions it favors Event-based fea-tures that capture motion information. MSDA  MSDA + 
+
+> ccσ+Gate
+> cccc
+> U!
+> U𝒓
+> z!
+> z"
+> z#
+> z$
+> z#
+> z$
+> vqW!
+> W#
+> W$
+> qv
+> FFN&Norm
+> OM×𝑳
+> Figure 4. Structure of TriAdapt Encoder.
+
+Trinary Interaction. To interact shared-private features adaptively, each layer contains two multi-scale deformable attention branches . In each multi-scale deformable atten-tion, the flattened shared features zs serve as the query ,while the flattened RGB-private features zr and flattened Event-private features ze act as values to provide comple-mentary information, separately. 
+
+U (l) 
+
+> r
+
+= D(Q(l), z r ), U (l) 
+
+> e
+
+= D(Q(l), z e), (10) where D(·) denotes the multi-scale deformable attention. 
+
+Adaptive gating mechanism. To adaptively integrate pri-vate and shared features, we design the adaptive gating mechanism for feature fusion. Specifically, the intermedi-ate fusion is computed as the mean of the two attention D(·)
+
+outputs and then passed through a linear layer and sigmoid activation to generate the dynamic gating map: 
+
+¯U (l) = 12 (U (l) 
+
+> r
+
++ U (l) 
+
+> e
+
+), G(l) = σ(Wg ¯U (l)), (11) where Wg denotes a linear layer and σ(·) is the sigmoid function. In each encoder layer, the adaptive gating map G(l) con-trols the fusion ratio between two private features across both spatial and channel dimensions, allowing the network to dynamically emphasize the RGB or Event modality ac-cording to regional characteristics. 
+
+eO(l) = G(l) ⊙ Wr U (l) 
+
+> r
+
++ (1 − G(l)) ⊙ WeU (l) 
+
+> e
+
+, (12) where Wr and We are modality projection matrices, and ⊙
+
+denotes element-wise multiplication. The fused features eO(l) are subsequently refined through Normalization and a Feed-Forward Network (FFN). After 
+
+L iterations, we obtain the multi-level memory features 
+
+M (l)Ll=1 .
+
+3.4. TriInject Decoder 
+
+Each layer of the decoder exhibits different sensitivity to multimodal information. The core idea of the TriInject De-coder with Modality-Aware Private Injection is to introduce explicit modulation factors for different modalities in each decoder layer, enabling the model to adaptively select the most discriminative modality features at different decoder layers. In the TriInject decoder layer, each cross-attention simul-taneously receives three groups of inputs: the multi-level memory features from the encoder M (l)Ll=1 and the flat-tened private features zr and ze. At the beginning of the 
+
+l-th decoder layer, zr and ze are first projected into a uni-fied features Vr and Ve.
+
+V (l) 
+
+> r
+
+= P (l) 
+
+> r
+
+zr , V (l) 
+
+> e
+
+= P (l) 
+
+> e
+
+ze, (13) where P (l) 
+
+> r
+
+, P (l) 
+
+> e
+
+∈ RC×C are learnable linear projection matrices used to align the channel space. To provide appropriate modality features for each de-coder layer, we introduce two learnable scaling coefficients 
+
+γr and γe, which balance the contributions of RGB and Event features at each decoder layer. When γr > 0, the layer relies more on the static texture information from the RGB modality; when γe > 0, it indicates that the layer focuses more on the dynamic response patterns from the 4419 Event modality. The fused modality features V (l) 
+
+> f
+
+are de-fined as: 
+
+V (l) 
+
+> f
+
+= M (l) + γ(l) 
+
+> r
+
+V (l) 
+
+> r
+
++ γ(l) 
+
+> e
+
+V (l) 
+
+> e
+
+. (14) This linear modulation scheme enables layer-wise spe-cialization, with different layers prioritizing different fea-ture types—some accentuating spatial texture cues (edges, textures, colors) and others enhancing temporal contour representations—thereby achieving a hierarchical transition from spatial saliency to temporal sensitivity. In each layer, the fused representation V (l) 
+
+> f
+
+serves as Value for the cross-attention module to interact with the Query Q(l):
+
+Q(l+1) = D(Q(l), V (l) 
+
+> f
+
+). (15) Through multi-layer iterations, the TriInject decoder achieves dynamic balance and task-adaptive integration of multimodal features at different depths. 
+
+# 4. Experiments 
+
+4.1. Datasets and Metrics 
+
+Datasets. We conduct a series of experiments on two public datasets, DSEC-Det [13] and PKU-DAVIS-SOD [18]. The DSEC-Det [13] dataset is a multimodal bench-mark extending the original DSEC with synchronized RGB–Event data and object detection annotations for eight traffic categories, supporting the training and evaluation of multimodal detection models. It has RGB images at 1440×1080 and Event data at 640×480, and contains eight categories. The DSEC-Det dataset provides multiple anno-tation versions. Our ablation studies are conducted on the original annotations, while for fair comparison with prior works, we adopt the SFNet [25] annotation version in the comparative experiments. The PKU-DAVIS-SOD [18] dataset is collected using a DAVIS346 event camera and provides spatially aligned RGB frames and event streams at a resolution of 346 ×
+
+260 . It contains over 870k manually annotated bounding boxes for three object categories—car, pedestrian and cy-clist—captured under normal, motion-blur and low-light conditions. 
+
+Metrics. We adopt the standard COCO evaluation protocol for object detection. The primary metrics are mAP, mAP 50 ,and mAP 75 .
+
+4.2. Implementation Details 
+
+Experiments are conducted on two NVIDIA RTX 4090 GPUs with a batch size of 4 per GPU. We use ResNet-50 as the backbone and train for 100k iterations with an initial learning rate of 1×10 −4, which is decayed by a factor of 10 at 80k iterations. We set ε = 10 −6, τ = 0 .25 , and T = 0 .2.RGB inputs are the original three-channel frames. Event streams are converted to three-channel frames by accumu-lating events within each frame interval, where the chan-nels represent positive polarity, negative polarity, and their sum. Data augmentation includes multi-scale training and random horizontal flipping. 
+
+4.3. Comparison with State-of-the-Art methods 
+
+We compare our method with recent state-of-the-arts ap-proaches on DSEC-Det and PKU-DAVIS-SOD datasets, re-spectively. We list mAP and mAP 50 of Event-based, RGB-based and RGB–Event multimodal detectors on these two public datasets. As illustrated in Tab. 1, Among all meth-ods, our SPFD network achieves 34.6% mAP on DSEC-Det [13] and 32.0% mAP on PKU-DAVIS-SOD [18]. On the two datasets, our method surpasses the SOTA by 4.2% and 0.1% in mAP, and by 5.3% and 2.8% in mAP 50 , respec-tively. The comparison results demonstrate that our SPFD network outperforms existing methods and achieves state-of-the-art. 
+
+4.4. Ablation Study 
+
+We conduct a series of ablations on DSEC-Det test set to quantify each module. As illustrated in Tab. 2, we extend single-modal detector MI-DETR [28] to the multimodal (using a linear projection to concatenate RGB and event features) as baseline model (row #1). Adding FCFS module and using only shared features yields +0.6% mAP (row #2). Injecting private features through the proposed TriAdapt en-coder further provides +1.1% mAP (row #3). Finally, when we use FCFS module, TriAdapt Encoder and TriInject De-coder at the same time, the mAP reaches 49.2% (row #4). 
+
+4.5. Effectiveness Analysis 
+
+Effectiveness of the FCFS module. To intuitively evaluate the effectiveness of the FCFS module, we compare the in-put modality features and the shared/private features in the frequency domain, as shown in Fig. 5. The RGB features exhibit energy concentrated near the low-frequency com-ponents, whereas the event features are distributed more broadly across frequencies. After processing the FCFS module, the shared features preserve the mid–low fre-quency bands and directionally consistent components that are strong in both modalities. The RGB-private branch predominantly captures low-frequency, semantic-texture in-formation and the Event-private branch accentuates high-frequency, instantaneous edges with a more isotropic, ring-like spectrum. These observations indicate that FCFS mod-ule could effectively strengthen informative signals from each modality while disentangling complementary factors and suppressing cross-modal redundancy. 
+
+Effectiveness of TriAdapt Encoder. To verify the ef-fectiveness of the TriAdapt Encoder, we utilize pseudo-color feature visualization method to display the model’s 4420 Table 1. Comparison on DSEC-Det and PKU-DAVIS-SOD. We report mAP, mAP 50 , and parameter counts. 
+
+Method Pub. Year Backbone DSEC-Det PKU-DAVIS-SOD Params 
+
+mAP 50 mAP mAP 50 mAP 
+
+> Event
+
+RVT [12] CVPR’23 Recurrent ViT 25.1 12.9 50.3 25.6 18.5M SAST [30] CVPR’24 SAST 24.3 12.1 48.7 24.5 18.5M S5-ViT [46] CVPR’24 SSM-ViT 22.3 11.4 46.6 23.3 18.2M SMamba [40] AAAI’25 SSM + RNN 29.0 14.8 53.0 27.1 17.0M 
+
+> RGB
+
+YOLOX [10] arXiv’21 CSPDarknet 43.5 26.5 57.5 30.6 25.3M YOLOv11 [16] arXiv’24 C3k2-CSP 46.7 30.3 58.0 30.9 20.1M MambaYOLO [39] AAAI’25 ODMamba 44.1 28.3 57.1 29.8 21.8M 
+
+> RGB–Event
+
+FPN-fusion [36] ICRA’22 ResNet-50 34.4 18.6 36.6 19.5 65.6M SODFormer [18] TPAMI’23 ResNet-50 – – 50.4 20.7 82.0M EOLO [4] ICRA’24 CSPDN-T + SpkRN-18 33.9 19.6 47.2 22.0 21.5M DAGr [11] Nature’24 ResNet-50 – – 49.2 – 34.6M SFNet [25] TITS’24 CSPDarknet53 51.4 30.4 59.6 31.9 57.5M CAFR [3] ECCV’24 ResNet-50 23.4 12.5 52.0 26.0 82.4M ACGR [19](+SODFormer) CVPR’25 STE+TDTE – – 51.9 – 41.4M 
+
+SPFD (ours) – ResNet-50 56.7 34.6 62.4 32.0 78.6M      
+
+> RGB Event Shared RGB-Private Event-Private
+> Figure 5. Frequency-domain visualizations of shared and private features versus the original features. Colors use a shared Turbo colormap across all columns (blue/cyan = low, green = mid, yellow/red = high), enabling fair side-by-side comparison. The center is the low frequency; larger radii indicate higher frequencies. Brightness along the horizontal axis indicates strong vertical edges/textures; along the vertical axis indicates strong horizontal edges/textures. Table 2. Ablation experiments results on DSEC-Det test set.(TA: TriAdapt Encoder; TD: TriInject Decoder).
+
+ID FCFS TA TD mAP mAP 50 mAP 75 
+
+#1 – – – 47.3 71.0 54.1 #2 ✓ – – 47.9 71.8 55.0 #3 ✓ ✓ – 49.0 74.3 56.0 #4 ✓ ✓ ✓ 49.2 74.1 56.8 
+
+response distribution across different modalities and feature levels. As shown in Fig. 7, regions with intense red indicate that the module predominantly selects features from the RGB modality, while those with intense blue correspond to features mainly derived from the Event modality. It can be observed that in normal scenarios (Fig. 7(a)), the near-field foreground regions are predominantly covered in red, whereas distant small objects and moving targets are mainly represented in blue. In the low-light scenarios (Fig. 7(b)) and relatively static scenarios (Fig. 7(c)), the corresponding RGB and Event images contain little valid information. At the target locations, the gating mechanism tends to empha-size the Event modality under low-light conditions, while favoring the RGB modality when the scene remains rel-atively static. The TriAdapt Encoder visualization shows that it adaptively emphasizes RGB textures and event mo-tion contours, delivering complementary cues to subsequent layers as intended. 
+
+Effectiveness of TriInject Decoder. 
+
+We conduct experiments on the DSEC-det test set and 4421 (a) 
+
+(b) 
+
+RGB Event GT Baseline Ours Figure 6. Qualitative comparisons on two representative scenarios. (a) occlusion scenarios. (b) blurry scenarios. 
+
+(a) 
+
+(b) 
+
+(c) 
+
+Figure 7. Visualization of TriAdapt Encoder. The left column dis-plays the RGB images, the center column shows the corresponding Event images, and the right column presents the visualization of the corresponding gating maps. All samples are taken from three representative scenarios: (a) normal scenarios. (b) low-light sce-narios. (c) relatively static scenarios. 
+
+visualize the experimental results. As shown in Fig. 8, the TriInject Decoder improves mAP +0.2%, mAP 75 +0.75%, and mAP s 0.16%, with a 0.14% decrease in mAP 50 . Exper-imental results demonstrate that the predicted boxes become more accurate by injecting private features through our Tri-Inject Decoder. 
+
+4.6. Visualization Analysis 
+
+We compare SPFD with the baseline on the DSEC-Det test set. As shown in Fig. 6, SPFD improves detection in chal-lenging scenarios, including occlusion and blur. In the oc-clusion case, the baseline misses the truck occluded by a car, while SPFD correctly localizes it. In the blur case, where the object has a similar color to the background, SPFD de-tects the target whereas the baseline fails.        
+
+> mAP mAP50 mAP75 mAPs
+> 50 60 70
+> +0.20 -0.15 +0.75 +0.16
+> 49 .05 74 .25 56 .01 53 .11 49 .25 74 .11 56 .76 53 .27
+> Score (%)
+> w/o TD w. TD
+
+Figure 8. mAP family comparison between without TD and with TD. Values are shown inside bars. 
+
+# 5. Limitations. 
+
+SPFD, like prior RGB-Event methods, may struggle when both modalities are severely degraded, such as under low-contrast APS imaging, noisy event streams, or strong mo-tion blur. In these cases, cross-modal coherence estimation becomes less reliable, which can weaken the shared-private separation and reduce detection accuracy. Future work will focus on improving the robustness of coherence estimation. 
+
+# 6. Conclusions. 
+
+In this paper, we propose SPFD, an RGB–Event multi-modal detection architecture that disentangles shared and modality-private features based on data characteristics and applies them in both the encoder and decoder. SPFD achieves state-of-the-art performance on DSEC-Det and PKU-DAVIS-SOD. 
+
+# Acknowledgements 
+
+The paper is supported by National Natural Science Foun-dation (62406101) and Hebei Province Natural Science Foundation Funded Project (F2024202033). 4422 References 
+
+[1] Julius S Bendat and Allan G Piersol. Random data: analysis and measurement procedures . John Wiley & Sons, 2011. 3, 4[2] Hu Cao, Guang Chen, Jiahao Xia, Genghang Zhuang, and Alois Knoll. Fusion-based feature attention gate component for vehicle detection based on event camera. IEEE Sensors Journal , 21(21):24540–24548, 2021. 1 [3] Hu Cao, Zehua Zhang, Yan Xia, Xinyi Li, Jiahao Xia, Guang Chen, and Alois Knoll. Embracing events and frames with hierarchical feature refinement network for object detection. In European Conference on Computer Vision , pages 161– 177. Springer, 2024. 1, 2, 7 [4] Jiahang Cao, Xu Zheng, Yuanhuiyi Lyu, Jiaxu Wang, Ren-jing Xu, and Lin Wang. Chasing day and night: Towards ro-bust and efficient all-day object detection guided by an event camera. In 2024 IEEE International Conference on Robotics and Automation (ICRA) , pages 9026–9032. IEEE, 2024. 7 [5] Nicolas Carion, Francisco Massa, Gabriel Synnaeve, Nicolas Usunier, Alexander Kirillov, and Sergey Zagoruyko. End-to-end object detection with transformers. In European confer-ence on computer vision , pages 213–229. Springer, 2020. 2 [6] Bharatesh Chakravarthi, Aayush Atul Verma, Kostas Dani-ilidis, Cornelia Fermuller, and Yezhou Yang. Recent event camera innovations: A survey. In European Conference on Computer Vision , pages 342–376. Springer, 2024. 1 [7] Guang Chen, Hu Cao, Canbo Ye, Zhenyan Zhang, Xingbo Liu, Xuhui Mo, Zhongnan Qu, J¨ org Conradt, Florian R¨ ohrbein, and Alois Knoll. Multi-cue event information fu-sion for pedestrian detection with neuromorphic vision sen-sors. Frontiers in neurorobotics , 13:10, 2019. 1 [8] Tao Dai, Jianping Wang, Hang Guo, Jinmin Li, Jinbao Wang, and Zexuan Zhu. Freqformer: Frequency-aware transformer for lightweight image super-resolution. In Proceedings of the International Joint Conference on Artificial Intelligence ,pages 731–739, 2024. 3 [9] Guillermo Gallego, Tobi Delbr¨ uck, Garrick Orchard, Chiara Bartolozzi, Brian Taba, Andrea Censi, Stefan Leutenegger, Andrew J Davison, J¨ org Conradt, Kostas Daniilidis, et al. Event-based vision: A survey. IEEE transactions on pattern analysis and machine intelligence , 44(1):154–180, 2020. 1 [10] Zheng Ge, Songtao Liu, Feng Wang, Zeming Li, and Jian Sun. Yolox: Exceeding yolo series in 2021. arXiv preprint arXiv:2107.08430 , 2021. 7 [11] Daniel Gehrig and Davide Scaramuzza. Low-latency auto-motive vision with event cameras. Nature , 629(8014):1034– 1040, 2024. 7 [12] Mathias Gehrig and Davide Scaramuzza. Recurrent vision transformers for object detection with event cameras. In Pro-ceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 13884–13893, 2023. 7 [13] Mathias Gehrig, Willem Aarents, Daniel Gehrig, and Davide Scaramuzza. Dsec: A stereo event camera dataset for driv-ing scenarios. IEEE Robotics and Automation Letters , 6(3): 4947–4954, 2021. 2, 6 [14] Fengyue Guo, Peng Ren, and Cai Luo. Utnet: event-rgb multimodal fusion model for underwater transparent organ-ism detection. Intelligent Marine Technology and Systems , 3 (1):18, 2025. 2 [15] Zhuangyi Jiang, Pengfei Xia, Kai Huang, Walter Stechele, Guang Chen, Zhenshan Bing, and Alois Knoll. Mixed frame-/event-driven fast pedestrian detection. In 2019 In-ternational Conference on Robotics and Automation (ICRA) ,pages 8332–8338. IEEE, 2019. 1 [16] Rahima Khanam and Muhammad Hussain. Yolov11: An overview of the key architectural enhancements. arXiv preprint arXiv:2410.17725 , 2024. 7 [17] Sangin Lee, Taejoo Kim, Jeongmin Shin, Namil Kim, and Yukyung Choi. Insanet: Intra-inter spectral attention net-work for effective feature fusion of multispectral pedestrian detection. Sensors , 24(4):1168, 2024. 3 [18] Dianze Li, Yonghong Tian, and Jianing Li. Sodformer: Streaming object detection with transformer using events and frames. IEEE Transactions on Pattern Analysis and Machine Intelligence , 45(11):14020–14037, 2023. 1, 2, 6, 7 [19] Dianze Li, Jianing Li, Xu Liu, Xiaopeng Fan, and Yonghong Tian. Asynchronous collaborative graph representation for frames and events. In Proceedings of the Computer Vi-sion and Pattern Recognition Conference , pages 1655–1666, 2025. 7 [20] Feng Li, Hao Zhang, Shilong Liu, Jian Guo, Lionel M Ni, and Lei Zhang. Dn-detr: Accelerate detr training by intro-ducing query denoising. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition ,pages 13619–13627, 2022. 2 [21] Guoqiang Liang, Kanghao Chen, Hangyu Li, Yunfan Lu, and Lin Wang. Towards robust event-guided low-light image enhancement: a large-scale real-world event-image dataset and novel approach. In Proceedings of the IEEE/CVF Con-ference on Computer Vision and Pattern Recognition , pages 23–33, 2024. 2 [22] Xiaolong Liang and Cheolkon Jung. Deep cross spectral stereo matching using multi-spectral image fusion. IEEE Robotics and Automation Letters , 7(2):5373–5380, 2022. 3 [23] Mengyun Liu, Na Qi, Yunhui Shi, and Baocai Yin. An atten-tion fusion network for event-based vehicle object detection. In 2021 IEEE International Conference on Image Processing (ICIP) , pages 3363–3367. IEEE, 2021. 1 [24] Shilong Liu, Feng Li, Hao Zhang, Xiao Yang, Xianbiao Qi, Hang Su, Jun Zhu, and Lei Zhang. Dab-detr: Dynamic anchor boxes are better queries for detr. arXiv preprint arXiv:2201.12329 , 2022. 2 [25] Zhanwen Liu, Nan Yang, Yang Wang, Yuke Li, Xiangmo Zhao, and Fei-Yue Wang. Enhancing traffic object detection in variable illumination with rgb-event fusion. IEEE Trans-actions on Intelligent Transportation Systems , 2024. 2, 6, 7[26] Zhanwen Liu, Yujing Sun, Yang Wang, Nan Yang, Shengbo Eben Li, and Xiangmo Zhao. Beyond conventional vision: Rgb-event fusion for robust object detection in dy-namic traffic scenarios. Communications in Transportation Research , 5:100202, 2025. 1 [27] Manasi Muglikar, Siddharth Somasundaram, Akshat Dave, Edoardo Charbon, Ramesh Raskar, and Davide Scaramuzza. 4423 Event cameras meet spads for high-speed, low-bandwidth imaging. IEEE Transactions on Pattern Analysis and Ma-chine Intelligence , 2025. 4 [28] Zhixiong Nan, Xianghong Li, Jifeng Dai, and Tao Xiang. Mi-detr: An object detection model with multi-time inquiries mechanism. In Proceedings of the Computer Vision and Pat-tern Recognition Conference , pages 4703–4712, 2025. 2, 6 [29] Zizheng Pan, Jianfei Cai, and Bohan Zhuang. Fast vision transformers with hilo attention. Advances in Neural Infor-mation Processing Systems , 35:14541–14554, 2022. 3 [30] Yansong Peng, Hebei Li, Yueyi Zhang, Xiaoyan Sun, and Feng Wu. Scene adaptive sparse transformer for event-based object detection. In Proceedings of the IEEE/CVF Confer-ence on Computer Vision and Pattern Recognition , pages 16794–16804, 2024. 7 [31] Yaguan Qian, Qinqin Yu, Qiqi Bao, Shouling Ji, Wei Wang, Bin Wang, Zhaoquan Gu, and Zhen Lei. A multimodal ad-versarial attack method via frequency domain enhancement and fine-grained cross-modal guidance. IEEE Transactions on Dependable and Secure Computing , 2025. 3 [32] Zequn Qin, Pengyi Zhang, Fei Wu, and Xi Li. Fcanet: Frequency channel attention networks. In Proceedings of the IEEE/CVF international conference on computer vision ,pages 783–792, 2021. 3 [33] Cedric Scheerlinck, Nick Barnes, and Robert Mahony. Continuous-time intensity estimation using event cameras. In Asian Conference on Computer Vision , pages 308–324. Springer, 2018. 4 [34] Yunzhe Shen, Kai Peng, Leiye Liu, Wei Ji, Jingjing Li, Miao Zhang, Yongri Piao, and Huchuan Lu. Frequency-domain decomposition and recomposition for robust audio-visual segmentation. arXiv preprint arXiv:2509.18912 , 2025. 3 [35] Lei Sun, Christos Sakaridis, Jingyun Liang, Qi Jiang, Kailun Yang, Peng Sun, Yaozu Ye, Kaiwei Wang, and Luc Van Gool. Event-based fusion for motion deblurring with cross-modal attention. In European conference on computer vision ,pages 412–428. Springer, 2022. 2 [36] Abhishek Tomy, Anshul Paigwar, Khushdeep S Mann, Alessandro Renzaglia, and Christian Laugier. Fusing event-based and rgb camera for robust object detection in adverse conditions. In 2022 International Conference on Robotics and Automation (ICRA) , pages 933–939. IEEE, 2022. 1, 2, 7 [37] Heng Wang, Mingxin Jin, Cong Wang, and Yuan Yuan. Mul-timodal dual-domain learning for image fusion. In Proceed-ings of the IEEE/CVF International Conference on Com-puter Vision , pages 6486–6495, 2025. 3 [38] Yi Wang, Conrad M Albrecht, Nassim Ait Ali Braham, Chenying Liu, Zhitong Xiong, and Xiao Xiang Zhu. Decou-pling common and unique representations for multimodal self-supervised learning. In European Conference on Com-puter Vision , pages 286–303. Springer, 2024. 2 [39] Zeyu Wang, Chen Li, Huiying Xu, and Xinzhong Zhu. Mamba yolo: Ssms-based yolo for object detection. arXiv e-prints , pages arXiv–2406, 2024. 7 [40] Nan Yang, Yang Wang, Zhanwen Liu, Meng Li, Yisheng An, and Xiangmo Zhao. Smamba: Sparse mamba for event-based object detection. In Proceedings of the AAAI Confer-ence on Artificial Intelligence , pages 9229–9237, 2025. 7 [41] Yian Zhao, Wenyu Lv, Shangliang Xu, Jinman Wei, Guanzhong Wang, Qingqing Dang, Yi Liu, and Jie Chen. Detrs beat yolos on real-time object detection. In Proceed-ings of the IEEE/CVF conference on computer vision and pattern recognition , pages 16965–16974, 2024. 2 [42] Bingquan Zhou and Jie Jiang. Deep event-based object de-tection in autonomous driving: a survey. arXiv preprint arXiv:2405.03995 , 2024. 1 [43] Man Zhou, Jie Huang, Keyu Yan, Danfeng Hong, Xiuping Jia, Jocelyn Chanussot, and Chongyi Li. A general spatial-frequency learning framework for multimodal image fusion. 
+
+IEEE Transactions on Pattern Analysis and Machine Intelli-gence , 2024. 3 [44] Zhuyun Zhou, Zongwei Wu, R´ emi Boutteau, Fan Yang, C´ edric Demonceaux, and Dominique Ginhac. Rgb-event fusion for moving object detection in autonomous driving. 
+
+arXiv preprint arXiv:2209.08323 , 2022. 1 [45] Xizhou Zhu, Weijie Su, Lewei Lu, Bin Li, Xiaogang Wang, and Jifeng Dai. Deformable detr: Deformable trans-formers for end-to-end object detection. arXiv preprint arXiv:2010.04159 , 2020. 2, 5 [46] Nikola Zubic, Mathias Gehrig, and Davide Scaramuzza. State space models for event cameras. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 5819–5828, 2024. 7 4424

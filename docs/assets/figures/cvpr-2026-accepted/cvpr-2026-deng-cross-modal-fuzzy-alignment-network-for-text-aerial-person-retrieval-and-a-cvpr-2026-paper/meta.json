@@ -1,0 +1,46 @@
+{
+  "version": 2,
+  "extractor": "pymupdf-images",
+  "figures": [
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-deng-cross-modal-fuzzy-alignment-network-for-text-aerial-person-retrieval-and-a-cvpr-2026-paper/fig-001.webp",
+      "caption": "",
+      "page": 1,
+      "index": 1,
+      "width": 1896,
+      "height": 2040
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-deng-cross-modal-fuzzy-alignment-network-for-text-aerial-person-retrieval-and-a-cvpr-2026-paper/fig-002.webp",
+      "caption": "",
+      "page": 4,
+      "index": 2,
+      "width": 4752,
+      "height": 2136
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-deng-cross-modal-fuzzy-alignment-network-for-text-aerial-person-retrieval-and-a-cvpr-2026-paper/fig-003.webp",
+      "caption": "",
+      "page": 6,
+      "index": 3,
+      "width": 6201,
+      "height": 1371
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-deng-cross-modal-fuzzy-alignment-network-for-text-aerial-person-retrieval-and-a-cvpr-2026-paper/fig-004.webp",
+      "caption": "",
+      "page": 6,
+      "index": 4,
+      "width": 1719,
+      "height": 1158
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-deng-cross-modal-fuzzy-alignment-network-for-text-aerial-person-retrieval-and-a-cvpr-2026-paper/fig-005.webp",
+      "caption": "",
+      "page": 8,
+      "index": 5,
+      "width": 1753,
+      "height": 977
+    }
+  ]
+}

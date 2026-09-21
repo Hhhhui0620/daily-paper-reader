@@ -1,0 +1,54 @@
+{
+  "version": 2,
+  "extractor": "pymupdf-images",
+  "figures": [
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-li-pseudo-visible-feature-fine-grained-fusion-for-thermal-object-detection-cvpr-2025-paper/fig-001.webp",
+      "caption": "",
+      "page": 8,
+      "index": 1,
+      "width": 407,
+      "height": 301
+    },
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-li-pseudo-visible-feature-fine-grained-fusion-for-thermal-object-detection-cvpr-2025-paper/fig-002.webp",
+      "caption": "",
+      "page": 8,
+      "index": 2,
+      "width": 407,
+      "height": 301
+    },
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-li-pseudo-visible-feature-fine-grained-fusion-for-thermal-object-detection-cvpr-2025-paper/fig-003.webp",
+      "caption": "",
+      "page": 8,
+      "index": 3,
+      "width": 407,
+      "height": 302
+    },
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-li-pseudo-visible-feature-fine-grained-fusion-for-thermal-object-detection-cvpr-2025-paper/fig-004.webp",
+      "caption": "",
+      "page": 8,
+      "index": 4,
+      "width": 406,
+      "height": 302
+    },
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-li-pseudo-visible-feature-fine-grained-fusion-for-thermal-object-detection-cvpr-2025-paper/fig-005.webp",
+      "caption": "",
+      "page": 8,
+      "index": 5,
+      "width": 406,
+      "height": 301
+    },
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-li-pseudo-visible-feature-fine-grained-fusion-for-thermal-object-detection-cvpr-2025-paper/fig-006.webp",
+      "caption": "",
+      "page": 8,
+      "index": 6,
+      "width": 407,
+      "height": 302
+    }
+  ]
+}

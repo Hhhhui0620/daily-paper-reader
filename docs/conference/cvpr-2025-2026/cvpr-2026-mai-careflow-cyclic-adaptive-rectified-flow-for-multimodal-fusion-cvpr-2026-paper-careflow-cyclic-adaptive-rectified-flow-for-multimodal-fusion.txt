@@ -1,0 +1,1463 @@
+CaReFlow: Cyclic Adaptive Rectified Flow for Multimodal Fusion
+Sijie Mai*
+Shiqin Han
+South China Normal University
+{sijiemai, 20222121019}@m.scnu.edu.cn
+Abstract
+Modality gap significantly restricts the effectiveness of mul-
+timodal fusion.
+Previous methods often use techniques
+such as diffusion models and adversarial learning to reduce
+the modality gap, but they typically focus on one-to-one
+alignment without exposing the data points of the source
+modality to the global distribution information of the tar-
+get modality. To this end, leveraging the characteristic of
+rectified flow that can map one distribution to another via
+a straight trajectory, we extend rectified flow for modality
+distribution mapping. Specifically, we leverage the ‘one-to-
+many mapping’ strategy in rectified flow that allows each
+data point of the source modality to observe the overall tar-
+get distribution. This also alleviates the issue of insufficient
+paired data within each sample, enabling a more robust dis-
+tribution transformation. Moreover, to achieve more accu-
+rate distribution mapping and address the ambiguous flow
+directions in one-to-many mapping, we design ‘adaptive re-
+laxed alignment’, enforcing stricter alignment for modality
+pairs belonging to the same sample, while applying relaxed
+mapping for pairs not belonging to the same sample or cat-
+egory. Additionally, to prevent information loss during dis-
+tribution mapping, we introduce ‘cyclic rectified flow’ to en-
+sure the transferred features can be translated back to the
+original features, allowing multimodal representations to
+learn sufficient modality-specific information. After distri-
+bution alignment, our approach achieves very competitive
+results on multiple tasks of multimodal affective computing
+even with a simple fusion method, and visualizations verify
+that it can effectively reduce the modality gap.
+1. Introduction
+Multimodal affective computing (MAC) has emerged as a
+pivotal area within the field of human-centered artificial in-
+telligence, focusing on the analysis and interpretation of hu-
+man sentiments and affective states through visual, acous-
+tic, and language modalities [2, 3, 20]. A core challenge
+*Corresponding Author
+(a) Modality gap
+(b) Results on CMU-MOSI [55]
+Figure 1. (a) shows that there are significant differences in the
+distribution of different modalities in the feature space, and (b)
+show that vanilla multimodal model (using feature concatenation
+and MLP networks for fusion) even underperforms language-only
+model. After applying our CaReFlow to reduce modality gap, mul-
+timodal model significantly outperforms language-only model.
+in MAC lies in fusing complementary information from
+heterogeneous modalities. However, a significant obstacle,
+known as the ‘modality gap’, severely impedes this fusion
+process [17, 27]. As shown in Fig. 1 (a), modality gap refers
+to the fundamental distributional discrepancy where data
+from different modalities reside in distinct, non-aligned re-
+gions of the feature space due to the heterogeneous nature of
+different modalities and distinct feature extractors. Conse-
+quently, vanilla multimodal models struggle to model their
+complex inter-dependencies, leading to suboptimal results
+and poor generalization (see Figure 1 (b)).
+Existing efforts to bridge modality gap have largely re-
+lied on techniques such as contrastive learning [31, 53],
+multimodal transformer [41], adversarial generative net-
+works (GANs) [27], and diffusion models [17, 45]. Despite
+their potential, these approaches often focus on pairwise
+one-to-one alignment between modalities. They typically
+do not expose a data point of source modality (e.g., a vi-
+sual feature) to the ‘global distributional context’ of the tar-
+get modality during modality alignment. This narrow view
+restricts the model’s ability to learn a holistic and robust
+modality alignment, especially when paired data is scarce.
+This CVPR paper is the Open Access version, provided by the Computer Vision Foundation.
+Except for this watermark, it is identical to the accepted version;
+the final published version of the proceedings is available on IEEE Xplore.
+37799
+
+
+Figure 2. The comparison between tradition methods, rectified
+flow [21] , and our CaReFlow. CaReFlow implements one-to-
+many mapping, adaptive relaxed alignment, and cyclic informa-
+tion flow to improve the effect of modality alignment.
+Inspired by the recent success of rectified flow [18, 19,
+21], a simple and effective generative framework that can
+learn a straight and fast trajectory to map one distribu-
+tion to another, we adapt it for modality distribution align-
+ment and propose the cyclic adaptive rectified flow (CaRe-
+Flow) framework. CaReFlow trains a drift force (velocity
+vector-field) model to straightly transform source distribu-
+tion to target distribution, thereby explicitly and geometri-
+cally bridging the modality gap. CaReFlow leverages ‘one-
+to-many mapping’ strategy in rectified flow during the
+transformation (i.e., the rectification process) from source to
+target modality. As shown in Figure 2, instead of pushing a
+source data point towards a single target, CaReFlow allows
+it to be influenced by the broader target modality distribu-
+tion. This mapping strategy enables each source data point
+to observe the overall target distribution, facilitating a more
+effective alignment and mitigating the issue of insufficient
+paired data between modalities within each sample.
+Furthermore, as presented in Figure 2, CaReFlow de-
+signs two major innovations over the vanilla rectified flow
+paradigm to suit the unique challenges of multimodal distri-
+bution mapping. Firstly, considering the existence of inher-
+ent one-to-one modality correspondence within each mul-
+timodal sample, CaReFlow implements an ‘adaptive re-
+laxed alignment’ mechanism. It enforces stricter rectifica-
+tion for pairs belonging to the same sample, while applying
+a relaxed constraint for modality pairs from different sam-
+ples or categories. The relaxed degree is adaptively deter-
+mined by the label difference between two samples (pairs
+with same/similar labels should be aligned more closely
+in the feature space). Adaptive relaxed alignment helps to
+achieve a more precise and semantically meaningful align-
+ment, enabling CaReFlow to achieve good transformation
+effect without recursively training the rectified flow model
+for multiple iterations [18, 21] and addressing the ambigu-
+ity problem in one-to-many mapping [11]. Secondly, to pre-
+vent the loss of discriminative information from the source
+modality during distribution transformation, we employ a
+‘cyclic rectified flow’ objective.
+This cycle-consistency
+constraint ensures features output by forward rectified flow
+can be mapped back to their original features [34], guaran-
+teeing that the transformed features can retain and interpret
+sufficient modality-specific information for fusion.
+Our contributions are summarized as follows:
+• We reformulate the modality gap problem in MAC as a
+distribution mapping task and adapt rectified flow to solve
+it for the first time, enabling a more effective fusion.
+• We propose a novel CaReFlow featuring one-to-many
+mapping, adaptive relaxed alignment, and cyclic consis-
+tency to enable a faster, accurate, robust and information-
+preserving learning of modality transformation.
+• We demonstrate that after reducing modality gap using
+our method, even simple fusion methods achieve state-
+of-the-art results on multiple MAC benchmarks. Visu-
+alizations further provide direct evidence that CaReFlow
+effectively narrows the modality gap in the feature space.
+2. Related Work
+2.1. Multimodal Affective Computing
+Previous algorithms for MAC mostly focus on proposing
+advanced fusion techniques such as tensor fusion [16, 56]
+and attention-based fusion [32, 35] to generate discrimina-
+tive multimodal representations [15, 51, 57]. In addition,
+many methods utilize Kullback–Leibler divergence, canon-
+ical correlation analysis and information bottleneck to reg-
+ularize unimodal distributions [24, 29, 37]. For example,
+information-theoretic hierarchical perception (ITHP) [47]
+applies information bottleneck to learn features, identify-
+ing a primary modality and treating other modalities as de-
+tectors that distill the flow of information. Recently, mul-
+timodal large language models have emerged, leveraging
+large pre-trained models to interpret human affective states
+effectively [6, 49, 60]. Moreover, uncertainty-based fusion
+methods [10, 25, 39, 48] improve the reliability of fusion by
+estimating the predictive confidence of each modality.
+Those deep learning models focus on reducing modal-
+ity gap are related to CaReFlow. Early methods generally
+employ techniques such as recurrent neural networks, cross-
+modal transformer and GANs to translate source modality
+to target modality [7, 27, 34, 41]. Later approaches uti-
+lize powerful diffusion models to achieve transformation
+between modality distributions, but they are slow in in-
+ference [17, 45]. Moreover, the aforementioned methods
+typically achieve one-to-one modality mapping within each
+sample, without presenting a broader overall distribution of
+target modality to the data points of source modality. More-
+over, they are limited by insufficient modality pairs with
+each sample. Recently, contrastive learning has been used
+to reduce the modality gap [5, 52]. Early contrastive learn-
+ing methods focus on constructing positive modality pairs
+37800
+
+
+within each sample, while later methods construct posi-
+tive pairs within the same category, significantly increas-
+ing the number of training pairs [31, 53]. However, con-
+trastive learning does not differentiate the importance be-
+tween modality pairs from the same sample and those from
+different samples, failing to achieve more accurate modality
+alignment. In contrast, drawing inspiration from the simple
+yet effective rectified flow [11, 19, 21], CaReFlow enables
+one-to-many mapping for more effective alignment, and im-
+plements adaptive relaxed alignment for different modal-
+ity pairs with distinct correlation degrees to achieve faster
+and more accurate alignment. Moreover, CaReFlow real-
+izes cyclic information flow to avoid information loss.
+2.2. Rectified Flow
+Rectified flow is a powerful tool that can map one distri-
+bution to another by learning a straight and fast trajectory
+[21, 26], which has been applied in various generation tasks
+[19]. It iteratively learns smooth ordinary differential equa-
+tion (ODE) paths that are less susceptible to truncation er-
+ror, but the recursive training with multiple iterations suf-
+fers from high computational cost. Lee et al. [18] show that
+under realistic settings, a single iteration for training recti-
+fied flow with specifically designed techniques is sufficient
+to learn nearly straight trajectories. Guo et al. [11] further
+propose a variational rectified flow matching that introduces
+a latent variable to disentangle ambiguous flow directions
+at each location, which addresses the ambiguity problem in
+one-to-many mapping. In contrast, we extend rectified flow
+to reduce the modality gap for fusion. We show that we can
+simultaneously avoid recursive training and address the am-
+biguous problem in one-to-many mapping by the proposed
+adaptive relaxed alignment. It imposes stricter alignment
+constraints on modality pairs with closer relationships and
+applies more relaxed constraints on modality pairs that do
+not belong to the same category, enabling a more accurate
+and faster learning of rectified flow. Moreover, we propose
+cyclic information flow that ensures the latent features out-
+put by rectified flow can be transferred back to the original
+features, avoiding information loss of the source modality.
+3. Methodology
+The pipeline of CaReFlow is shown in Figure 3, which
+maps the distributions of visual and acoustic modalities to
+language modality using cyclic adaptive rectified flow and
+then conducts fusion for prediction. CaReFlow is evaluated
+on multiple MAC tasks, including multimodal sentiment
+analysis (MSA) [55], multimodal humor detection (MHD)
+[13] and multimodal sarcasm detection (MSD) [4].
+3.1. Preliminaries
+(1) MAC aims to predict the sentiment scores, affective
+states, opinion tendency, and behavior intentions given a
+video segment of a speaker described by acoustic (a), vi-
+sual (v), and language (l) modalities. The input feature se-
+quences are denoted as {Um ∈RTm×dm|m ∈{a, v, l}},
+where Tm is the sequence length and dm is the feature di-
+mensionality.
+Unimodal networks are utilized to extract
+unimodal representations {Xm ∈Rd | m ∈{a, v, l}}
+based on input feature sequences Um, where d is the shared
+latent feature dimensionality. Due to space limitation, uni-
+modal networks are introduced in the Appendix.
+(2) Rectified flow is a simple and effective generative
+model that smoothly transitions between two distributions
+pm1 and pm2 by solving ordinary differential equations
+(ODEs) [21]. In the context of MAC, given Xm1 ∼pm1
+and Xm2 ∼pm2, the interpolation between Xm1 and Xm2
+is defined as Xt
+m1,m2 = (1−t)·Xm1+t·Xm2 for t ∈[0, 1],
+where Xm1 and Xm2 are unimodal features for source and
+target modalities, respectively. The rectified flow induced
+from (Xm1, Xm2) is an ODE for time t ∈[0, 1]:
+  \
+setle n gth {\abo
+vedisp layskip }{4pt} \setlength {\belowdisplayskip }{4pt} \label {eq_ode} d \bm {Z}^t_{m_1, m_2} = \bm {V}_{m_1, m_2}(\bm {Z}^t_{m_1, m_2}, t) dt 
+(1)
+which converts Zm1 from source distribution pm1 to a Zm2
+in target distribution pm2 during inference (Zm1 is a data
+point in inference stage). The drift force Vm1,m2 : Rd −→
+Rd (also known as the velocity vector-field), often realized
+by a neutral network, is expected to drive the flow to follow
+the direction (Xm1, Xm2) as much as possible via the gen-
+erated velocity vector. To realize this goal, we can solve a
+simple least squares regression problem during training:
+  \
+label 
+{ e
+q
+_
+reflow} \min
+ _{\bm {V}_{m_1, m
+_2}} 
+\int _0^1\! \mathbb {E}\! \left [ \left \| \bm {V}_{m_1, m_2}(\bm {X}_{m_1, m_2}^t, t)\! -\! (\bm {X}_{m_2}\!\! -\! \bm {X}_{m_1}) \right \|^2\! dt \right ] \quad 
+(2)
+where Xt
+m1,m2 = (1−t) · Xm1 +t · Xm2 is the interpola-
+tion between Xm1 and Xm2. The objective in Eq. 2 makes
+Xm1 + Vm1,m2(Xt
+m1,m2, t) approximate Xm2 as closely
+as possible. During training, rectified flow randomly selects
+data pairs from two distributions and then uses Eq. 2 to train
+Vm1,m2 via stochastic gradient descent. When Vm1,m2 is
+well trained, using the learned drift force model Vm1,m2 de-
+fined at time t and location Zt
+m1,m2, we can solve the ODE
+starting from Zm1 ∼pm1 (time t = 0) to transfer source
+distribution pm1 to target distribution pm2 (time t = 1),
+which is often simulated with Euler steps during inference.
+Applying the rectified flow operation recursively (using
+the outputs of previous rectified flow model to train new rec-
+tified flow model) yields a sequence of rectified flow mod-
+els, which can straighten paths of rectified flows (make the
+paths of the flow more straight). Perfectly straight paths
+can be simulated exactly with a single Euler step during in-
+ference (Zm1,m2 = Zm1 + Vm1,m2(Zm1, 1) with t being
+1) and is effectively a one step model. Nevertheless, the
+proposed CaReFlow can avoid this recursive operation and
+generate desirable Zm1,m2 using two Euler steps without
+training the rectified flow model for multiple times, which
+37801
+
+
+Figure 3. (a) The diagram of the model pipeline and (b) the forward and backward information flows in CaReFlow.
+significantly reduces computational cost. In the remainder,
+for the sake of consistency, we will no longer distinguish
+between X and Z, and uniformly use X instead.
+3.2. Model Pipeline
+In this paper, we focus on adapting rectified flow to narrow
+the gap between different modalities in the context of mul-
+timodal fusion. Given unimodal representations Xm, since
+language is the dominant modality in MAC [33, 34], we
+map the distributions of visual and acoustic modalities to
+language distributions using our CaReFlow, and then con-
+duct effective multimodal fusion and infer prediction:
+  \l a bel {eq_CaReFlow 1 } \b egin {split} \bm {X}_{m, l} = CaReFlow_{m,l}(\bm {X}_{m}), \ \ m \in \{a, v \} \end {split} 
+(3)
+  \setlength {\ab ovedi splayskip }{3pt} \setlength {\belowdisplayskip }{3pt} \label {fusion} \bm {X} = Fusion(\bm {X}_{l}, \bm {X}_{a, l}, \bm {X}_{v, l}; \ \theta _f) 
+(4)
+  \label {pr e
+di ctor} 
+p = Predi ctor(\bm {\bar {X}}; \theta _{pre});\ \ \ \mathcal {L} = Loss(p,y) 
+(5)
+where X is the multimodal representation, p is the final pre-
+diction, and L is the predictive loss (the concrete form of the
+loss function Loss depends on downstream tasks). In prac-
+tice, we simply concatenate the unimodal features and then
+use a multi-layer perception (MLP) network to construct the
+fusion network Fusion. We show that even with such sim-
+ple fusion network, the proposed method still obtains very
+competitive performance after distribution mapping.
+In particular, we apply two Euler steps to generate
+Xm,l, in which case dt in Eq. 1 is equal to 0.5.
+Thus,
+CaReFlowm,l(Xm) in Eq. 3 is defined as:
+  \lab
+el 
+{ eq _ CaReFlow2
+} \b e gin
+ {sp l it} & 
+\bm
+ {X}_{m, l}^
+{t_ { =0.5 } } = \bm {X}_{m} + \bm {V}_{m, l}(\bm {X}_{m}^{t_{=0}}, 0) \times 0.5 \\ \bm {X} & _{m, l} = \bm {X}_{m, l}^{t_{=0.5}} + \bm {V}_{m, l}(\bm {X}_{m, l}^{t_{=0.5}}, 0.5) \times 0.5 \end {split} 
+(6)
+It is obvious that Xt=0
+m,l is equal to Xm. It can also be in-
+ferred from Eq. 6 that the features of target modality Xl is
+not involved in the inference stage of rectified flow, leading
+to a causal information flow from source to target modality.
+3.3. Cyclic Adaptive Rectified Flow
+Here we introduce CaReFlow in detail, which extends the
+regular rectified flow with cyclic latent information flow and
+adaptive relaxed mapping. Notably, CaReFlow is operated
+in the latent feature space, which significantly reduces run-
+ning time and enables an easier distribution mapping.
+3.3.1. Adaptive Relaxed Modality Alignment
+As stated in Section 3.1, rectified flow randomly selects
+many data pairs from two distributions to train Vm1,m2 (see
+Eq. 2), which enables the data points of the source modality
+to access the global distribution information of the target
+modality. However, rectified flow equally treats all pairs
+during mapping, which leads to ambiguous one-to-many
+mapping for each data point in the source modality because
+it is required to match many data points in the target modal-
+ity [11]. Actually, there exists accurate one-to-one mapping
+relationship between modalities from the same sample. In-
+tuitively, we should strictly align modality pairs from the
+same sample, while applying relaxed alignment for pairs
+from different samples. Moreover, considering that sam-
+ples from the same category tend to have more similar dis-
+tributions, we should impose stricter alignment on modality
+pairs from the same category than those from different cat-
+egories. In this way, CaReFlow not only allows the data
+points from source modality to gain a global understanding
+of the distribution of target modality, but also achieves more
+accurate distribution mapping. It effectively addresses the
+37802
+
+
+ambiguous one-to-many mapping problem by guiding the
+model to recognize which data points in the target modal-
+ity should be focused more on during mapping. Moreover,
+by performing more accurate alignment, adaptive relaxed
+alignment enables CaReFlow to achieve satisfactory align-
+ment effect without iteratively training the rectified flow
+model in cycles, achieving a faster training.
+Specifically, by incorporating adaptive relaxed align-
+ment, the objective of CaReFlow becomes:
+  
+\labe l 
+{ eq_careflow} \b
+egin { sp
+lit} \math
+cal {L}^f_{ m_
+1
+, m_ 2}\ ! =\! \s m all \ m ath bb {E}\! & \ \ \Big [ \ \big \| max(\bm {V}_{m_1, m_2}(\bm {X}_{m_1, m_2}^t, t)\! \\ & -\! (\bm {X}_{m_2}\! -\! \bm {X}_{m_1}) \big \|^2\! - \eta _{m_1, m_2}, 0) \ \Big ] \\ s.t. \ \ \bm {X}_{m_1} & \sim p_{m_1},\ \bm {X}_{m_2} \sim p_{m_2},\ t \in [0, 1] \end {split} 
+(7)
+where Lf
+m1,m2 is the loss for forward rectified flow, ηm1,m2
+is the margin that controls how ‘strict’ the modality map-
+ping should be. Particularly, according to whether Xm1 and
+Xm2 belong to the same sample, ηm1,m2 is computed as:
+  \beg i
+n
+ {
+alig ned } \e ta _{m
+_1, m_ 2 }\! =\
+! \b egin {cas es} 0, & \text {from the same sample} \\ \epsilon \! +\! || y_i - y_j ||^2 , & \text {from different samples} \end {cases} \end {aligned} 
+(8)
+where ϵ is a hyperparameter, and yi denotes the ground-
+truth label of sample i. Assuming Xm1 and Xm2 come
+from sample i and j respectively, ||yi −yj||2 denotes the
+label distance between two data points. If Xm1 and Xm2
+come from the same sample, ηm1,m2 is zero and the train-
+ing objective in Eq. 7 reduces to a regular training ob-
+jective in Eq. 2. And if Xm1 and Xm2 come from dif-
+ferent samples but sharing the same category, ηm1,m2 is
+equal to ϵ, and the forward loss Lf
+m1,m2 becomes zero if
+||(Xm1 + Vm1,m2(Xt
+m1,m2, t)) −Xm2||2 is less than ϵ,
+which leads to relaxed mapping. Finally, if Xm1 and Xm2
+come from different categories (||yi −yj||2 is defined as 1
+for classification tasks), ηm1,m2 is larger than ϵ, resulting in
+a more relaxed alignment. In this way, we can learn modal-
+ity mapping relationships in a faster and more accurate way
+without training rectified flow model for multiple times.
+In practice, for each mini-batch, we first construct
+modality pairs within each sample that have accurate cor-
+respondences between the two modalities. Then, we ran-
+domly sample multiple modality pairs between different
+samples to train the model, enabling the data points from
+the source modality to access the overall distribution infor-
+mation of the target modality. In this process, we set the
+number of modality pairs from different samples to be β
+times the number of modality pairs from the same sample.
+The Implementation of Vm1,m2: As stated in Sec-
+tion 3.1, Vm1,m2 is parameterized as a neural network.
+Since Vm1,m2 takes both time-dependent representation
+Xt
+m1,m2 and time t as inputs, it is important to implement
+Vm1,m2 in a time-dependent manner to generate time-aware
+output. In practice, we follow the positional embedding of
+Transformer [43] to use sine and cosine functions of differ-
+ent frequencies to reveal the time information, which does
+not introduce learnable parameters:
+  \
+la b el {e q _time} \begin {
+s pl
+it} \ bm {T E }_{2i}^t = sin(t * 1000/10000^{2i/d}) & \\ \bm {TE}_{2i + 1}^t = cos(t * 1000/10000^ {2i/ d }&) \end {split} 
+(9)
+where T Et ∈Rd is the time embedding and i is the dimen-
+sion. After obtaining T Et, we directly concatenate input
+features with the time embedding, and use a simple multi-
+layer perception (MLP) network to generate the output:
+  \label 
+{eq_v} \bm {V}_
+{m_1, m _2}(\bm {X}_{m_1, m_2}^t, t)\! =\! MLP(\bm {X}_{m_1, m_2}^t \otimes \bm {TE}^t) 
+(10)
+where ⊗denotes the concatenation operation.
+3.3.2. Cyclic Latent Information Flow
+Although the transition from pm1 to pm2 is relatively sim-
+ple in rectified flow, it might still lead to information loss
+of source modality during modality mapping. To prevent
+information loss, we construct a cyclic rectified flow that
+maps the output of the forward rectified flow Xm1,m2 to
+the original features Xm1. In this way, we can ensure that
+Xm1,m2 can retain and interpret the information from the
+source modality, such that the obtained multimodal repre-
+sentation X can learn more sufficient modality-specific in-
+formation for prediction. Notably, here we only construct
+modality pairs within the same sample to ensure that the la-
+tent features output by forward rectified flow can be trans-
+formed back to the original modality features. Therefore,
+the objective of the backward rectified flow is defined as:
+  
+\begi n 
+{ sp lit} \la b
+el
+ {eq_c ar
+eflow _b} \mat
+hca l
+ {L} ^b_ { m_1, m_2} & \! =\! \ m ath bb {E}\! \ \Big [ \ \big \| \bm {\hat {V}}_{m_1, m_2}(\bm {\hat {X}}_{m_1, m_2}^t, t)\! \\ &-\! (\bm {X}_{m_1}\! -\! \bm {X}_{m_1, m_2}) \big \|^2 \ \Big ] \quad \\ s.t. \ \bm {X}_{m_1} \sim \ & p_{m_1},\ \bm {X}_{m_1, m_2} \sim p_{m_1, m_2},\ t \in [0, 1] \end {split} 
+(11)
+where ˆ
+Xt
+m1,m2 = (1 −t) · Xm1,m2 + t · Xm1, Xm1,m2 is
+the latent features generated by the forward rectified flow,
+ˆVm1,m2 is the drift force neural network for backward rec-
+tified flow, and Lb
+m1,m2 denotes the backward loss. Here we
+only apply the detach operation to Xm1, but not to Xm1,m2,
+allowing Lb
+m1,m2 to influence the forward rectified flow,
+thereby aiding in learning a better distribution transforma-
+tion that preserves modality-specific information.
+3.4. Model Optimization
+The optimization target of CaReFlow is the combination of
+main task loss, forward loss, and backward loss:
+  \lab e l 
+{eq122}
+ 
+\
+mat h ca
+l { L }_ { to
+tal} = \mathcal {L} + \sum _{m}^{m \in \{a, v \}} ( \alpha _f \times \mathcal {L}^f_{m,l} + \alpha _b \times \mathcal {L}^b_{m,l}) 
+(12)
+where αf and αb are hyperparameters for the weights of
+forward and backward losses, respectively.
+37803
+
+
+(a) Results on MHD task
+(b) Results on MSD task
+Figure 4. Results on (a) UR-FUNNY and (b) MUStARD datasets.
+4. Experiments
+CaReFlow is evaluated on CMU-MOSI [55], CMU-MOSEI
+[58], CH-SIMS-v2 [22], UR-FUNNY [13], and MUStARD
+[4] datasets.
+Due to space limitation, we introduce ex-
+perimental settings, baselines, datasets and additional
+experimental results in the Appendix. Codes: https:
+//github.com/TmacMai/CaReFlow.
+4.1. Results on the MSA Task
+The results on the MSA task are shown in Table 1 and Ta-
+ble 2. Specifically, on CMU-MOSI, CaReFlow outperforms
+the state-of-the-art baseline DLF [44] by over 1 points in
+Acc7 and Acc2. On CMU-MOSEI, CaReFlow obtains the
+best performance in Acc2, F1 score, MAE and Corr, and the
+second highest score in Acc7. Similar results are observed
+on the CH-SIMS-v2 dataset (see Table 2), where CaRe-
+Flow considerably outperforms all baselines in all evalua-
+tion metrics (over 4 points improvement in Acc5). Gener-
+ally, CaReFlow demonstrates state-of-the-art results on
+MSA across three widely-used datasets. This is mainly
+because CaReFlow effectively addresses modality gap via
+the cyclic adaptive rectified flow before multimodal fusion,
+which can improve the effectiveness of fusion.
+4.2. Results on the MHD and MSD Tasks
+To evaluate the generalizability of CaReFlow to other tasks,
+we conduct experiments on MHD and MSD using UR-
+FUNNY [13] and MUStARD [4] datasets. The compared
+baselines include MulT [41], Self-MM [54], MMIM [12],
+DMD [20], DMD+SuCI [50], AtCAF [15], MAG-XLNet
+[36], MCL [28], MGCL [30], ITHP [47], MULOT [35],
+MIL [59], and MO-Sarcation [40]. As presented in Fig-
+ure 4, CaReFlow outperforms the best performing baselines
+AtCAF and MO-Sarcation by over 3 points and 2.5 points
+on UR-FUNNY and MUStARD, respectively. Generally,
+CaReFlow reaches state-of-the-art results on the MHD
+and MSD tasks, demonstrating the effectiveness and gen-
+eralizability of CaReFlow to other tasks.
+4.3. Ablation and Comparison Experiments
+(1) Distribution Alignment: In ‘W/O Cyclic Distribution
+Alignment’, modality distribution mapping is removed and
+CaReFlow reduces to a regular multimodal model.
+As
+shown in Table 3, the performance of CaReFlow decreases
+by 4.5 points in Acc2 on CH-SIMS-v2 and 4.7 points in
+Acc7 on CMU-MOSI, indicating the importance of CaRe-
+Flow to align modality distributions for a more effective fu-
+sion; (2) Cyclic Information Flow: In‘W/O Cyclic Infor-
+mation Flow’, we remove the backward rectified flow that
+transfers the output of forward rectified flow back to its orig-
+inal features, and the performance declines considerably on
+both datasets, revealing that it is important to apply cyclic
+information flow. This is because it helps to retain and in-
+terpret the information of source modality, enabling multi-
+modal representations to learn sufficient modality-specific
+information for prediction; (3) Adaptive Relaxed Align-
+ment: In ‘W/O Adaptive Relaxed Alignment’, the training
+objective in Eq. 7 reduces to the regular objective of recti-
+fied flow in Eq. 2, and the performance exhibits a decline
+in all metrics. This is because adaptive relaxed alignment
+helps to learn more accurate modality alignment and can
+address the ambiguous problem in one-to-many mapping;
+(4) One-to-Many Mapping: In ‘W/O One-to-Many Map-
+ping’, we do not use modality pairs from different samples
+to train CaReFlow, and the performance significantly de-
+clines in all metrics (about 3 points in Acc2). Moreover, the
+performance drop is more significant than the drop when
+other modules are removed, indicating that one-to-many
+mapping is crucial for performance improvement. This is
+because it allows CaReFlow to sample abundant pairs for a
+more effective and robust learning of distribution mapping.
+4.4. Discussion on Distribution Alignment Methods
+We compare CaReFlow with popular distribution mapping
+methods that are implemented under the same architecture
+as our CaReFlow for a fair comparison, including adver-
+sarial learning based model ARGF [27], Deep CCA [1],
+contrastive learning based model CLGSI [53], multimodal
+transformer (MulT) [41], and diffusion-based model Diffu-
+sion Bridge [17]. It can be inferred from Table 4 that CLGSI
+achieves the best performance among baselines.
+This is
+because CLGSI conducts one-to-many mapping between
+different modalities using contrastive learning, which can
+generate abundant modality pairs from different samples to
+learn a robust model that aligns modalities from the same
+class while pushing away modalities from different cate-
+gories. Nevertheless, CaReFlow still outperforms CLGSI
+on all datasets. This is mainly because contrastive learn-
+ing cannot perform adaptive alignment based on the degree
+of correlation between modalities, and cannot prevent in-
+formation loss when aligning different modalities. In con-
+trast, CaReFlow designs one-to-many mapping, adaptive
+relaxed alignment, and cyclic information flow to realize
+more accurate, robust, and information-preserving distribu-
+tion alignment. In addition, in Section 4.5, we conduct visu-
+37804
+
+
+Table 1. The results on CMU-MOSI and CMU-MOSEI. The results labeled with † are obtained from original papers, and other results are
+obtained from our experiments. The best results are highlighted in bold and the second best results are marked with underlines.
+CMU-MOSI
+CMU-MOSEI
+Model
+Venue
+Acc7↑
+Acc2↑
+F1↑
+MAE↓
+Corr↑
+Acc7↑
+Acc2↑
+F1↑
+MAE↓
+Corr↑
+Self-MM [54]
+AAAI 2021
+45.8
+84.9
+84.8
+0.731
+0.785
+53.0
+85.2
+85.2
+0.540
+0.763
+C-MIB [29]
+TMM 2023
+47.7
+87.8
+87.8
+0.662
+0.835
+52.7
+86.9
+86.8
+0.542
+0.784
+DMD [20]
+CVPR 2023
+44.9
+84.3
+84.3
+0.726
+0.788
+52.8
+84.6
+84.6
+0.538
+0.768
+DEVA† [46]
+AAAI 2025
+46.3
+86.3
+86.3
+0.730
+0.787
+52.3
+86.1
+86.2
+0.541
+0.769
+AtCAF† [15]
+Information Fusion 2025
+46.5
+88.6
+88.5
+0.650
+0.831
+55.9
+87.0
+86.8
+0.508
+0.785
+EMOE [8]
+CVPR 2025
+45.2
+84.8
+84.8
+0.723
+0.790
+52.5
+85.0
+85.0
+0.542
+0.760
+Multimodal Boosting [32]
+TMM 2024
+49.1
+88.5
+88.4
+0.634
+0.855
+54.0
+86.5
+86.5
+0.523
+0.779
+ITHP [47]
+ICLR 2024
+47.7
+88.5
+88.5
+0.663
+0.856
+52.2
+87.1
+87.1
+0.550
+0.792
+DLF [44]
+AAAI 2025
+49.4
+88.7
+88.6
+0.669
+0.856
+55.0
+87.5
+87.4
+0.515
+0.774
+CaReFlow
+-
+50.6
+89.8
+89.7
+0.616
+0.858
+55.7
+87.9
+88.0
+0.504
+0.799
+(a) ARGF (GAN)
+(b) CLGSI (CL)
+(c) Diffusion Bridge
+(d) DLF (SOTA baseline)
+(e) The proposed CaReFlow
+Figure 5. The visualizations for distributions of unimodal features using t-SNE [42]. CL denotes contrastive learning.
+Table 2. The comparison with baselines on CH-SIMS-v2.
+CH-SIMS v2
+Model
+Acc5↑
+Acc3↑
+Acc2↑
+F1↑
+MAE↓
+Corr↑
+MISA [14]
+47.5
+68.9
+78.2
+78.3
+0.342
+0.671
+MAG-BERT [36]
+49.2
+70.6
+77.1
+77.1
+0.346
+0.641
+Self-MM [54]
+53.5
+72.7
+78.7
+78.6
+0.315
+0.691
+MMIM [12]
+50.5
+70.4
+77.8
+77.8
+0.339
+0.641
+AV-MC [22]
+52.1
+73.2
+80.6
+80.7
+0.301
+0.721
+KuDA [9]
+53.1
+74.3
+80.2
+80.1
+0.289
+0.741
+DLF [44]
+47.5
+70.0
+78.1
+77.9
+0.346
+0.683
+CaReFlow
+57.9
+75.9
+82.9
+82.9
+0.277
+0.745
+Table 3. Ablation experiments on CMU-MOSI and CH-SIMS-v2.
+CH-SIMS-v2
+CMU-MOSI
+Model
+Acc5↑
+Acc2↑
+MAE↓
+Acc7↑
+Acc2↑
+MAE↓
+W/O Distribution Alignment
+55.1
+78.4
+0.312
+45.9
+86.7
+0.661
+W/O Cyclic Information Flow
+56.3
+81.7
+0.296
+47.2
+87.9
+0.643
+W/O Adaptive Relaxed Alignment
+56.8
+82.4
+0.283
+47.9
+88.5
+0.639
+W/O One-to-Many Mapping
+57.4
+79.8
+0.287
+47.2
+87.0
+0.643
+CaReFlow
+57.9
+82.9
+0.277
+50.6
+89.8
+0.616
+alizations to demonstrate that CaReFlow can reduce modal-
+ity gap more effectively compared to competitive baselines.
+As for model complexity, as shown in Table 4, the num-
+ber of parameters of CaReFlow is slightly more than ARGF
+and Deep CCA, but less than CLGSI, MulT, and Diffusion
+Bridge. This is because the only trainable modules intro-
+duced by CaReFlow are drift force models that are imple-
+mented as simple MLP networks, which have few parame-
+ters. The results indicate that CaReFlow achieves the best
+performance with a moderate number of parameters.
+The improvement in performance of CaReFlow does not
+come from the increase in the number of parameters, but
+from the enhancement of modality alignment effect.
+4.5. Visualization on Unimodal Distributions
+To verify that CaReFlow can effectively reduce the modal-
+ity gap, we present the visualizations of unimodal features
+on CMU-MOSI. We also visualize the features of baselines
+for comparison, including three representative distribution
+mapping methods ARGF [27], CLGSI [53] and Diffusion
+Bridge [17] as well as state-of-the-art baseline DLF [44].
+As shown in Figure 5, to our surprise, although the three
+distribution mapping methods have brought the features of
+different modalities closer in the feature space compared to
+the vanilla multimodal model (see Figure 1), the reduction
+in the modality gap is not very significant. This may be
+because these methods typically train the main task and the
+distribution alignment task together, with the main task usu-
+ally having a higher weight, potentially leading to insuffi-
+cient optimization of the distribution alignment task. Com-
+pared to these three methods and DLF [44], CaReFlow re-
+duces the modality gap more effectively, with a signifi-
+cant decrease in the distance between different modalities
+in the feature space.
+This is mainly because CaReFlow
+achieves one-to-many mapping and adaptive relaxed align-
+ment, enabling robust and accurate learning of straight dis-
+tribution transformation trajectory.
+4.6. Generalibility on Different Fusion Methods
+As demonstrated in Section 3.2, CaReFlow uses a simple
+fusion network to achieve very competitive results.
+As
+CaReFlow is independent of fusion mechanisms, we can in-
+corporate advanced fusion mechanisms into CaReFlow
+to improve the performance. To verify our statement, we
+37805
+
+
+Table 4. Discussion on different distribution mapping methods on the CMU-MOSI, CMU-MOSEI, and CH-SIMS-v2 datasets.
+CMU-MOSI
+CMU-MOSEI
+CH-SIMS-v2
+Model
+Acc7↑
+Acc2↑
+F1↑
+MAE↓
+Corr↑
+Paramaters↓
+Acc7↑
+Acc2↑
+F1↑
+MAE↓
+Corr↑
+Acc5↑
+Acc3↑
+Acc2↑
+F1↑
+MAE↓
+Corr↑
+ARGF [27]
+50.5
+87.4
+87.3
+0.623
+0.846
+184.43M
+53.2
+87.6
+87.5
+0.524
+0.798
+51.8
+71.0
+78.4
+78.7
+0.314
+0.677
+MulT [41]
+40.7
+88.1
+88.1
+0.755
+0.821
+185.51M
+51.7
+86.5
+86.6
+0.583
+0.794
+54.6
+74.2
+80.8
+80.7
+0.300
+0.738
+Deep CCA [1]
+43.8
+87.2
+87.2
+0.722
+0.815
+184.59M
+51.0
+84.6
+84.7
+0.574
+0.775
+51.3
+71.7
+77.9
+77.9
+0.334
+0.668
+CLGSI [53]
+45.8
+89.0
+88.9
+0.642
+0.851
+186.31M
+55.7
+87.2
+87.1
+0.504
+0.797
+52.5
+71.0
+78.2
+78.3
+0.313
+0.683
+Diffusion Bridge [17]
+47.3
+86.9
+86.8
+0.649
+0.839
+185.46M
+53.1
+87.1
+87.0
+0.531
+0.800
+52.5
+70.7
+78.6
+79.0
+0.323
+0.677
+CaReFlow
+50.6
+89.8
+89.7
+0.616
+0.858
+185.38M
+55.7
+87.9
+88.0
+0.504
+0.799
+57.9
+75.9
+82.9
+82.9
+0.277
+0.745
+(a) Sample Ratio β
+(b) Number of Euler Steps 1
+dt
+(c) Forward Loss Weight αf
+(d) Backward Loss weight αb
+Figure 6. The Acc2 w.r.t the change of sample ratio β, number of Euler steps
+1
+dt, forward loss weight αf, and backward loss weight αb.
+Table 5. Comparison of fusion methods on CH-SIMS-v2.
+Fusion Methods
+Acc5↑
+Acc3↑
+Acc2↑
+F1↑
+MAE↓
+Corr↑
+Tensor Fusion [56]
+58.6
+77.9
+83.6
+83.6
+0.280
+0.754
+Graph Fusion [27]
+58.1
+76.0
+83.1
+83.1
+0.283
+0.749
+Low-rank Modality Fusion [23]
+58.0
+75.9
+82.6
+82.7
+0.286
+0.747
+CubeMLP [38]
+58.1
+75.6
+83.2
+83.3
+0.277
+0.748
+Simple Fusion Network (Default)
+57.9
+75.9
+82.9
+82.9
+0.277
+0.745
+investigate the performance of CaReFlow with various fu-
+sion methods, including tensor fusion, graph fusion, low-
+rank modality fusion, etc. We can infer from Table 5 that,
+compared to the original simple fusion network, more ad-
+vanced fusion mechanisms achieve better results, indicat-
+ing the potential of CaReFlow. Among all fusion methods,
+tensor fusion obtains the best results because of its high ex-
+pressive power, which requires more parameters to process.
+4.7. Hyperparameter Robustness Analysis
+We evaluate the effect of critical hyperparameters on CH-
+SIMS-v2: (a) Sample Ratio β: β is a hyperparameter in
+one-to-many mapping strategy, denoting how many times
+the number of modality pairs from different samples is com-
+pared to those from the same sample. As shown in Figure 6
+(a), β should be a moderate value. This is mainly because
+when β is too small, there are not enough training pairs,
+making it difficult to learn a robust drift force model. Con-
+versely, when β is too large, modality pairs from different
+samples may dominate the training, overshadowing the role
+of pairs from the same sample, and leading to difficulties
+in learning more accurate modality mapping relationships;
+(b) Number of Euler Steps 1
+dt: It represents the number of
+Euler steps required to transition from Xm1 to Xm2. As
+shown in Figure 6 (b), despite fluctuations in the number
+of Euler steps, the performance varies very little, indicat-
+ing its robustness. This implies that the transition trajectory
+learned by CaReFlow after single-shot training is relatively
+straight, because the performance of CaReFlow is satisfac-
+tory even when
+1
+dt is 2. This is mainly because we design
+adaptive relaxed alignment that allows CaReFlow to focus
+more on the target data points with greater correlation de-
+grees when performing one-to-many mapping, thus learn-
+ing more accurate modality distribution mapping in a faster
+way; (c) Forward Loss Weight αf and Backward Loss
+Weight αb: αf and αb denote the weights of forward and
+backward losses in CaReFlow, respectively. As shown in
+Figure 6 (c) and (d), αf should be a large number. When
+αf is small, forward loss does not exert its full effect, and
+CaReFlow fails to adequately transform source distributions
+to target distributions, leading to suboptimal fusion. The
+value of αb, however, should be a moderate number. This is
+because backward loss will dominate the training of the for-
+ward drift force model when αb is large, causing it to focus
+solely on retaining the information of source modality. As
+a result, it cannot effectively transfer modality distribution.
+Notably, CaReFlow consistently outperforms base-
+lines when hyperparameters are set to a variety of val-
+ues, indicating its robustness (see Table 2). Moreover,
+when the hyperparameters are set to specific values (e.g.,
+when β is 7), the performance improves compared to when
+using default values (i.e., β = 4), indicating with more re-
+fined hyperparameter tuning, the results of CaReFlow
+can be further enhanced, demonstrating its potential.
+5. Conclusion
+We propose CaReFlow to improve multimodal fusion via
+reducing the modality gap. CaReFlow leverages rectified
+flow to map the distribution of source modality to tar-
+get modality via a ‘one-to-many’ mapping strategy that
+strengthens the robustness of modality alignment.
+In
+addition, CaReFlow designs adaptive relaxed alignment
+and cyclic information flow to achieve more accurate and
+information-preserving modality mapping. It achieves su-
+perior results on multiple MAC tasks with a simple fusion
+method and can effectively reduce the modality gap.
+37806
+
+
+6. Acknowledgment
+This work is supported by the Guangdong Philosophy and
+Social Sciences Planning Project (No. GD26YJY34).
+References
+[1] Galen Andrew, Raman Arora, Jeff Bilmes, and Karen
+Livescu. Deep canonical correlation analysis. In Interna-
+tional conference on machine learning, pages 1247–1255.
+PMLR, 2013. 6, 8
+[2] Tadas Baltruˇsaitis, Chaitanya Ahuja, and Louis-Philippe
+Morency. Multimodal machine learning: A survey and tax-
+onomy. IEEE Transactions on Pattern Analysis and Machine
+Intelligence, 41(2):423–443, 2019. 1
+[3] E. Cambria.
+Affective computing and sentiment analysis.
+IEEE Intelligent Systems, 31(02):102–107, 2016. 1
+[4] Santiago Castro, Devamanyu Hazarika, Ver´onica P´erez-
+Rosas, Roger Zimmermann, Rada Mihalcea, and Sou-
+janya Poria.
+Towards multimodal sarcasm detection (an
+obviously perfect paper). In Proceedings of the 57th An-
+nual Meeting of the Association for Computational Linguis-
+tics, pages 4619–4629, 2019. 3, 6
+[5] Ting Chen, Simon Kornblith, Mohammad Norouzi, and Ge-
+offrey Hinton. A simple framework for contrastive learning
+of visual representations. In International conference on ma-
+chine learning, pages 1597–1607. PMLR, 2020. 2
+[6] Zesen Cheng, Sicong Leng, Hang Zhang, Yifei Xin, Xin
+Li, Guanzheng Chen, Yongxin Zhu, Wenqi Zhang, Ziyang
+Luo, Deli Zhao, et al.
+Videollama 2: Advancing spatial-
+temporal modeling and audio understanding in video-llms.
+arXiv preprint arXiv:2406.07476, 2024. 2
+[7] Sri Harsha Dumpala, Imran Sheikh, Rupayan Chakraborty,
+and Sunil Kumar Kopparapu. Audio-visual fusion for senti-
+ment classification using cross-modal autoencoder. In 32nd
+conference on neural information processing systems (NIPS
+2018), pages 1–4, 2019. 2
+[8] Yiyang Fang, Wenke Huang, Guancheng Wan, Kehua Su,
+and Mang Ye. Emoe: Modality-specific enhanced dynamic
+emotion experts. In Proceedings of the Computer Vision and
+Pattern Recognition Conference, pages 14314–14324, 2025.
+7
+[9] Xinyu Feng, Yuming Lin, Lihua He, You Li, Liang Chang,
+and Ya Zhou. Knowledge-guided dynamic modality atten-
+tion fusion framework for multimodal sentiment analysis. In
+Findings of the Association for Computational Linguistics:
+EMNLP 2024, pages 14755–14766, 2024. 7
+[10] Zixian Gao, Xun Jiang, Xing Xu, Fumin Shen, Yujie Li,
+and Heng Tao Shen.
+Embracing unimodal aleatoric un-
+certainty for robust multimodal fusion. In Proceedings of
+the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition, pages 26876–26885, 2024. 2
+[11] Pengsheng Guo and Alexander G Schwing. Variational recti-
+fied flow matching. arXiv preprint arXiv:2502.09616, 2025.
+2, 3, 4
+[12] Wei Han, Hui Chen, and Soujanya Poria. Improving mul-
+timodal fusion with hierarchical mutual information maxi-
+mization for multimodal sentiment analysis. In Proceedings
+of the 2021 Conference on Empirical Methods in Natural
+Language Processing, pages 9180–9192, Online and Punta
+Cana, Dominican Republic, 2021. Association for Computa-
+tional Linguistics. 6, 7
+[13] Md Kamrul Hasan, Wasifur Rahman, AmirAli Bagher
+Zadeh, Jianyuan Zhong, Md Iftekhar Tanveer, Louis-
+Philippe Morency, and Mohammed Ehsan Hoque. Ur-funny:
+A multimodal language dataset for understanding humor. In
+Proceedings of the 2019 Conference on Empirical Methods
+in Natural Language Processing and the 9th International
+Joint Conference on Natural Language Processing (EMNLP-
+IJCNLP), pages 2046–2056, 2019. 3, 6
+[14] Devamanyu Hazarika, R. Zimmermann, and Soujanya Po-
+ria. Misa: Modality-invariant and -specific representations
+for multimodal sentiment analysis. ACM MM, pages 1122–
+1131, 2020. 7
+[15] Changqin Huang, Jili Chen, Qionghao Huang, Shijin Wang,
+Yaxin Tu, and Xiaodi Huang.
+Atcaf:
+Attention-based
+causality-aware fusion network for multimodal sentiment
+analysis. Information Fusion, 114:102725, 2025. 2, 6, 7
+[16] Panagiotis Koromilas, Mihalis A Nicolaou, Theodoros Gi-
+annakopoulos, and Yannis Panagakis. Mmatr: A lightweight
+approach for multimodal sentiment analysis based on tensor
+methods. In ICASSP 2023-2023 IEEE International Confer-
+ence on Acoustics, Speech and Signal Processing (ICASSP),
+pages 1–5. IEEE, 2023. 2
+[17] Jeong Ryong Lee, Yejee Shin, Geonhui Son, and Dosik
+Hwang.
+Diffusion bridge: Leveraging diffusion model to
+reduce the modality gap between text and vision for zero-
+shot image captioning. In Proceedings of the Computer Vi-
+sion and Pattern Recognition Conference, pages 4050–4059,
+2025. 1, 2, 6, 7, 8
+[18] Sangyun Lee, Zinan Lin, and Giulia Fanti. Improving the
+training of rectified flows. Advances in neural information
+processing systems, 37:63082–63109, 2024. 2, 3
+[19] Shufan Li, Konstantinos Kallidromitis, Akash Gokul, Zichun
+Liao, Yusuke Kato, Kazuki Kozuka, and Aditya Grover. Om-
+niflow: Any-to-any generation with multi-modal rectified
+flows. In Proceedings of the Computer Vision and Pattern
+Recognition Conference, pages 13178–13188, 2025. 2, 3
+[20] Yong Li, Yuanzhi Wang, and Zhen Cui. Decoupled multi-
+modal distilling for emotion recognition. In Proceedings of
+the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition, pages 6631–6640, 2023. 1, 6, 7
+[21] Xingchao Liu, Chengyue Gong, et al. Flow straight and fast:
+Learning to generate and transfer data with rectified flow. In
+The Eleventh International Conference on Learning Repre-
+sentations, 2023. 2, 3
+[22] Yihe Liu, Ziqi Yuan, Huisheng Mao, Zhiyun Liang, Wanqi-
+uyue Yang, Yuanzhe Qiu, Tie Cheng, Xiaoteng Li, Hua Xu,
+and Kai Gao. Make acoustic and visual cues matter: Ch-
+sims v2. 0 dataset and av-mixup consistent module. In Pro-
+ceedings of the 2022 international conference on multimodal
+interaction, pages 247–258, 2022. 6, 7
+[23] Zhun Liu, Ying Shen, Paul Pu Liang, Amir Zadeh, and
+Louis Philippe Morency. Efficient low-rank multimodal fu-
+sion with modality-specific factors. In ACL, pages 2247–
+2256, 2018. 8
+37807
+
+
+[24] Yuanyi Luo, Wei Liu, Qiang Sun, Sirui Li, Jichunyang
+Li, Rui Wu, and Xianglong Tang.
+Triagedmsa: Triaging
+sentimental disagreement in multimodal sentiment analysis.
+IEEE Transactions on Affective Computing, 2025. 2
+[25] Huan Ma, Qingyang Zhang, Changqing Zhang, Bingzhe Wu,
+Huazhu Fu, Joey Tianyi Zhou, and Qinghua Hu. Calibrating
+multimodal learning. In International Conference on Ma-
+chine Learning, pages 23429–23450. PMLR, 2023. 2
+[26] Yiyang Ma, Xingchao Liu, Xiaokang Chen, Wen Liu,
+Chengyue Wu, Zhiyu Wu, Zizheng Pan, Zhenda Xie, Haowei
+Zhang, Xingkai Yu, et al. Janusflow: Harmonizing autore-
+gression and rectified flow for unified multimodal under-
+standing and generation. In Proceedings of the Computer Vi-
+sion and Pattern Recognition Conference, pages 7739–7751,
+2025. 3
+[27] Sijie Mai, Haifeng Hu, and Songlong Xing.
+Modality to
+modality translation: An adversarial representation learning
+and graph fusion network for multimodal fusion. In AAAI,
+pages 164–172, 2020. 1, 2, 6, 7, 8
+[28] Sijie Mai, Ya Sun, Ying Zeng, and Haifeng Hu. Excavating
+multimodal correlation for representation learning. Informa-
+tion Fusion, 91:542–555, 2023. 6
+[29] Sijie Mai, Ying Zeng, and Haifeng Hu. Multimodal informa-
+tion bottleneck: Learning minimal sufficient unimodal and
+multimodal representations. IEEE Transactions on Multime-
+dia, 25:4121–4134, 2023. 2, 7
+[30] Sijie Mai, Ying Zeng, and Haifeng Hu. Learning from the
+global view: Supervised contrastive learning of multimodal
+representation. Information Fusion, 100:101920, 2023. 6
+[31] Sijie Mai, Ying Zeng, Shuangjia Zheng, and Haifeng Hu.
+Hybrid contrastive learning of tri-modal representation for
+multimodal sentiment analysis. IEEE Transactions on Affec-
+tive Computing, 14(3):2276–2289, 2023. 1, 3
+[32] Sijie Mai, Ya Sun, Aolin Xiong, Ying Zeng, and Haifeng Hu.
+Multimodal boosting: Addressing noisy modalities and iden-
+tifying modality contribution. IEEE Transactions on Multi-
+media, 26:3018–3033, 2024. 2, 7
+[33] Sijie Mai, Ying Zeng, Aolin Xiong, and Haifeng Hu. Inject-
+ing multimodal information into pre-trained language model
+for multimodal sentiment analysis. IEEE Transactions on
+Affective Computing, 2025. 4
+[34] Hai Pham, Paul Pu Liang, Thomas Manzini, Louis-Philippe
+Morency, and Barnab´as P´oczos. Found in translation: Learn-
+ing robust joint representations by cyclic translations be-
+tween modalities. In Proceedings of the AAAI conference
+on artificial intelligence, pages 6892–6899, 2019. 2, 4
+[35] Shraman Pramanick, Aniket Roy, and Vishal M Patel. Mul-
+timodal learning using optimal transport for sarcasm and hu-
+mor detection. In Proceedings of the IEEE/CVF Winter Con-
+ference on Applications of Computer Vision, pages 3930–
+3940, 2022. 2, 6
+[36] Wasifur Rahman, M. Hasan, Sangwu Lee, Amir Zadeh,
+Chengfeng Mao, Louis-Philippe Morency, and E. Hoque. In-
+tegrating multimodal information in large pretrained trans-
+formers. ACL, 2020:2359–2369, 2020. 6, 7
+[37] Shiv Shankar. Multimodal fusion via cortical network in-
+spired losses. In Proceedings of the 60th Annual Meeting
+of the Association for Computational Linguistics (Volume 1:
+Long Papers), pages 1167–1178, 2022. 2
+[38] Hao Sun, Hongyi Wang, Jiaqing Liu, Yen-Wei Chen, and
+Lanfen Lin. Cubemlp: An mlp-based model for multimodal
+sentiment analysis and depression estimation. In Proceed-
+ings of the 30th ACM International Conference on Multime-
+dia, pages 3722–3729, 2022. 8
+[39] Mani Kumar Tellamekala, Shahin Amiriparian, Bj¨orn W.
+Schuller, Elisabeth Andr´e, Timo Giesbrecht, and Michel Val-
+star. Cold fusion: Calibrated and ordinal latent distribution
+fusion for uncertainty-aware multimodal emotion recogni-
+tion. IEEE Transactions on Pattern Analysis and Machine
+Intelligence, 46(2):805–822, 2024. 2
+[40] Mohit Tomar, Abhisek Tiwari, Tulika Saha, and Sriparna
+Saha. Your tone speaks louder than your face! modality or-
+der infused multi-modal sarcasm detection. In Proceedings
+of the 31st ACM International Conference on Multimedia,
+pages 3926–3933, 2023. 6
+[41] Yao-Hung Hubert Tsai, Shaojie Bai, Paul Pu Liang, J. Zico
+Kolter, Louis-Philippe Morency, and Ruslan Salakhutdinov.
+Multimodal transformer for unaligned multimodal language
+sequences. In ACL, pages 6558–6569, 2019. 1, 2, 6, 8
+[42] Laurens Van der Maaten and Geoffrey Hinton. Visualizing
+data using t-sne. Journal of machine learning research, 9
+(11), 2008. 7
+[43] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszko-
+reit, Llion Jones, Aidan N Gomez, Łukasz Kaiser, and Illia
+Polosukhin. Attention is all you need. In Advances in neural
+information processing systems, pages 5998–6008, 2017. 5
+[44] Pan Wang, Qiang Zhou, Yawen Wu, Tianlong Chen, and
+Jingtong Hu.
+Dlf: Disentangled-language-focused multi-
+modal sentiment analysis. In Proceedings of the AAAI Con-
+ference on Artificial Intelligence, pages 21180–21188, 2025.
+6, 7
+[45] Yuanzhi Wang, Yong Li, and Zhen Cui.
+Incomplete
+multimodality-diffused emotion recognition.
+Advances in
+Neural Information Processing Systems, 36:17117–17128,
+2023. 1, 2
+[46] Sheng Wu, Dongxiao He, Xiaobao Wang, Longbiao Wang,
+and Jianwu Dang. Enriching multimodal sentiment analysis
+through textual emotional descriptions of visual-audio con-
+tent. In Proceedings of the AAAI Conference on Artificial
+Intelligence, pages 1601–1609, 2025. 7
+[47] Xiongye Xiao, Gengshuo Liu, Gaurav Gupta, Defu Cao,
+Shixuan Li, Yaxing Li, Tianqing Fang, Mingxi Cheng, and
+Paul Bogdan. Neuro-inspired information-theoretic hierar-
+chical perception for multimodal learning. In The Twelfth In-
+ternational Conference on Learning Representations, 2024.
+2, 6, 7
+[48] Cai Xu, Jiajun Si, Ziyu Guan, Wei Zhao, Yue Wu, and Xiyue
+Gao. Reliable conflictive multi-view learning. In Proceed-
+ings of the AAAI Conference on Artificial Intelligence, pages
+16129–16137, 2024. 2
+[49] Jin Xu, Zhifang Guo, Jinzheng He, Hangrui Hu, Ting He,
+Shuai Bai, Keqin Chen, Jialin Wang, Yang Fan, Kai Dang,
+et al.
+Qwen2. 5-omni technical report.
+arXiv preprint
+arXiv:2503.20215, 2025. 2
+37808
+
+
+[50] Zhi Xu, Dingkang Yang, Mingcheng Li, Yuzheng Wang,
+Zhaoyu Chen, Jiawei Chen, Jinjie Wei, and Lihua Zhang.
+Debiased multimodal understanding for human language se-
+quences. In Proceedings of the AAAI Conference on Artificial
+Intelligence, pages 14450–14458, 2025. 6
+[51] Dingkang Yang, Mingcheng Li, Dongling Xiao, Yang Liu,
+Kun Yang, Zhaoyu Chen, Yuzheng Wang, Peng Zhai, Ke Li,
+and Lihua Zhang. Towards multimodal sentiment analysis
+debiasing via bias purification. In European Conference on
+Computer Vision, pages 464–481. Springer, 2024. 2
+[52] Jiuding Yang, Yakun Yu, Di Niu, Weidong Guo, and Yu Xu.
+Confede: Contrastive feature decomposition for multimodal
+sentiment analysis. In Proceedings of the 61st Annual Meet-
+ing of the Association for Computational Linguistics (Volume
+1: Long Papers), pages 7617–7630, 2023. 2
+[53] Yang Yang, Xunde Dong, and Yupeng Qiang. Clgsi: a mul-
+timodal sentiment analysis framework based on contrastive
+learning guided by sentiment intensity. In Findings of the
+Association for Computational Linguistics: NAACL 2024,
+pages 2099–2110, 2024. 1, 3, 6, 7, 8
+[54] Wenmeng Yu, Hua Xu, Ziqi Yuan, and Jiele Wu. Learning
+modality-specific representations with self-supervised multi-
+task learning for multimodal sentiment analysis. In Proceed-
+ings of the AAAI conference on artificial intelligence, pages
+10790–10797, 2021. 6, 7
+[55] Amir Zadeh, Rowan Zellers, Eli Pincus, and Louis-Philippe
+Morency. Multimodal sentiment intensity analysis in videos:
+Facial gestures and verbal messages. IEEE Intelligent Sys-
+tems, 31(6):82–88, 2016. 1, 3, 6
+[56] Amir Zadeh, Minghai Chen, Soujanya Poria, Erik Cambria,
+and Louis-Philippe Morency. Tensor fusion network for mul-
+timodal sentiment analysis. In Proceedings of the 2017 Con-
+ference on Empirical Methods in Natural Language Process-
+ing, pages 1103–1114, 2017. 2, 8
+[57] Amir Zadeh, Paul Pu Liang, Navonil Mazumder, Soujanya
+Poria, Erik Cambria, and Louis-Philippe Morency. Memory
+fusion network for multi-view sequential learning. In Pro-
+ceedings of the AAAI conference on artificial intelligence,
+2018. 2
+[58] AmirAli Bagher Zadeh, Paul Pu Liang, Soujanya Poria, Erik
+Cambria, and Louis-Philippe Morency.
+Multimodal lan-
+guage analysis in the wild: Cmu-mosei dataset and inter-
+pretable dynamic fusion graph. In Proceedings of the 56th
+Annual Meeting of the Association for Computational Lin-
+guistics (Volume 1: Long Papers), pages 2236–2246, 2018.
+6
+[59] Yazhou Zhang, Yang Yu, Dongming Zhao, Zuhe Li, Bo
+Wang, Yuexian Hou, Prayag Tiwari, and Jing Qin. Learn-
+ing multitask commonness and uniqueness for multimodal
+sarcasm detection and sentiment analysis in conversation.
+IEEE Transactions on Artificial Intelligence, 5(3):1349–
+1361, 2024. 6
+[60] Yue Zhao, Wei Zhang, Yanhua Wu, and Jie Lin.
+Hu-
+manomni: Large vision-speech-language model for mul-
+timodal understanding.
+arXiv preprint arXiv:2503.02117,
+2025. 2
+37809

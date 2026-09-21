@@ -1,0 +1,54 @@
+{
+  "version": 2,
+  "extractor": "pymupdf-images",
+  "figures": [
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-koutoupis-the-more-the-merrier-contrastive-fusion-for-higher-order-multimodal-alignment-cvpr-2026-paper/fig-001.webp",
+      "caption": "",
+      "page": 1,
+      "index": 1,
+      "width": 1020,
+      "height": 483
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-koutoupis-the-more-the-merrier-contrastive-fusion-for-higher-order-multimodal-alignment-cvpr-2026-paper/fig-002.webp",
+      "caption": "",
+      "page": 3,
+      "index": 2,
+      "width": 1012,
+      "height": 684
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-koutoupis-the-more-the-merrier-contrastive-fusion-for-higher-order-multimodal-alignment-cvpr-2026-paper/fig-003.webp",
+      "caption": "",
+      "page": 4,
+      "index": 3,
+      "width": 984,
+      "height": 583
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-koutoupis-the-more-the-merrier-contrastive-fusion-for-higher-order-multimodal-alignment-cvpr-2026-paper/fig-004.webp",
+      "caption": "",
+      "page": 7,
+      "index": 4,
+      "width": 1735,
+      "height": 992
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-koutoupis-the-more-the-merrier-contrastive-fusion-for-higher-order-multimodal-alignment-cvpr-2026-paper/fig-005.webp",
+      "caption": "",
+      "page": 7,
+      "index": 5,
+      "width": 898,
+      "height": 678
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-koutoupis-the-more-the-merrier-contrastive-fusion-for-higher-order-multimodal-alignment-cvpr-2026-paper/fig-006.webp",
+      "caption": "",
+      "page": 7,
+      "index": 6,
+      "width": 1735,
+      "height": 1165
+    }
+  ]
+}

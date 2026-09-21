@@ -1,0 +1,222 @@
+{
+  "version": 2,
+  "extractor": "pymupdf-images",
+  "figures": [
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-001.webp",
+      "caption": "",
+      "page": 1,
+      "index": 1,
+      "width": 910,
+      "height": 512
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-002.webp",
+      "caption": "",
+      "page": 1,
+      "index": 2,
+      "width": 640,
+      "height": 512
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-003.webp",
+      "caption": "",
+      "page": 1,
+      "index": 3,
+      "width": 640,
+      "height": 512
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-004.webp",
+      "caption": "",
+      "page": 1,
+      "index": 4,
+      "width": 910,
+      "height": 512
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-005.webp",
+      "caption": "",
+      "page": 3,
+      "index": 5,
+      "width": 963,
+      "height": 620
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-006.webp",
+      "caption": "",
+      "page": 4,
+      "index": 6,
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-007.webp",
+      "caption": "",
+      "page": 4,
+      "index": 7,
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-008.webp",
+      "caption": "",
+      "page": 4,
+      "index": 8,
+      "width": 2292,
+      "height": 1636
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-009.webp",
+      "caption": "",
+      "page": 4,
+      "index": 9,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-010.webp",
+      "caption": "",
+      "page": 4,
+      "index": 10,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-011.webp",
+      "caption": "",
+      "page": 4,
+      "index": 11,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-012.webp",
+      "caption": "",
+      "page": 4,
+      "index": 12,
+      "width": 1920,
+      "height": 1080
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-013.webp",
+      "caption": "",
+      "page": 4,
+      "index": 13,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-014.webp",
+      "caption": "",
+      "page": 4,
+      "index": 14,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-015.webp",
+      "caption": "",
+      "page": 4,
+      "index": 15,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-016.webp",
+      "caption": "",
+      "page": 4,
+      "index": 16,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-017.webp",
+      "caption": "",
+      "page": 4,
+      "index": 17,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-018.webp",
+      "caption": "",
+      "page": 4,
+      "index": 18,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-019.webp",
+      "caption": "",
+      "page": 4,
+      "index": 19,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-020.webp",
+      "caption": "",
+      "page": 4,
+      "index": 20,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-021.webp",
+      "caption": "",
+      "page": 4,
+      "index": 21,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-022.webp",
+      "caption": "",
+      "page": 4,
+      "index": 22,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-023.webp",
+      "caption": "",
+      "page": 4,
+      "index": 23,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-024.webp",
+      "caption": "",
+      "page": 4,
+      "index": 24,
+      "width": 480,
+      "height": 270
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-025.webp",
+      "caption": "",
+      "page": 6,
+      "index": 25,
+      "width": 482,
+      "height": 313
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-026.webp",
+      "caption": "",
+      "page": 6,
+      "index": 26,
+      "width": 704,
+      "height": 294
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-huang-uav-cb-a-complex-background-rgb-t-dataset-and-local-frequency-bridge-network-cvpr-2026-paper/fig-027.webp",
+      "caption": "",
+      "page": 6,
+      "index": 27,
+      "width": 516,
+      "height": 306
+    }
+  ]
+}

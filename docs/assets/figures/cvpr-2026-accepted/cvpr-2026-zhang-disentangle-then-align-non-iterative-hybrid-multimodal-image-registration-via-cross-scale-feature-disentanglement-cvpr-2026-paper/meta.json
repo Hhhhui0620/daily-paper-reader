@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "extractor": "pymupdf-images",
+  "figures": [
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-zhang-disentangle-then-align-non-iterative-hybrid-multimodal-image-registration-via-cross-scale-feature-disentanglement-cvpr-2026-paper/fig-001.webp",
+      "caption": "",
+      "page": 8,
+      "index": 1,
+      "width": 1716,
+      "height": 968
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-zhang-disentangle-then-align-non-iterative-hybrid-multimodal-image-registration-via-cross-scale-feature-disentanglement-cvpr-2026-paper/fig-002.webp",
+      "caption": "",
+      "page": 8,
+      "index": 2,
+      "width": 1364,
+      "height": 1144
+    },
+    {
+      "url": "assets/figures/cvpr-2026-accepted/cvpr-2026-zhang-disentangle-then-align-non-iterative-hybrid-multimodal-image-registration-via-cross-scale-feature-disentanglement-cvpr-2026-paper/fig-003.webp",
+      "caption": "",
+      "page": 8,
+      "index": 3,
+      "width": 1364,
+      "height": 1144
+    }
+  ]
+}

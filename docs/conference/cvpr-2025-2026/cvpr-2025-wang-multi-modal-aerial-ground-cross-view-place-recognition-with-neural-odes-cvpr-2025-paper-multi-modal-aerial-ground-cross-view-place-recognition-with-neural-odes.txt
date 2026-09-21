@@ -1,0 +1,575 @@
+Title: Multi-Modal Aerial-Ground Cross-View Place Recognition with Neural ODEs
+
+URL Source: https://openaccess.thecvf.com/content/CVPR2025/papers/Wang_Multi-Modal_Aerial-Ground_Cross-View_Place_Recognition_with_Neural_ODEs_CVPR_2025_paper.pdf
+
+Published Time: Mon, 19 May 2025 12:02:40 GMT
+
+Number of Pages: 12
+
+Markdown Content:
+# Multi-Modal Aerial-Ground Cross-View Place Recognition with Neural ODEs 
+
+## Sijie Wang *1 Rui She *2 
+
+## Qiyu Kang 3 Siqi Li 1 Disheng Li 1 Tianyu Geng 1 Shangshu Yu 1 Wee Peng Tay 11Nanyang Technological University 2Beihang University 
+
+> 3
+
+## University of Science and Technology of China 
+
+wang1679@e.ntu.edu.sg 
+
+## Abstract 
+
+Place recognition (PR) aims at retrieving the query place from a database and plays a crucial role in various applica-tions, including navigation, autonomous driving, and aug-mented reality. While previous multi-modal PR works have mainly focused on the same-view scenario in which ground-view descriptors are matched with a database of ground-view descriptors during inference, the multi-modal cross-view scenario, in which ground-view descriptors are matched with aerial-view descriptors in a database, remains under-explored. We propose AGPlace, a model that effectively inte-grates information from multi-modal ground sensors (cam-eras and LiDARs) to achieve accurate aerial-ground PR. AGPlace achieves effective aerial-ground cross-view PR by leveraging a manifold-based neural ordinary differential equation (ODE) framework with a multi-domain alignment loss. It outperforms existing state-of-the-art cross-view PR models on large-scale datasets. As most existing PR models are designed for ground-ground PR, we adapt these base-lines into our cross-view pipeline. Experiments demonstrate that this direct adaptation performs worse than our overall model architecture AGPlace. AGPlace represents a signif-icant advancement in multi-modal aerial-ground PR, with promising implications for real-world applications. 
+
+## 1. Introduction 
+
+Place recognition (PR) serves as a fundamental solution to the problem of localization, treating localization as a retrieval task. It involves maintaining a database of geo-tagged sensor data (e.g., images and point clouds) collected at previously visited places. During inference, PR computes the similarity between the query data and the database data to retrieve the most similar places. PR plays a crucial role in various applications, including simultaneous localization  
+
+> *Sijie Wang and Rui She contribute equally. Corresponding author: Rui She. …
+> multi-modal
+> PR model
+> 2D
+> VPR model …
+> place
+> recognition
+> query-database
+> matching
+> aerial-view
+> database descriptors
+> ground-view
+> query descriptor
+> aerial-view map database
+> ground-view multi-modal query
+> we design
+> AGPlace
+> training
+> during training
+> during inference
+> e.g.
+> ResNet
+> for ground
+> agent localization
+
+Figure 1. An example pipeline of multi-modal aerial-ground PR. (1) The aerial-view geo-tagged maps (e.g. aerial RGB images, road maps) act as the database. (2) The ground-view multi-modal data (images + point clouds) are the place query to be matched with the database. 
+
+and mapping (SLAM) [4] and augmented reality (AR) [49]. PR models are expected to convert the raw sensor data into highly aggregated scene descriptors with much smaller sizes. Traditional techniques leverage hand-crafted features to summarize the query and database data, such as Vector of Locally Aggregated Descriptors (VLAD) [23]. However, these solutions heavily rely on prior human knowledge and may not perform optimally in challenging scenes. Advances in deep learning have facilitated the widespread adoption of learning-based PR works. For example, NetVLAD [3] replaces the manual design of the encoding process used in traditional VLAD with a neural network that learns the representation directly from raw image data. In recent years, PR has attracted increasing attention from researchers. The initial focus was primarily on developing single-modal solutions, where both query and database come from the same modality, such as images [1, 17, 22, 25, 47, 63, 76] or point clouds [9, 10, 26, 27, 39, 40, 62]. However, with the advancement of multi-sensor processing techniques, there has been a growing interest in multi-modal PR. In this direction, query and database data encompass more than one modality, allowing for richer information fusion. Multi-modal models [28, 29, 74] have demonstrated superior performances to their single-modal counterparts. This CVPR paper is the Open Access version, provided by the Computer Vision Foundation. Except for this watermark, it is identical to the accepted version; the final published version of the proceedings is available on IEEE Xplore. 11717 Apart from models addressing scenarios where both query data and database data come from the same view-point, achieving PR in aerial-ground cross-view scenarios [11, 59, 75, 76, 78] presents another challenge. In this case, the database data is collected from aerial views, while the query data is collected from ground views. The aerial-ground PR is particularly valuable for ground robot localization due to extensive aerial RGB or semantic maps offering broad field-of-view (FOV) coverage. Additionally, collecting aerial data is more efficient than ground data, especially in chal-lenging terrains like forests and mountains. These aerial maps provide rich geometric references, enabling ground robots to achieve accurate and effective localization[65, 73]. However, the current state-of-the-art (SOTA) aerial-ground PR models focus on the same-modal setting, i.e., ground 
+
+images are matched to aerial images . These models do not consider fusing ground images and point clouds to achieve better cross-view performance. In this paper, we investigate the challenge of multi-modal PR in the aerial-ground cross-view scenario. More specif-ically, as shown in Fig. 1, we consider the ground data to be with multiple modalities, consisting of both images and point clouds. On the other hand, aerial data encompasses various formats, including real captured aerial RGB images as well as semantic maps such as road maps. We introduce Aerial-Ground Place (AGPlace ), designed for multi-modal aerial-ground cross-view PR. Our main con-tributions are summarized as follows: 1. AGPlace utilizes a manifold to fuse multi-modal infor-mation by learning manifold chart functions to relate points in 2D or 3D spaces to the manifold. The fusion em-bedding is constructed using neural ordinary differential equations (ODEs), which produces distinct representa-tions for different ground views, leading to effective PR. Furthermore, by allowing the fusion embedding to evolve on a manifold guided by a multi-domain alignment loss, we allow it to flexibly match the aerial descriptors in the aerial database. The evolved fusion embedding acts as guidance for the extraction of respective modal features to formulate the final scene descriptor. 2. The existing aerial-ground PR datasets like CVUSA [69] and CVACT [36] do not provide the ground LiDAR data, which cannot be used for our multi-modal PR task. There-fore, we establish two benchmark datasets to evaluate AGPlace and related baselines. The datasets are adapted from KITTI360 [35] and nuScenes [8] together with Google Maps to provide multi-sensor ground data and aerial database maps. 3. We conduct extensive numerical experiments demonstrat-ing that AGPlace surpasses previous SOTA multi-modal PR models in aerial-ground cross-view PR. We conduct ablation studies to provide insights into our design. 
+
+## 2. Related Work 
+
+2.1. Visual Place Recognition. 
+
+In 2D visual PR (VPR), the query and database data are both collected in the 2D image format. Traditionally, hand-crafted feature techniques are used to aggregate the whole image, e.g., BoW [13], VLAD [23], and Fisher [45]. These solutions depend heavily on prior human knowledge and may not perform well in challenging scenes. NetVLAD [3] is the first to leverage learnable layers in PR by incorporating soft-weighted feature assignments. NetVLAD has inspired a series of image-based PR works, including general models [1, 7, 17, 22, 25, 63, 77] and aerial-ground models [20, 50, 54, 55, 59, 75, 76]. PointNetVLAD [62] is the first to leverage learning-based methods in point cloud PR. It uses PointNet [46] as the back-bone to extract point cloud features followed by a NetVLAD [3] layer to aggregate 3D scene information. With the grow-ing popularity of LiDARs in the field of autonomous driv-ing, there has been a surge in the development of models that leverage point clouds to address the 3D PR problem [9, 27, 39, 72, 79]. In addition, there are also models pro-posed for aerial-ground 3D PR [16, 24]. 
+
+2.2. Aerial-Ground Place Recognition. 
+
+Aerial-ground PR has become a popular task in localization. This cross-view PR task involves using ground data as the query and aerial data as the database. Unlike general PR models, aerial-ground PR models must address the inherent view differences between aerial and ground data. SAFA [53] employs polar transformation as prior knowl-edge to align aerial and ground panoramic images. CDTE [61] enhances this approach by training a generative model to better apply the polar transformation. However, the effec-tiveness of the polar transformation heavily depends on the geometric correspondence between the two views. Subse-quent approaches have focused on directly aligning scene descriptors. TransGeo [76] utilizes shared backbone weights to extract both aerial and ground descriptors. Sample4Geo [11] introduces hard negative mining strategies and employs the InfoNCE loss [48] for symmetric discrimination between aerial and ground features. UCVLG [33] proposes an un-supervised framework to guide cross-view PR models for improved retrieval and re-ranking. ArcGeo [59] introduces the angular loss to better explore cosine similarity between different samples. Despite these advancements, existing aerial-ground mod-els primarily focus on same-modal inputs. The challenge of effectively fusing ground image and point cloud inputs for aerial-ground PR remains unresolved. 11718 2.3. Multi-Modal Place Recognition. 
+
+Recently, multi-modal fusion using information from both cameras and LiDARs has emerged as a promising research topic, demonstrating superior performance in various tasks [37, 66–68]. In the field of PR, MinkLoc++ [28] pio-neered the use of separate branches for 2D image and 3D point cloud feature extraction, which are then combined to form the final scene descriptor. Due to their superior per-formance compared to single-sensor solutions, there has been a growing number of multi-modal PR approaches [15, 29, 41, 57, 71, 74]. However, these multi-modal PR works focus only on the ground-ground same-view situation, where the construction of a ground-view database requires tedious collection of ground data. In contrast, utilizing aerial maps as the database offers a potential solution to address the aforementioned challenges, yet it remains an under-explored area [14]. 
+
+2.4. Cross-View Metric Localization. 
+
+Another important application of cross-view PR is metric localization, which is usually deployed as the second stage in fine-grained localization tasks. After retrieving aerial maps or patches through cross-view PR models, metric localiza-tion models can estimate a more accurate sensor pose based on these map references [12, 31, 56]. 
+
+## 3. Proposed Approach 
+
+In this section, we first present the problem formulation of multi-modal aerial-ground PR, followed by detailed descrip-tions of our proposed AGPlace approach. 
+
+3.1. Problem Formulation 
+
+In this work, we address the challenge of aerial-ground multi-modal PR as shown in Fig. 1. We focus on the scenario where the aerial-view 2D data (satellite RGB images and road maps) serve as the database, while the ground-view multi-modal data (2D RGB images + 3D LiDAR point clouds) are used as queries. This can be formulated as follows: 
+
+arg max 
+
+> fG,f A
+
+X
+
+> i,j
+
+Γ(arg min 
+
+> j
+
+(L(fG(Ii
+
+> G
+
+, Pi
+
+> G
+
+), f A(Ij
+
+> A
+
+))) ∈ R i),
+
+(1) where fG(·, ·) denotes the ground multi-modal query model, 
+
+fA(·) is the aerial database model. L(·, ·) is a distance func-tion. IG and PG are ground query images and point clouds respectively, IA is the aerial database maps, Ri is the positive neighborhood set of query i, Γ(·) is the indicator function. 
+
+3.2. Modal-Specific Feature Extraction 
+
+The overall pipeline is shown in Fig. 2. We follow the previ-ous cross-view VPR solution[32, 76] that uses two different networks (i.e., not sharing weights) to handle aerial and ground inputs respectively. For the aerial part fA(·), since VPR for the 2D modality is well-established, we can use off-the-shelf 2D VPR methods (e.g., ResNet-GeM[47]) to ex-tract aerial descriptors. And our design is mainly focusing on the ground part fG(·, ·) that takes multi-modal query inputs. Given 2D image and 3D point cloud query inputs, we first use separate 2D and 3D backbones to extract the respective basic features in each modality. Using hierarchical informa-tion is a common technique in various tasks, and we follow this manner to extract multiple feature maps. We denote the feature maps at the l-th backbone block as Fl 
+
+> 2D
+
+and Fl
+
+> 3D
+
+,and all the gathered feature maps are denoted respectively as: 
+
+F2D =
+
+n
+
+Fl 
+
+> 2D
+
+∈ RN l×C : l ∈ [L]
+
+o
+
+, (2) 
+
+F3D =
+
+n
+
+Fl 
+
+> 3D
+
+∈ RN l×C : l ∈ [L]
+
+o
+
+, (3) where N l is the number of feature vectors at block l, C is the number of corresponding feature channels, 1 and L is the number of backbone blocks. 2
+
+For images, we use the standard 2D format. For point clouds, we use the 3D voxels format, which is a common format in 3D place recognition[28]. 3D point clouds can also be projected onto 2D planes and extracted by 2D backbones, e.g. spherical projection and birds’-eye-view (BEV) projec-tion. However, these projection methods would either lose information or change the neighboring connections, which would result in insufficient feature extraction. 
+
+3.3. Stage 1: Fusion Embedding Construction 
+
+To achieve effective information fusion between different modalities in multi-modal PR, we employ a two-stage fusion strategy as depicted in Fig. 2. In this first stage, in addition to the vanilla 2D and 3D feature branches, we introduce a third branch as a surrogate manifold for fusing feature information from the 2D and 3D branches and constructing the fusion embedding. On the other hand, in the problem of aerial-ground PR, the significant domain gap between aerial and ground data poses a challenge for domain alignment. Introducing a third branch can act as a platform to help bridge this gap. The visualiza-tion of descriptor distances, shown in Fig. 3, demonstrates that the inclusion of the fusion manifold aids in better align-ing the two domains, resulting in the aerial-ground scene descriptor distance that more closely corresponds to the ac-tual geometric distance. At the fusion embedding construction stage, we leverage the extracted feature maps F2D and F3D from each modal backbone to build the fusion embedding. Inspired by the concept of space point motion on manifolds in differential     
+
+> 1For illustration simplicity, we assume 2D and 3D backbones have the same number of feature vectors and channels.
+> 2We denote [N] = {1, . . . , N }.11719 chart chart chart
+> chart chart chart
+> chart
+> chart
+> decoder
+> block
+> decoder
+> block
+
+stage 1: fusion embedding construction  stage 2: modal-wise fusion       
+
+> ground point cloud
+> ground image
+> 𝐟𝐟3D 1= Pool( 𝐅𝐅3D 1)
+> 𝐟𝐟3D 𝐿𝐿 𝐟𝐟3D 𝑙𝑙
+> 𝐟𝐟2D 1= Pool( 𝐅𝐅2D 1)
+> 𝐟𝐟2D 𝑙𝑙 𝐟𝐟2D 𝐿𝐿
+> fusion embedding
+> 𝐞𝐞fuse
+> 𝐅𝐅3D 𝐿𝐿
+> 𝐅𝐅2D 𝐿𝐿
+> 𝐞𝐞fuse ground scene descriptor
+
+ODE  ODE  ODE     
+
+> 𝜑𝜑 2D 1𝜑𝜑 2D 𝑙𝑙 𝜑𝜑 2D 𝐿𝐿
+> 𝜑𝜑 3D 1𝜑𝜑 3D 𝑙𝑙 𝜑𝜑 3D 𝐿𝐿
+> 𝜓𝜓 fuse ,3D
+> 𝜓𝜓 fuse ,2D
+> 𝐦𝐦 𝐿𝐿 𝐦𝐦 𝑙𝑙 𝐦𝐦 1
+> 𝐞𝐞2D ′
+> 𝐞𝐞3D ′
+> 𝜆𝜆 fuse
+> 𝜆𝜆 ′
+> 𝜆𝜆 ′
+> 3D backbone
+> 2D backbone
+> 𝑔𝑔3D
+> 𝑔𝑔2D
+> 𝐞𝐞3D
+> 𝐞𝐞2D
+> Pool
+> Pool
+
+Figure 2. The pipeline overview. In the first stage, the ground image and point cloud are processed with separate backbone branches, the output features of which are used to build the fusion embedding. In the second stage, the constructed fusion embedding is mapped into the respective modal spaces to achieve further modal-wise feature extraction. aerial-ground 
+
+> desc. distance
+> w/ fusion manifold
+> aerial-ground
+> desc. distance
+> w/o fusion manifold
+> aerial-ground
+> geo. distance
+> far
+> close
+
+Figure 3. Aerial-ground (database-query) scene descriptor distance visualization. Symmetrization is applied for better visualization. 
+
+geometry [30], we model the fusion embedding construction as a multi-block state evolution process (shown in Fig. 4). This process starts from the last block and progresses towards the first block (i.e., L → 1), allowing the embedding state to incorporate more global-level information at later blocks that is beneficial for the PR task. At each block, the evolution consists of two sub-processes: (1) state initialization and (2) state updating. By allowing the fusion embedding to evolve according to a multi-domain alignment loss function (see Sec. 3.5), we enable it to flexibly match the aerial descriptors in the aerial database. 
+
+State Initialization. 
+
+At each backbone block l, we denote the initial fusion state as γl(t = 0) ∈ M C on the C-dimensional manifold 
+
+MC , and define it as: 
+
+γl(0) = 
+
+(
+
+ml if l = L, 
+
+ml + γl+1 (T ) otherwise , (4) where T is the state updating end time, and ml ∈ { ml}Ll=1 
+
+is the fusion state momentum. Specifically, ml is constructed using feature vectors from the respective l-th backbone block: 
+
+ml = φl
+
+> 2D
+
+(f l
+
+> 2D
+
+) + φl
+
+> 3D
+
+(f l
+
+> 3D
+
+). (5) Here, φl
+
+> 2D
+
+(·), φ l
+
+> 3D
+
+(·) : RC → M C are learnable manifold chart functions representing connections between the 2D/3D space and the fusion manifold. A chart for a manifold M
+
+provides a local coordinate system, capturing local structures of M. f l
+
+> 2D
+
+, f l 
+
+> 3D
+
+∈ RC in (5) are the pooled 2D and 3D features from the respective modal space: 
+
+f l 
+
+> 2D
+
+= Pool( Fl
+
+> 2D
+
+), f l 
+
+> 3D
+
+= Pool( Fl
+
+> 3D
+
+), (6) where Pool( ·) is the global average pooling function. The pooling function can highly summarize the global informa-tion of the whole scene, which is beneficial for constructing a fusion embedding with rich global multi-modal domain rep-resentations and thus benefits the PR task. This differs from dense prediction tasks (e.g. depth estimation, segmentation) that more dig into local patterns. 
+
+State Updating. In Riemannian geometry, the movement of a point on a manifold can be described by a parametric curve [30]. Inspired by this, we model the process of updating the fusion embedding state as the movement of a point in the manifold. ODEs serve as a fundamental tool for describing dynam-ical systems[52, 60, 64]. They express how a system state evolves over time, capturing relationships between the sys-tem variables and the rates of change. Based on this, the movement dynamics on a manifold can be described by an ODE: 
+
+dγ (t)
+
+dt = f (t, γ (t)) , (7) where γ(t) denotes the state trajectory. The following non-intersection property of ODE solutions is well-known. 
+
+Theorem 1. (Non-intersection of ODE solutions [21]) Given the ODE in (7) , where f is continuous in t and globally Lip-schitz continuous in γ. Let γ1(t) and γ2(t) be two solutions of the ODE in (7) . If the initial conditions γ1(0) ̸ = γ2(0) ,then it holds that γ1(t)̸ = γ2(t) for all t ∈ [0 , ∞).
+
+The non-intersection property of ODE solutions in Theo-rem 1 indicates that different ODE inputs guarantee different 11720 𝐞𝐞fuse,1 =  𝛾𝛾 11(𝑇𝑇)              
+
+> -𝛾𝛾 1𝐿𝐿−1 (𝑡𝑡)
+> -𝛾𝛾 2𝐿𝐿−1 (𝑡𝑡)
+> -𝛾𝛾 1𝐿𝐿 (𝑡𝑡)
+> -𝛾𝛾 2𝐿𝐿 (𝑡𝑡)
+> -𝛾𝛾 11(𝑡𝑡)
+> -𝛾𝛾 21(𝑡𝑡)
+> …
+> 𝐞𝐞fuse,2 = 𝛾𝛾 21(𝑇𝑇)
+> ODE L
+> scene 1
+> ODE L-1 ODE 1
+> scene 2
+> backbone
+> backbone
+> 𝛾𝛾 1𝐿𝐿−1 (0) = 𝐦𝐦1 𝐿𝐿−1 +𝛾𝛾 1𝐿𝐿 (𝑇𝑇) 𝛾𝛾 1𝐿𝐿 (0) = 𝐦𝐦1 𝐿𝐿
+> {𝐦𝐦1 𝑙𝑙 }𝑙𝑙=1 𝐿𝐿
+> {𝐦𝐦2 𝑙𝑙 }𝑙𝑙=1 𝐿𝐿
+> …
+> 𝛾𝛾 2𝐿𝐿−1 (0) = 𝐦𝐦2 𝐿𝐿−1 +𝛾𝛾 2𝐿𝐿 (𝑇𝑇) 𝛾𝛾 2𝐿𝐿 (0) = 𝐦𝐦2 𝐿𝐿 …
+> 𝑡𝑡 = 0 𝑡𝑡 = 𝑇𝑇
+
+Figure 4. Fusion embedding evolution process starting from the last block and ending at the first block (i.e. L → 1). The trajectories contain the movement of fusion embedding and are depicted by neural ODEs. In each ODE block, different inputs at time 0 guarantee different outputs at time T .
+
+ODE outputs. This property helps to construct a more effec-tive embedding that benefits PR. In our pipeline in (4), given that the initial fusion states at block l are different for differ-ent places, neural ODEs can update feature representations while theoretically maintaining the feature differences at this block, which lead to distinct scene descriptors yielding more robust PR (cf. Fig. 4). Specifically, we update the fusion embedding from its initial state using parameterized neural ODEs at each block l,which can be regarded as point movements on the manifold: 
+
+dγ l(t)
+
+dt = fθl (γl(t)) , (8) where γl(t) is the fusion embedding state trajectory at block 
+
+l, fθl (·) is a non-linear neural block with learnable param-eters θl that describes the trajectory dynamics. By solving (8), we can obtain the updated state γl(T ) at the end time T .At the next block l − 1, the start state γl−1(0) is initialized based on momentum ml−1 and the last end state γl(T ), as shown in Fig. 4 and (4). After progressive updating, finally, we obtain the end state at the first block γ1(T ) as the final constructed fusion embedding efuse = γ1(T ) ∈ M C . The following result follows immediately from Theorem 1. 
+
+Corollary 1. (Distinguished fusion states.) In each neural ODE block l, given ODE inputs γl
+
+> 1
+
+(0) ̸ = γl
+
+> 2
+
+(0) from two different scenes that are different, then the two ODE outputs at this ODE block are different, i.e., γl
+
+> 1
+
+(T )̸ = γl
+
+> 2
+
+(T ).
+
+As stated in Corollary 1, the neural ODE process can produce different fusion states, which would help construct more distinguished representations for different places and thus contribute to more effective PR performance. The visu-alized illustration of Corollary 1 is shown in Fig. 4. 
+
+3.4. Stage 2: Modal-Wise Fusion 
+
+The fusion embedding efuse captures rich multi-modal fusion information, which in turn serves as effective guidance for individual fine-grained local-level modal feature learning. With the surrogate fusion embedding injected into the respective 2D/3D spaces, the tight coupling connection of the 2D and 3D embeddings could be softened, where the perturbation of a modality could be mitigated by the surro-gate fusion information. As shown in Tab. 2, with the help of included fusion embedding in this stage 2, the final scene descriptor could be more robust against sensor failing. Specifically, as illustrated in Fig. 2, we project the fusion embedding into the corresponding modal space to obtain 2D and 3D embeddings: 
+
+e2D = ψfuse ,2D (efuse ), e3D = ψfuse ,3D (efuse ), (9) where ψfuse ,2D (·), ψ fuse ,3D (·) : MC → RC are chart func-tions that establish connections from the fusion manifold to the respective 2D and 3D spaces. These 2D and 3D em-beddings capture rich multi-modal information, which are further combined with the original modal feature maps FL
+
+> 2D
+
+and FL 
+
+> 3D
+
+from the last block L to construct more effective representations through decoder blocks g2D (·), g3D (·):
+
+e′ 
+
+> 2D
+
+= Pool( g2D (e2D ⊕ FL
+
+> 2D
+
+)) , (10) 
+
+e′ 
+
+> 3D
+
+= Pool( g3D (e3D ⊕ FL
+
+> 3D
+
+)) , (11) where ⊕ denotes broadcast addition. By injecting the highly summarized fusion embedding, the respective local modal feature maps can capture more global information and achieve more robust representations. The decoded embed-dings e′ 
+
+> 2D
+
+and e′ 
+
+> 3D
+
+are used to construct the final scene descriptor in the sequel. Our final ground scene descriptor consists of the decoded modal embeddings, as well as the fusion embedding. It is obtained as follows: 
+
+eG = λ′(e′ 
+
+> 2D
+
++ e′
+
+> 3D
+
+) + λfuse efuse , (12) where λ′, λ fuse are weights to balance different components. 
+
+3.5. Multi-View Multi-Modal Loss Function 
+
+In the multi-modal cross-view PR task, the features are inter-acting not only in different modalities (2D and 3D) but also in 11721 different views (aerial and ground). Thus, sufficient feature alignment across various domains is critical for this PR task. To achieve this goal, we propose the multi-view multi-modal (MVMM) loss function. The MVMM loss treats PR as a binary classification problem, where positive pairs should have smaller feature distances and are assigned ground-truth labels “0”, while negative pairs have ground-truth labels “1”. Given two sets of embeddings D1 = {e1i}i∈[N1], D2 =
+
+{e2j }j∈[N2] from two domains, we first define the basic domain distance loss as: 
+
+L(D1, D2) = 1
+
+N1N2
+
+X
+
+> ij
+
+
+
+yij log( σ(∥e1i − e2j ∥2)) + (1 − yij ) log(1 − σ(∥e1i − e2j ∥2)) 
+
+
+
+,
+
+(13) where yij ∈ { 0, 1} indicates positive and negative pair labels, and σ(·) is the sigmoid function. We then further define the MVMM loss as: 
+
+ℓMVMM = L(DA, DA) + L(DG, DA ∪ D G)+L(DG2D , DA ∪ D G2D ) + L(DG3D , DA ∪ D G3D ),
+
+(14) where DA = {eAi}i∈M is a set of aerial descriptors. DG =
+
+{eGj }j∈N , DG2D = {f L 
+
+> 2D j
+
+}j∈N , DG3D = {f L 
+
+> 3D j
+
+}j∈N are sets of corresponding ground final, 2D, and 3D embeddings as in (6) and (12). The MVMM loss aligns features not only in different domains but also within the same domains. That is, the MVMM loss also optimizes the ground-ground and aerial-aerial feature relationships, which could better help cross-view PR. As shown in Fig. 7, the roof that can only be perceived by aerial views is emphasized, which indicates the aerial-aerial same-view discrimination is implicitly hidden in the whole cross-view discrimination process. In addition, the MVMM loss also directly aligns ground 2D and 3D features to the aerial features, which would implicitly contribute to more effective aerial-ground alignment for cross-view PR. The above MVMM loss can be regarded as the direct guidance that forces pair distances close to some target val-ues. On the other hand, we can also force negative pairs to have greater distances than positive pairs, which can be regarded as the relative guidance. Specifically, we use the traditional triplet loss[19] to achieve the relative guidance: 
+
+ℓtri = 1
+
+N
+
+X
+
+> j
+
+max( ∥eGi − epA∥2 − ∥ eGi − enA∥2 + m, 0) ,
+
+(15) where m is the margin. epA, enA are positive and negative aerial descriptors sampled from DA. Following previous works [6, 11, 59], hard negative mining is adopted during training. Our final loss is a combination of the directly-guided MVMM loss and the relatively-guided triplet loss ground query point cloud  satellite image database  road map database 
+
+> ground query image
+> Figure 5. Data visualization from the KITTI360-AG dataset.
+
+with the weight α:
+
+ℓ = αℓ MVMM + ℓtri . (16) 
+
+## 4. Experiments 
+
+4.1. Datasets and Implementation Details 
+
+To evaluate the performance of multi-modal aerial-ground PR models, we create benchmark datasets that consist of comprehensive ground sensor data and corresponding aerial database maps. We specifically construct two datasets, namely KITTI360-AG and nuScenes-AG . Examples are shown in Fig. 5. In addition, we also test our models on the Oxford RobotCar benchmark datasets used in previous multi-model ground-ground PR evaluations. 
+
+KITTI360-AG. For the ground dataset, we use the vanilla KITTI360 [35] dataset as the base to provide ground-view images, point clouds, and GNSS coordinates. We use a total of 7 sequences, in which the first 85% frames are for training and the last 15% frames are for testing, such that the test frames consist of seen and unseen areas for both fitting and generalization evaluation. The aerial data is generated based on the GNSS coordinates of the ground data frames. We use the Google Maps Static API 3 to download the corresponding aerial images, including satellite images, and road maps. We set the Google Maps Static API parameters as follows: scale=1, zoom=20, size=640 ×640. Each aerial image covers an approximately 75 ×75 m2 area. 
+
+nuScenes-AG. The nuScenes [8] dataset provides a rich collection of sensor data collected from real urban driv-ing scenarios, which also contains multi-view cameras. We download the aerial data based on GNSS coordinates with similar configurations mentioned in KITTI360-AG. The of-ficial train/test split is used in our setting, such that test scenes contain seen and unseen areas for both fitting and generalization evaluation. 
+
+Oxford RobotCar Benchmark. The Oxford RobotCar benchmark dataset is a public benchmark used for multi-modal ground-ground PR. There are two different splits used by MinkLoc++ (Oxford-Mink+) and AdaFusion (Oxford-Ada) respectively. And we compare our model under both settings. 
+
+Implementation. Our selected baselines mainly consist of four types, including ground-view 2D/3D/multi-modal base-           
+
+> 3https ://developers .google .com /maps /documentation/maps-static/overview 11722
+
+lines and aerial-ground 2D baselines. We use ResNet-18-Avg [18] as the aerial network for all PR works except for AnyLoc [25] for a fair comparison (with a head to align de-scriptor dimensions). We select open-sourced SOTA multi-modal models as ground network baselines for query de-scriptor construction, mainly including MinkLoc++ [28], AdaFusion [29], LCPR [74], MSSPlace [41], and UMF [15], VSGP-PR [14] does not provide open-source codes and EINet [71] only provides data splits without model codes, which hinders us from comparing with them. Our backbones are constructed based on MinkLoc++ [28]. We use recall@ K
+
+(K = 1 , 5, 10 )(R@ K), average recall@1%(AR@%1), and average recall@1(AR@1) as the metrics. The positive re-trieval threshold is set as 25 m. All experiments are con-ducted on a Tesla A100 GPU. More dataset, baseline, and implementation details are provided in the supplement. 
+
+4.2. Main Results 
+
+KITTI360-AG (Satellite and Roadmap Databases). We conduct an evaluation of AGPlace on the KITTI360-AG dataset as demonstrated in Tab. 1 (Best is in bold and second best is underlined). AGPlace outperforms all other baselines in both satellite and road map settings. On the other hand, when using the road map aerial database, most models can already show considerable recall performance. This suggests that semantic maps, which are easily accessible and created without the need for satellites, drones, or airplanes, can al-ready provide sufficient information for practical PR tasks. This finding opens up interesting possibilities for future re-search in the field [51, 70]. We also test the 2D VPR methods with the strong foundation backbone DINOV2[43], some of which can even surpass 3D counterparts. 
+
+nuScenes-AG (Ground Sensor Failing). We next experi-ment on the nuScenes-AG dataset that consists of a LiDAR and multiple cameras, where AGPlace can also achieve sig-nificant performance. With the fusion embedding injected into the respective 2D/3D spaces in stage 2, the final scene descriptor demonstrates stronger robustness both camera and LiDAR failing. This demonstrates that our model can be more applicable in real deployment conditions. 
+
+Oxford Benchmark Dataset. To investigate the inherent power of our ground-view model for PR, we perform a com-parison with previous SOTA baselines using the ground-ground PR task. As in Tab. 3, our model (without using extra data, re-ranking, or multiple cameras) achieves better per-formance than previous SOTA counterparts, which further verifies the effectiveness of our design. 
+
+4.3. Ablation Studies 
+
+Module Ablation. We verify the effectiveness by ablating each module in our network. As shown in Tab. 4, the two fusion stages in Fig. 2 and the MVMM loss in Sec. 3.5 can contribute to the better final performance, confirming the                                                                   
+
+> Model Type Satellite Road Map R@1/5/10 R@1/5/10 ConvAP (ResNet-18) [2] 2D 25.2 / 40.8 / 48.6 20.3 / 32.0 / 39.7 CosPlace (ResNet-18) [5] 2D 22.8 / 38.9 / 47.4 17.4 / 31.1 / 38.8 MixVPR (ResNet-18) [1] 2D 19.4 / 30.5 / 37.3 19.3 / 32.0 / 39.1 AnyLoc* (DINOV2-s) [25] 2D 4.2 / 8.7 / 13.0 5.4 / 5.5 / 5.9 SALAD (DINOV2-s) [22] 2D 26.1 / 34.3 / 39.3 17.0 / 27.4 / 33.5 TransGeo (DINOV2-s) [76] 2D+C 22.9 / 32.9 / 39.2 22.4 / 31.9 / 36.9 Sample4Geo (ConvNeXt-t) [11] 2D+C 27.0 / 41.7 / 49.0 22.7 / 41.0 / 47.6 ArcGeo (ConvNeXt-t) [59] 2D+C 28.2 / 41.3 / 48.5 24.4 / 39.6 / 46.5 MinkLoc3DV2 [27] 3D 26.5 / 39.1 / 46.0 23.3 / 36.0 / 43.8 BEVPlace [39] 3D 22.3 / 33.9 / 40.8 23.6 / 35.5 / 41.4 VXP [34] 3D+C 20.7 / 34.5 / 41.0 22.4 / 34.9 / 42.0 Lip-Loc [58] 3D+C 29.9 / 42.2 / 49.0 24.5 / 35.6 / 42.4 MinkLoc++ [28] MM 28.9 / 39.3 / 44.9 26.5 / 40.8 / 48.8 AdaFusion [29] MM 26.5 / 39.6 / 47.8 27.2 / 41.6 / 49.3 MSSPlace [41] MM 25.5 / 37.4 / 45.0 26.7 / 41.2 / 49.0 LCPR [74] MM 27.7 / 44.4 / 50.6 24.5 / 39.0 / 47.7 UMF [15] MM 27.1 / 42.6 / 49.2 25.6 / 40.4 / 49.7 AGPlace (ours) MM+C 32.0 /47.6 /54.9 28.2 /43.3 /52.0
+
+Table 1. Aerial-ground PR results on the KITTI-360-AG dataset using satellite or road map aerial sources. "*" denotes the model is frozen and purely relies on pre-trained weights. "C" denotes the model is designed for cross-view/cross-modal PR. Hard negative mining is applied to all models. 
+
+Model cams + LiDAR cams fail LiDAR fail R@1 R@5 R@1 R@5 R@1 R@5 MinkLoc++ [28] 70.4 82.1 16.9 27.3 2.6 7.3 AdaFusion [29] 71.9 82.3 9.0 17.8 3.5 6.7 MSSPlace [41] 71.3 82.2 17.4 29.8 5.0 8.7 LCPR [74] 57.7 74.2 3.2 6.2 8.6 17.1 UMF [15] 69.4 82.5 2.7 7.3 0.8 2.9 AGPlace w/o stg. 2 73.9 84.2 19.2 30.1 6.9 16.7 AGPlace (ours) 75.6 87.2 22.8 33.1 12.9 23.0 
+
+Table 2. Aerial-ground PR results on the nuScenes-AG dataset using satellite image database. "fail" denotes dropping the modality input during testing. All models are trained with both modalities. 
+
+Model Extra Oxford-Mink+ Oxford-Ada train data AR@1% AR@1 AR@1% AR@1 CORAL [44] 96.1 - - -PIC-Net [38] 98.2 - - -Cues-Net [42] - - - 98.0 MinkLoc++ [28] 99.1 96.7 - -AdaFusion [29] - - 99.2 98.2 HMPR [57] - - 99.6 96.9 UMF [15] ✓ 99.1 97.9 - -MSSPlace [41] 99.1 97.6 - -HMPR + re-rank - - 99.7 99.0 UMF + re-rank ✓ 99.3 98.3 - -MSSPlace + mul-cam 99.5 98.2 - -AGPlace (ours) 99.7 98.3 99.9 99.3 
+
+Table 3. Ground-ground PR Results on the Oxford benchmark datasets. "-" denotes the result is not provided in the paper. 
+
+efficacy of our approach. 
+
+ODE Updating and Fusion Direction. During the state 11723 Model KITTI360-AG (Sat.) R@1 R@5 R@10 full 32.0 47.6 54.9           
+
+> full w/o stage 1 28.5 43.9 51.0 full w/o stage 2 30.6 45.3 53.0 full w/o ℓMVMM 30.9 45.2 51.7
+
+Table 4. Module ablation. sequence  
+
+> frame id
+> start
+> end
+> w/ ODE w/o ODE
+
+Figure 6. t-SNE plots of ground scene descriptors (from a con-secutive frame sequence). ODEs can help build more consistent descriptors that align with the consecutive geometry. 
+
+evolution process, we parameterize the fusion embedding state trajectories as learnable neural ODEs. Notably in Tab. 5, ODEs perform better than multi-layer perceptron (MLP) and attention, both of which cannot guarantee outputs’ differ-ences. In addition, the t-SNE visualization in Fig. 6 shows ODEs can build more consecutive scene descriptors, under-scoring the necessity of the ODE-based fusion state updating process for PR. Next, we evaluate the performance of different fusion directions, as outlined in Tab. 5. The direction “block L →
+
+block 1”, which transfers information from high-level sum-maries to detailed low-level representations, emerges as the preferred choice for fusion embedding construction.                         
+
+> State Updating Method KITTI360-AG (Sate.) R@1 R@5 R@10 w/ MLP 30.0 45.2 51.9 w/ attention 30.4 45.4 52.8 w/ ODE 32.0 47.6 54.9
+> Fuse Direction block 1 →block L31.7 46.8 54.0 block 1 ←block L32.0 47.6 54.9
+
+Table 5. State updating method and fusion direction. 
+
+Aerial Modality and Salience Visualization. We also ex-plore fusing satellite images and road maps for more rep-resentative aerial descriptors. As in Tab. 6, the fusion on both ground and aerial sides gives even better performance, which indicates an interesting research topic for aerial fu-sion in the future. To investigate which part of ground and aerial inputs are focused in the PR network, we visualize the salience maps as shown in Fig. 7. The geometric landmarks are emphasized (e.g. buildings and roads), which verifies the geo-feature extraction effectiveness of our model architec-ture and the alignment effectiveness of our loss function. 
+
+Runtime Performance. Finally, we assess the runtime speed and memory consumption of our model. AGPlace demon-strates acceptable real-time performance, satisfying basic                 
+
+> Ground Modality Aerial Modality KITTI360-AG R@1 R@5 R@10 image + point cloud satellite 32.0 47.6 54.9 image + point cloud roadmap 28.2 43.3 52.0 image + point cloud satellite + roadmap 34.7 48.7 55.9
+
+Table 6. Ground and aerial modality comparison. ground aerial 
+
+Figure 7. Salience map visualization. 
+
+deployment and application requirements. All compared models exhibit comparable memory usage, with no signifi-cant discrepancies observed in this metric.               
+
+> Model Speed (FPS) GPU Memory Usage (GB) MinkLoc++ [28] 80 0.58
+> AdaFusion [29] 72 0.59 MSSPlace [41] 75 0.59 LCPR [74] 125 0.72 UMF [15] 70 0.60 AGPlace (ours) 62 0.61
+
+Table 7. Runtime performance comparison on a Tesla A100. 
+
+## 5. Conclusion and Limitations 
+
+In this work, we have proposed AGPlace, a multi-modal model for addressing the aerial-ground PR problem. AG-Place leverages neural ODEs rooted in differential geometry to achieve effective multi-modal feature interaction. Our ex-periments demonstrate that AGPlace outperforms previous baselines and performs well in large-scale scenes, making it suitable for deployment in real-world environments. However, this work primarily focuses on ground query data collected in urban environments, which may limit its generalizability to other realistic settings. In future work, we plan to expand our dataset and model to include more diverse and challenging scenarios. This will enable us to establish a more comprehensive and generalized multi-modal cross-view PR pipeline. 
+
+## 6. Acknowledgment 
+
+This research is supported by the National Research Founda-tion, Singapore and Infocomm Media Development Author-ity under its Future Communications Research & Develop-ment Programme. 
+
+## References 
+
+[1] Amar Ali-Bey, Brahim Chaib-Draa, and Philippe Giguere. MixVPR: Feature mixing for visual place recognition. In 11724 Proceedings of the IEEE/CVF Winter Conference on Appli-cations of Computer Vision , pages 2998–3007, 2023. 1, 2, 7[2] Amar Alibey, Brahim Chaibdraa, and Philippe Giguere. GSV-Cities: Toward appropriate supervised visual place recogni-tion. Neurocomputing , 513:194–203, 2022. 7 [3] Relja Arandjelovic, Petr Gronat, Akihiko Torii, Tomas Pajdla, and Josef Sivic. NetVLAD: CNN architecture for weakly su-pervised place recognition. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition ,pages 5297–5307, 2016. 1, 2 [4] Saba Arshad and Gon-Woo Kim. Role of deep learning in loop closure detection for visual and LiDAR slam: A survey. 
+
+Sensors , 21(4):1243, 2021. 1 [5] Gabriele Berton, Carlo Masone, and Barbara Caputo. Re-thinking visual geo-localization for large-scale applications. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 4878–4888, 2022. 7 [6] Gabriele Berton, Riccardo Mereu, Gabriele Trivigno, Carlo Masone, Gabriela Csurka, Torsten Sattler, and Barbara Ca-puto. Deep visual geo-localization benchmark. In Proceed-ings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 5396–5407, 2022. 6 [7] Gabriele Berton, Gabriele Trivigno, Barbara Caputo, and Carlo Masone. EigenPlaces: Training viewpoint robust models for visual place recognition. In Proceedings of the IEEE/CVF International Conference on Computer Vision ,pages 11080–11090, 2023. 2 [8] Holger Caesar, Varun Bankiti, Alex H Lang, Sourabh Vora, Venice Erin Liong, Qiang Xu, Anush Krishnan, Yu Pan, Gi-ancarlo Baldan, and Oscar Beijbom. nuScenes: A multi-modal dataset for autonomous driving. In Proceedings of the IEEE/CVF conference on Computer Vision and Pattern Recognition , pages 11621–11631, 2020. 2, 6 [9] Lineng Chen, Huan Wang, Hui Kong, Wankou Yang, and Mingwu Ren. PTC-Net: Point-wise Transformer with sparse convolution network for place recognition. IEEE Robotics and Automation Letters , 2023. 1, 2 [10] Xieyuanli Chen, Thomas Läbe, Andres Milioto, Timo Röh-ling, Olga Vysotska, Alexandre Haag, Jens Behley, and Cyrill Stachniss. OverlapNet: Loop closing for LiDAR-based SLAM. arXiv preprint arXiv:2105.11344 , 2021. 1 [11] Fabian Deuser, Konrad Habel, and Norbert Oswald. Sam-ple4geo: Hard negative sampling for cross-view geo-localisation. In Proceedings of the IEEE/CVF International Conference on Computer Vision , pages 16847–16856, 2023. 2, 6, 7 [12] Florian Fervers, Sebastian Bullinger, Christoph Bodensteiner, Michael Arens, and Rainer Stiefelhagen. Uncertainty-aware vision-based metric cross-view geolocalization. In Proceed-ings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 21621–21631, 2023. 3 [13] Dorian Gálvez-López and Juan D Tardos. Bags of binary words for fast place recognition in image sequences. IEEE Transactions on Robotics , 28(5):1188–1197, 2012. 2 [14] Peng Gao, Jing Liang, Yu Shen, Sanghyun Son, and Ming C Lin. Visual, spatial, geometric-preserved place recognition for cross-view and cross-modal collaborative perception. In 
+
+Proceedings of the IEEE/RSJ International Conference on Intelligent Robots and Systems , pages 11079–11086, 2023. 3, 7[15] Alberto García-Hernández, Riccardo Giubilato, Klaus H Strobl, Javier Civera, and Rudolph Triebel. Unifying lo-cal and global multimodal features for place recognition in aliased and low-texture environments. arXiv preprint arXiv:2403.13395 , 2024. 3, 7, 8 [16] Tianrui Guan, Aswath Muthuselvam, Montana Hoover, Xi-jun Wang, Jing Liang, Adarsh Jagan Sathyamoorthy, Da-mon Conover, and Dinesh Manocha. CrossLoc3D: Aerial-ground cross-source 3D place recognition. arXiv preprint arXiv:2303.17778 , 2023. 2 [17] Stephen Hausler, Sourav Garg, Ming Xu, Michael Milford, and Tobias Fischer. Patch-NetVLAD: Multi-scale fusion of locally-global descriptors for place recognition. In Proceed-ings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 14141–14152, 2021. 1, 2 [18] Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. Deep residual learning for image recognition. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 770–778, 2016. 7 [19] Elad Hoffer and Nir Ailon. Deep metric learning using triplet network. In Proceedings of the International Conference on Learning Representations , pages 84–92, 2015. 6 [20] Sixing Hu, Mengdan Feng, Rang MH Nguyen, and Gim Hee Lee. CVM-Net: Cross-view matching network for image-based ground-to-aerial geo-localization. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 7258–7267, 2018. 2 [21] Edward L Ince. Ordinary differential equations . Courier Corporation, 1956. 4 [22] Sergio Izquierdo and Javier Civera. Optimal transport ag-gregation for visual place recognition. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 17658–17668, 2024. 1, 2, 7 [23] Hervé Jégou, Florent Perronnin, Matthijs Douze, Jorge Sánchez, Patrick Pérez, and Cordelia Schmid. Aggregating local image descriptors into compact codes. IEEE Transac-tions on Pattern Analysis and Machine Intelligence , 34(9): 1704–1716, 2011. 1, 2 [24] Yingrui Jie, Yilin Zhu, and Hui Cheng. Heterogeneous deep metric learning for ground and aerial point cloud-Based place recognition. IEEE Robotics and Automation Letters , 2023. 2 [25] Nikhil Keetha, Avneesh Mishra, Jay Karhade, Krishna Murthy Jatavallabhula, Sebastian Scherer, Madhava Krishna, and Sourav Garg. Anyloc: Towards universal visual place recog-nition. IEEE Robotics and Automation Letters , 2023. 1, 2, 7[26] Jacek Komorowski. Minkloc3D: Point cloud based large-scale place recognition. In Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision , pages 1790–1799, 2021. 1 [27] Jacek Komorowski. Improving point cloud based place recog-nition with ranking-based loss and large batch training. In Pro-ceedings of the International Conference on Pattern Recogni-tion , pages 3699–3705, 2022. 1, 2, 7 11725 [28] Jacek Komorowski, Monika Wysocza´ nska, and Tomasz Trzcinski. MinkLoc++: LiDAR and monocular image fusion for place recognition. In Proceedings of the International Joint Conference on Neural Networks , pages 1–8, 2021. 1, 3, 7, 8 [29] Haowen Lai, Peng Yin, and Sebastian Scherer. AdaFusion: Visual-LiDAR fusion with adaptive weights for place recog-nition. IEEE Robotics and Automation Letters , 7(4):12038– 12045, 2022. 1, 3, 7, 8 [30] John M Lee and John M Lee. Smooth manifolds . Springer, 2012. 4 [31] Ted Lentsch, Zimin Xia, Holger Caesar, and Julian FP Kooij. SliceMatch: Geometry-guided aggregation for cross-view pose estimation. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 17225– 17234, 2023. 3 [32] Guopeng Li, Ming Qian, and Gui-Song Xia. Unleashing unlabeled data: A paradigm for cross-view geo-localization. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 16719–16729, 2024. 3 [33] Guopeng Li, Ming Qian, and Gui-Song Xia. Unleashing unlabeled data: A paradigm for cross-view geo-localization. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 16719–16729, 2024. 2 [34] Yun-Jin Li, Mariia Gladkova, Yan Xia, Rui Wang, and Daniel Cremers. Vxp: Voxel-cross-pixel large-scale image-lidar place recognition. arXiv preprint arXiv:2403.14594 , 2024. 7 [35] Yiyi Liao, Jun Xie, and Andreas Geiger. KITTI-360: A novel dataset and benchmarks for urban scene understanding in 2D and 3D. IEEE Transactions on Pattern Analysis and Machine Intelligence , 45(3):3292–3310, 2022. 2, 6 [36] Liu Liu and Hongdong Li. Lending orientation to neural networks for cross-view geo-localization. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 5624–5633, 2019. 2 [37] Zhijian Liu, Haotian Tang, Alexander Amini, Xinyu Yang, Huizi Mao, Daniela L Rus, and Song Han. BEVFusion: Multi-task multi-sensor fusion with unified bird’s-eye view representation. In Proceedings of the IEEE international conference on robotics and automation , pages 2774–2781, 2023. 3 [38] Yuheng Lu, Fan Yang, Fangping Chen, and Don Xie. PIC-Net: Point cloud and image collaboration network for large-scale place recognition. arXiv preprint arXiv:2008.00658 , 2020. 7 [39] Lun Luo, Shuhang Zheng, Yixuan Li, Yongzhi Fan, Beinan Yu, Si-Yuan Cao, Junwei Li, and Hui-Liang Shen. BEVPlace: Learning LiDAR-based place recognition using bird’s eye view images. In Proceedings of the IEEE/CVF International Conference on Computer Vision , pages 8700–8709, 2023. 1, 2, 7 [40] Junyi Ma, Jun Zhang, Jintao Xu, Rui Ai, Weihao Gu, and Xieyuanli Chen. OverlapTransformer: An efficient and yaw-angle-invariant Transformer network for LiDAR-based place recognition. IEEE Robotics and Automation Letters , 7(3): 6958–6965, 2022. 1 [41] Alexander Melekhin, Dmitry Yudin, Ilia Petryashin, and Vitaly Bezuglyj. MSSPlace: Multi-sensor place recog-nition with visual and text semantics. arXiv preprint arXiv:2407.15663 , 2024. 3, 7, 8 [42] Amadeus Oertel, Titus Cieslewski, and Davide Scaramuzza. Augmenting visual place recognition with structural cues. 
+
+IEEE Robotics and Automation Letters , 5(4):5534–5541, 2020. 7 [43] Maxime Oquab, Timothée Darcet, Théo Moutakanni, Huy Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernandez, Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, et al. DINOv2: Learning robust visual features without supervision. arXiv preprint arXiv:2304.07193 , 2023. 7 [44] Yiyuan Pan, Xuecheng Xu, Weijie Li, Yunxiang Cui, Yue Wang, and Rong Xiong. CORAL: Colored structural repre-sentation for bi-modal place recognition. In Proceedings of the IEEE/RSJ International Conference on Intelligent Robots and Systems , pages 2084–2091, 2021. 7 [45] Florent Perronnin, Yan Liu, Jorge Sánchez, and Hervé Poirier. Large-scale image retrieval with compressed fisher vectors. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 3384–3391, 2010. 2 [46] Charles R Qi, Hao Su, Kaichun Mo, and Leonidas J Guibas. PointNet: Deep learning on point sets for 3D classification and segmentation. In Proceedings of the IEEE/CVF Con-ference on Computer Vision and Pattern Recognition , pages 652–660, 2017. 2 [47] Filip Radenovi´ c, Giorgos Tolias, and Ondˇ rej Chum. Fine-tuning CNN image retrieval with no human annotation. IEEE Transactions on Pattern Analysis and Machine Intelligence ,41(7):1655–1668, 2018. 1, 3 [48] Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sastry, Amanda Askell, Pamela Mishkin, Jack Clark, et al. Learning transferable visual models from natural language supervision. In Proceedings of the International Conference on Machine Learning , pages 8748–8763, 2021. 2 [49] Paul-Edouard Sarlin, Mihai Dusmanu, Johannes L Schön-berger, Pablo Speciale, Lukas Gruber, Viktor Larsson, Ondrej Miksik, and Marc Pollefeys. LaMAR: Benchmarking local-ization and mapping for augmented reality. In Proceedings of the European Conference on Computer Vision , pages 686– 704, 2022. 1 [50] Paul-Edouard Sarlin, Daniel DeTone, Tsun-Yi Yang, Armen Avetisyan, Julian Straub, Tomasz Malisiewicz, Samuel Rota Bulò, Richard Newcombe, Peter Kontschieder, and Vasileios Balntas. OrienterNet: Visual localization in 2D public maps with neural matching. In Proceedings of the IEEE/CVF Con-ference on Computer Vision and Pattern Recognition , pages 21632–21642, 2023. 2 [51] Paul-Edouard Sarlin, Eduard Trulls, Marc Pollefeys, Jan Hosang, and Simon Lynen. SNAP: self-supervised neu-ral maps for visual positioning and semantic understanding. 
+
+arXiv preprint arXiv:2306.05407 , 2023. 7 [52] Rui She, Qiyu Kang, Sijie Wang, Yuan-Rui Yang, Kai Zhao, Yang Song, and Wee Peng Tay. Robustmat: Neural diffu-sion for street landmark patch matching under challenging environments. IEEE Transactions on Image Processing , 32: 5550–5563, 2023. 4 11726 [53] Yujiao Shi, Liu Liu, Xin Yu, and Hongdong Li. Spatial-aware feature aggregation for image based cross-view geo-localization. Advances in Neural Information Processing Systems , 32, 2019. 2 [54] Yujiao Shi, Xin Yu, Dylan Campbell, and Hongdong Li. Where am I looking at? joint location and orientation estima-tion by cross-view matching. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition ,pages 4064–4072, 2020. 2 [55] Yujiao Shi, Xin Yu, Liu Liu, Tong Zhang, and Hongdong Li. Optimal feature transport for cross-view image geo-localization. In Proceedings of the AAAI Conference on Artificial Intelligence , pages 11990–11997, 2020. 2 [56] Yujiao Shi, Fei Wu, Akhil Perincherry, Ankit Vora, and Hong-dong Li. Boosting 3-DoF ground-to-satellite camera localiza-tion accuracy via geometry-guided cross-View Transformer. In Proceedings of the IEEE/CVF International Conference on Computer Vision , pages 21516–21526, 2023. 3 [57] Chengfu Shu and Yutao Luo. A hierarchical and multi-modal framework for place recognition with a learnable metric. 
+
+IEEE Transactions on Intelligent Vehicles , 2024. 3, 7 [58] Sai Shubodh, Mohammad Omama, Husain Zaidi, Udit Singh Parihar, and Madhava Krishna. Lip-loc: Lidar image pre-training for cross-modal localization. In Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision , pages 948–957, 2024. 7 [59] Maxim Shugaev, Ilya Semenov, Kyle Ashley, Michael Klaczynski, Naresh Cuntoor, Mun Wai Lee, and Nathan Ja-cobs. ArcGeo: Localizing limited field-of-view images using cross-view matching. In Proceedings of the IEEE/CVF Win-ter Conference on Applications of Computer Vision , pages 209–218, 2024. 2, 6, 7 [60] Yang Song, Qiyu Kang, Sijie Wang, Kai Zhao, and Wee Peng Tay. On the robustness of graph neural diffusion to topology perturbations. Advances in Neural Information Processing Systems , 35:6384–6396, 2022. 4 [61] Aysim Toker, Qunjie Zhou, Maxim Maximov, and Laura Leal-Taixé. Coming down to earth: Satellite-to-street view syn-thesis for geo-localization. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition ,pages 6488–6497, 2021. 2 [62] Mikaela Angelina Uy and Gim Hee Lee. PointNetVLAD: Deep point cloud based retrieval for large-scale place recog-nition. In Proceedings of the IEEE/CVF Conference on Com-puter Vision and Pattern Recognition , pages 4470–4479, 2018. 1, 2 [63] Ruotong Wang, Yanqing Shen, Weiliang Zuo, Sanping Zhou, and Nanning Zheng. TransVPR: Transformer-based place recognition with multi-level attention aggregation. In Pro-ceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 13648–13657, 2022. 1, 2 [64] Sijie Wang, Qiyu Kang, Rui She, Wee Peng Tay, Andreas Hartmannsgruber, and Diego Navarro Navarro. RobustLoc: Robust camera pose regression in challenging driving environ-ments. In Proceedings of the AAAI Conference on Artificial Intelligence , pages 6209–6216, 2023. 4 [65] Shan Wang, Chuong Nguyen, Jiawei Liu, Yanhao Zhang, Sundaram Muthu, Fahira Afzal Maken, Kaihao Zhang, and Hongdong Li. View from above: Orthogonal-view aware cross-view localization. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition ,pages 14843–14852, 2024. 2 [66] Sijie Wang, Rui She, Qiyu Kang, Xingchao Jian, Kai Zhao, Yang Song, and Wee Peng Tay. DistilVPR: Cross-modal knowledge distillation for visual place recognition. In Pro-ceedings of the AAAI Conference on Artificial Intelligence ,pages 10377–10385, 2024. 3 [67] Xiaofeng Wang, Zheng Zhu, Wenbo Xu, Yunpeng Zhang, Yi Wei, Xu Chi, Yun Ye, Dalong Du, Jiwen Lu, and Xin-gang Wang. OpenOccupancy: A large scale benchmark for surrounding semantic occupancy perception. arXiv preprint arXiv:2303.03991 , 2023. [68] Zeyu Wang, Dingwen Li, Chenxu Luo, Cihang Xie, and Xiaodong Yang. DistillBEV: Boosting multi-camera 3D ob-ject detection with cross-modal knowledge distillation. In 
+
+Proceedings of the IEEE/CVF International Conference on Computer Vision , pages 8637–8646, 2023. 3 [69] Scott Workman, Richard Souvenir, and Nathan Jacobs. Wide-area image geolocalization with aerial reference imagery. In 
+
+Proceedings of the IEEE International Conference on Com-puter Vision , pages 3961–3969, 2015. 2 [70] Hang Wu, Zhenghao Zhang, Siyuan Lin, Xiangru Mu, Qiang Zhao, Ming Yang, and Tong Qin. MapLocNet: Coarse-to-fine feature registration for visual re-localization in vavigation maps. arXiv preprint arXiv:2407.08561 , 2024. 7 [71] Jingyi Xu, Junyi Ma, Qi Wu, Zijie Zhou, Yue Wang, Xieyuanli Chen, and Ling Pei. Explicit interaction for fusion-based place recognition. arXiv preprint arXiv:2402.17264 , 2024. 3, 7[72] Tian-Xing Xu, Yuan-Chen Guo, Zhiqiang Li, Ge Yu, Yu-Kun Lai, and Song-Hai Zhang. TransLoc3D: point cloud based large-scale place recognition using adaptive receptive fields. 
+
+Communications in Information and Systems , 23(1):57–83, 2023. 2 [73] Yanhao Zhang, Yujiao Shi, Shan Wang, Ankit Vora, Akhil Per-incherry, Yongbo Chen, and Hongdong Li. Increasing SLAM pose accuracy by ground-to-satellite image registration. arXiv preprint arXiv:2404.09169 , 2024. 2 [74] Zijie Zhou, Jingyi Xu, Guangming Xiong, and Junyi Ma. LCPR: A multi-scale attention-based LiDAR-camera fusion network for place recognition. IEEE Robotics and Automation Letters , 2024. 1, 3, 7, 8 [75] Sijie Zhu, Taojiannan Yang, and Chen Chen. VIGOR: Cross-view image geo-localization beyond one-to-one retrieval. In 
+
+Proceedings of the IEEE/CVF Conference on Computer Vi-sion and Pattern Recognition , pages 3640–3649, 2021. 2 [76] Sijie Zhu, Mubarak Shah, and Chen Chen. TransGeo: Trans-former is all you need for cross-view image geo-localization. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 1162–1171, 2022. 1, 2, 3, 7 [77] Sijie Zhu, Linjie Yang, Chen Chen, Mubarak Shah, Xiaohui Shen, and Heng Wang. R2Former: Unified retrieval and reranking Transformer for place recognition. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 19370–19380, 2023. 2 11727 [78] Yingying Zhu, Hongji Yang, Yuxin Lu, and Qiang Huang. Simple, effective and general: A new backbone for cross-view image geo-localization. arXiv preprint arXiv:2302.01572 ,2023. 2 [79] Kamil ˙ Zywanowski, Adam Banaszczyk, Michał R Nowicki, and Jacek Komorowski. MinkLoc3D-SI: 3D LiDAR place recognition with sparse convolutions, spherical coordinates, and intensity. IEEE Robotics and Automation Letters , 7(2): 1079–1086, 2021. 2 11728

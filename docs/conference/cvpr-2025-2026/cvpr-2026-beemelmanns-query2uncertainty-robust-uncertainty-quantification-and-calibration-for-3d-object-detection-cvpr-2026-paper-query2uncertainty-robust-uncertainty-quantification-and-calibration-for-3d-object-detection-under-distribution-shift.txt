@@ -1,0 +1,573 @@
+Title: Query2Uncertainty: Robust Uncertainty Quantification and Calibration for 3D Object Detection under Distribution Shift
+
+URL Source: https://openaccess.thecvf.com/content/CVPR2026/papers/Beemelmanns_Query2Uncertainty_Robust_Uncertainty_Quantification_and_Calibration_for_3D_Object_Detection_CVPR_2026_paper.pdf
+
+Published Time: Sat, 16 May 2026 16:46:43 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+# Query2Uncertainty: Robust Uncertainty Quantification and Calibration for 3D Object Detection under Distribution Shift 
+
+## Till Beemelmanns 1 Alexey Nekrasov 2 Stefan Vilceanu 1 Jonas Steinhaus 1
+
+## Timo Woopen 1 Bastian Leibe 2 Lutz Eckstein 1
+
+> 1
+
+Institute for Automotive Engineering, RWTH Aachen 2Computer Vision Institute, RWTH Aachen 
+
+## Abstract 
+
+Reliable uncertainty estimation for 3D object detection is critical for deploying safe autonomous systems, yet mod-ern detectors remain poorly calibrated, especially under distribution shifts. Although post-hoc calibration methods address this issue and provide improved calibration for in-distribution tests, they fail to adapt in distribution-shifted scenarios. In this work, we address this issue and introduce a density-aware calibration method that couples post-hoc calibrators with the feature density of latent object queries from DETR-style 3D object detectors. These queries form a compact, location and class-aware feature, ideal for density estimation, allowing our approach to adjust model confi-dences in distribution-shift scenarios. By fitting a density estimator on these query features, our approach jointly recal-ibrates both classification and bounding box regression un-certainties. On both a multi-view camera and LiDAR-based detector, our approach consistently outperforms standard post-hoc methods in both in-distribution and distribution-shifted scenarios. Code: https://tillbeemelmanns. github.io/query2uncertainty/ .
+
+## 1. Introduction 
+
+Autonomous vehicles and robots are nowadays deployed in real-world scenarios and provide numerous services and benefits to society. These systems must operate under con-stant uncertainty, arising from sensor imperfections, environ-mental variability, occlusion, or unseen data. Perceiving an accurate environment representation from a robot’s sensor system, along with precise uncertainty estimates, is crucial for autonomous vehicles and robots to navigate and interact with other agents. Current methods for autonomous driv-ing use multi-view camera images and LiDAR point clouds to detect nearby objects [29, 30, 50, 56]. These objects are usually detected as 3D bounding boxes that are associated with a semantic class, the object’s center position, its size and orientation, and serve as input for object tracking and collision avoidance [49]. Each of the box parameters can Density-Aware Calibrated 73% 0.0 0.2 0.4 0.6 0.8 1.0      
+
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0 ECE=0.8%
+> IoU % of Samples
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> 0.0
+> 0.2
+> 0.4
+> 0.6
+> 0.8
+> 1.0 ECE=33.4% IoU % of Samples
+
+Uncalibrated 94% 
+
+Figure 1. Our density-aware calibration method improves reliabil-ity under distribution-shift. An uncalibrated 3D detector exhibits miscalibrated uncertainty estimates when facing distribution shifts, such as a heavy rain or snow. Our method uses feature density to perform density-aware calibration of classification confidences and regression values, improving the model’s trustworthiness. 
+
+be associated with an uncertainty measure, improving prob-abilistic trackers or V2X setups to better fuse information from multiple sources or noisy measurements [32, 55]. How-ever, DNN-based detectors are known to produce overconfi-dent predictions that might affect downstream performance and pose serious safety risks in real-world operation [14, 23]. In this work, we focus on obtaining reliable uncertainty esti-mates for modern 3D object detectors, especially in unseen scenarios. Recent approaches focus on increasing detector ac-curacy through architectural model improvements in fusing multiple cameras, through temporal fusion, or by combining multiple modalities [27, 29, 30, 50]; however, retrieving and evaluating uncertainty estimates of predicted location and class probabilities is often not considered. This poses a sig-This CVPR paper is the Open Access version, provided by the Computer Vision Foundation. Except for this watermark, it is identical to the accepted version; the final published version of the proceedings is available on IEEE Xplore. 4677 nificant problem for deploying 3D detectors in safety-critical applications: miscalibrated confidences and variances sent to other agents, or propagated to the tracking and planning stack, might lead to brittle behavior and elevated risk. Cur-rent methods for calibrating class scores in 2D detectors use training losses to steer the model to predict reliable confi-dences [34, 35] or use post-hoc calibration [14, 23, 41, 54]. Post-hoc methods for detection have been shown to out-perform training-time calibration [23], but in-distribution calibrated post-hoc methods, in-turn, fail in domain-shift and out-of-distribution (OOD) scenarios [45, 46]. So far, no approach has been proposed to solve the problem of ob-taining robust calibrated uncertainties for probabilistic 3D bounding box detections in in-distribution and distribution-shift scenarios. A recent line of work proposes to calibrate classifier confidences based on feature density [45, 46] for image classification. Query-based 3D object detectors ex-pose latent object hypotheses, which drive detection of class, location, size, and orientation. We use these latent object hypotheses to fit a density estimator and use the resulting density to make post-hoc calibrators feature density-aware. Our approach yields a density-aware calibration module that is lightweight and adaptive to unseen data. Although there exists a wide range of metrics that quan-tify uncertainty [6, 14, 15, 22, 24, 43], there is no unified benchmark that comprehensively evaluates the quality of uncertainty in 3D object detection. We therefore propose a standardized evaluation framework for uncertainty esti-mates in 3D object detection, built on top of the widely used nuScenes detection benchmark [2]. We evaluate our proposed density-aware uncertainty calibration method with a camera and LiDAR-based model and demonstrate superior performance across in-distribution and distribution-shifted scenarios for regression and classification uncertainties. Our main contributions are as follows: 1) We establish a comprehensive uncertainty quantification benchmark for 3D object detection. 2) We propose a density-aware post-hoc calibration method that couples feature density with classic calibrators to refine both classification and regression uncertainty estimates of query-based 3D detectors. 3) We empirically demonstrate on both a camera and LiDAR-based model, that our proposed approach outperforms baseline methods across in-distribution and distribution-shift settings. 
+
+## 2. Related Work 
+
+Uncertainty Quantification in 3D Object Detection. Mod-ern 3D object detection for autonomous driving has rapidly adopted the query-based paradigm from 2D models like DETR [3]. Multi-view camera models [8, 27, 29, 30, 47, 48] and LiDAR-based detectors [10, 31, 56] rely on object queries for object classification and bounding box regres-sion. Multiple works have explored methods to estimate the predictive uncertainty, such as Monte-Carlo Dropout (MCD) [12, 13, 20, 42], ensemble methods [25], or paramet-ric models directly modeling the variance [19, 36]. In the field of autonomous driving, Monte Carlo Dropout [11, 16], MIMO [40], or the use of additional heads for directly regressing box parameter variances, trained with a KL-divergence or energy-based losses [4, 5, 15, 17, 32, 55] have been explored extensively. However, sampling-based meth-ods are often inefficient, and parametric methods typically focus on either classification or regression, but not an unified calibration. We propose a method that jointly quantifies and calibrates both classification and bounding box regression uncertainty for query-based 3D detectors. 
+
+Post-hoc Calibration Methods. Estimating predictive un-certainty alone is insufficient, as modern models’ confidence scores do not accurately reflect the likelihood of a predic-tion. The most common solution is post-hoc calibration, which adjusts the model’s outputs after training without costly re-training. Nonparametric methods, which do not as-sume an underlying distribution, use Histogram Binning [53], Isotonic Regression [54], or Bayesian Binning into Quan-tiles [38]. In contrast, parametric post-hoc methods assume an underlying Gaussian distribution and adjust logits before applying a sigmoid or softmax, as popularized by Platt Scal-ing (PS) [41] and Temperature Scaling (TS) [14]. Beyond these classical primitives, recent works add structural pri-ors to the calibration. For example, depth-aware strategies for 3D point cloud segmentation couple confidence with depth [21]. While most approaches target classification, TS has also been applied to regression variances for 3D box parameters [5]. While these methods can effectively correct miscalibration on in-distribution data, they are fundamen-tally ill-equipped to handle distribution shifts, as they blindly apply the same correction to all inputs, assuming the test data follows the same data distribution. 
+
+Calibration under Distribution Shift. The primary weak-ness of standard post-hoc methods is their failure under dis-tribution shift; a calibrator tuned on in-distribution data will collapse when faced with out-of-distribution (OOD) samples [45, 46]. This motivates the need for calibration methods that are robust to distribution shifts. One line of work attempts to solve this during training [34, 35, 39], but these methods often focus on classification calibration for 2D detection, and a recent analysis shows that carefully tuned post-hoc baselines can outperform them [23]. A more promising direc-tion, which we build upon, is calibration based on the feature density, commonly used in the OOD setting [9, 18, 26, 28]. This paradigm, applied successfully in image classification [45, 46], dynamically adjusts the calibration based on esti-mating the feature density the prediction is sampled from. By modeling feature density, these methods can identify OOD inputs and correct their confidences, achieving much bet-ter calibration, especially under distribution shift. However, 4678 Density Estimation Query Space 
+
+> Calibrated Predictions Density-Aware Calibration Regression Calibration Classi fi cation Calibration Transformer Decoder 3D Features  Object Queries Final Queries
+> Uncertainty Classi fi cation Regression Heads
+
+Figure 2. Overview of Query2Uncertainty We feed 3D features (either LiDAR or multi-view camera) as tokens into a standard DETR-style 3D object detector where they interact with object queries z. The refined queries at the last decoder layer are passed through a feature density estimator, that returns zdense a measure how well each individual query aligns with True Positives queries from the train set. This module is followed by the detection heads that return probabilistic 3D box parameters and class scores. To obtain well calibrated uncertainties for ID and distribution shift data, we propose our density-aware post-hoc calibration module that calibrates box variances and scores. 
+
+extending this density-aware principle to probabilistic 3D object detection—to jointly recalibrate both classification and bounding box regression uncertainties—has not been ex-plored. We propose a method that models the feature density of object queries to make post-hoc calibration robust under adverse scenarios. 
+
+## 3. Method 
+
+To introduce robust regression and classification calibration for DETR-style 3D object detectors, we propose to couple feature density-based uncertainty quantification with post-hoc calibration. We establish an uncertainty evaluation frame-work tailored for nuScenes [2], introducing metrics that as-sess both classification and regression uncertainties. Our ap-proach outperforms established baselines for in-distribution and distribution-shifted scenarios. 
+
+3.1. Method Overview 
+
+From 3D sensor data (either multi-view camera or point cloud), our method first extracts features using standard backbones and applies positional encodings to retain spatial information. Following DETR-style 3D detector pipelines, we interpret these features as tokens (Figure 2 ) and feed them into our probabilistic decoder-only trans-former, where they interact with a set of learnable ob-ject queries z0 ( ). The decoder outputs refined queries 
+
+z ( ), which are then used to predict class scores, mean box parameters, and associated variances using separate detection heads ( ), obtaining boxes in the form of b =(ˆ x, ˆy, ˆz, ˆℓ, ˆw, ˆh, ˆθ, ˆvx, ˆvy , σ 2
+
+> x
+
+, σ 2 
+
+> y
+
+, σ 2 
+
+> z
+
+, σ 2 
+
+> ℓ
+
+, σ 2
+
+> w
+
+, σ 2
+
+> h
+
+, κ θ ). Simul-taneously, we use an epistemic density estimation module that models how well the final object queries align with True Positive queries from the training set. At test time, we com-pute the density of each object query feature ( ) and use this information to dynamically calibrate both the classification and regression uncertainties in our density-aware post-hoc calibration module ( ). For our experiments, we build upon the DETR-style 3D detector PETR [29], which processes multi-view camera images. To further validate our approach, we use a LiDAR-based detector and a SECOND point cloud encoder [51] instead of the camera-based encoder while keeping the rest of the architecture unchanged. 
+
+3.2. Uncertainty Evaluation Framework 
+
+To evaluate our approach, we extend the nuScenes detection benchmark [2] with uncertainty evaluation for both classi-fication and regression and provide an interface to use this benchmark (See supplemental material for more detail). 
+
+Classification Uncertainty. Evaluating a classifier’s calibra-tion aims to assess the alignment between expected accuracy and actual confidence. It is usually measured using the Ex-pected Calibration Error (ECE) [14], which measures the difference between expected accuracy and actual confidence over a set of discrete bins. For object detection, the Detec-tion Expected Calibration Error (D-ECE) [24] adapts the ECE to measure the discrepancy between precision and pre-dicted confidence. We discretize the predicted confidences into B bins and denote by Db the detections whose confi-dence falls into bin b. The average confidence in bin b is 
+
+sb = 1
+
+> |D b|
+
+P 
+
+> j∈D b
+
+sj . True Positives (TPs) are identified via the nuScenes Euclidean center distance matching rule [2], forming the subset Tb ⊆ D b. The bin precision therefore is πb = |T b||D b| and the bin weight reads wb = |D b|/n with 
+
+n = PBb=1 |D b|. Empty bins receive wb = 0 and do not contribute. D-ECE then aggregates the discrepancy between confidence and precision, D-ECE =
+
+> B
+
+X
+
+> b=1
+
+wb |sb − πb| . (1) In contrast to related work [23, 35], we follow the nuScenes definition of TPs based on the Euclidean center distance between predicted and ground-truth centroids, instead of the IoU. To better reflect the interplay between confidence and localization quality, we adopt the Location-Aware Expected Calibration Error (LaECE) [37]. Using the same binning 4679 as for D-ECE, we compute the average confidence sb and a location quality term. Matched detections in bin b contribute with lq j = 1 − min( dj ,τ ) 
+
+> τ
+
+, where dj is the Euclidean center distance between the predicted and ground-truth boxes and 
+
+τ = 2m denotes the nuScenes matching threshold. False Positives (FPs) receive lq j = 0 , such that missed localization performance diminishes the bin’s score. By averaging the localization quality within each bin and directly plugging it into the LaECE definition we obtain LaECE =
+
+> B
+
+X
+
+> b=1
+
+wb sb − 1
+
+|D b|
+
+X
+
+> j∈T b
+
+lq j , (2) where Db denotes all detections (TPs and FPs) in bin b, Tb
+
+the matched detections, and wb = |D b|/n weighs each bin by its share of detections. This metric penalizes confidence estimates that do not align with the achieved spatial accuracy and rewards models producing confident well-localized pre-dictions. We use B = 25 bins for both LaECE and D-ECE. The benchmark also implements other metrics such as the LaACE and Uncertainty Realism Criterion [43], as described in the supplemental material. 
+
+Regression Uncertainty. We assess Gaussian predictive uncertainties using the Miscalibration Area (MCA) [22], the area between nominal and empirical coverage for centered 
+
+prediction intervals, as a pure measure of calibration qual-ity. Let {(μi, σ 2 
+
+> i
+
+)}Ni=1 denote the scalar Gaussian posterior means and variances for TPs with ground truth yi, gt . We define standardized residuals 
+
+ri = yi, gt − μi
+
+σi
+
+. (3) For a nominal coverage level p ∈ [0 , 1] , the symmetric standard-normal threshold reads 
+
+s(p) = Φ −1 0.5 + p
+
+> 2
+
+, (4) where Φ is the CDF of the standard normal and Φ−1 its quantile (probit) function. The empirical coverage at level p
+
+is 
+
+bπ(p) = 1
+
+N
+
+> N
+
+X
+
+> i=1
+
+I{| ri| ≤ s(p)}, (5) where I{·} denotes the indicator function. The miscalibration area then reads 
+
+MCA = 
+
+Z 10
+
+bπ(p) − p dp. (6) We approximate the integral via a trapezoidal rule, using 
+
+B = 100 bins to discretize the probability space [0 , 1] . We report MCA separately for centroid ( MCA xyz ) and size (MCA lwh ), where we take the average over the three di-mensions. For the angular component, we wrap predictions and targets to [−π, π ).
+
+Accounting for Class Imbalance. The nuScenes detection dataset exhibits severe class imbalance [2], so na¨ ıve metrics are dominated by most frequent categories. We therefore report each metric as a class-wise average , to ensure that rare classes contribute equally. 
+
+3.3. Probabilistic Transformer Detector 
+
+We parameterize each 3D box with uncertainty as 
+
+b = (ˆ x, ˆy, ˆz, ˆℓ, ˆw, ˆh, ˆθ, ˆvx, ˆvy , σ 2
+
+> x
+
+, σ 2 
+
+> y
+
+, σ 2 
+
+> z
+
+, σ 2 
+
+> ℓ
+
+, σ 2
+
+> w
+
+, σ 2
+
+> h
+
+, κ θ ),coupling the 3D center, size and yaw with uncertainty. 
+
+Regression Uncertainty Head. We supervise a separate uncertainty head via heteroscedastic losses derived from the KL divergence between the predicted distribution and a ground-truth Dirac distribution [32, 55]. We condition the MLP head to minimize the KL divergence between the estimated Gaussian N (x; ˆ x, σ 2
+
+> x
+
+) and the ground-truth delta distribution P (x) = δ(x − x0), which yields Lx =(ˆ x − x0)2/(2 σ2
+
+> x
+
+) + log σ2
+
+> x
+
+/2. For the box center coordinates 
+
+(x, y, z ) we assume independent Gaussians with log-variance 
+
+ui, leading to the loss 
+
+Lxyz = 12
+
+X
+
+> i∈{ x,y,z }
+
+ (ˆ xi − x0,i )2e−ui + ui
+
+ , (7) where ˆxi and x0,i denote prediction and ground-truth, re-spectively. The size parameters (ℓ, w, h ) are predicted in log-space; we exponentiate before measuring the residual, so the analogous loss reads 
+
+Lℓwh = 12
+
+X
+
+> i∈{ ℓ,w,h }
+
+ (eˆxi − ex0,i )2e−ui + ui
+
+ . (8) To model the yaw angle, we consider a von-Mises distri-bution with mean ˆθ and concentration κ = e−uθ = 1 /σ 2 
+
+> θ
+
+;minimizing the KL divergence between vM( θ; ˆθ, 1/σ 2 
+
+> θ
+
+) and 
+
+P (θ) = δ(θ − θ0) yields 
+
+Lθ = log I0(e−uθ ) + e−uθ
+
+1 − cos( ˆθ − θ0), (9) where I0 is the modified Bessel function. For numerical stability we add the term λV ELU( uθ − s0) [32], where λV
+
+controls the penalty strength and s0 sets the ELU offset to keep gradients well-behaved for small concentrations. 
+
+Query-Density Estimator Training. We propose to esti-mate the feature density of the query vectors in the latent space to capture how well a query aligns with the train-ing distribution. To train this model, we conduct a forward pass on the training split and cache the latent query vectors from the last transformer decoder layer which correspond to TP matches. For each semantic class c we aggregate the matched queries, count the samples Nc, and form the empir-ical prior ˆωc = Nc/ P 
+
+> k
+
+Nk. We then fit a RealNVP normal-izing flow [7] to each class-conditioned feature set. Every 4680 flow stacks a diagonal Gaussian base distribution with 32 affine coupling blocks interleaved with swap permutations; the scale and shift in each block are predicted by two-layer MLPs with 32 hidden units and zero-initialized outputs to stabilize training. We optimize the flows for 60 epochs using Adam with a linear learning-rate decay. The query feature is a vector of dimension D = 256 . The objective is the forward 
+
+KL( p∥q) between the empirical feature distribution and the flow estimator. We minimize the negative log-likelihood av-eraged over a batch of M query samples {zi}Mi=1 :
+
+Lflow = − 1
+
+M
+
+> M
+
+X
+
+> i=1
+
+log qϕ(zi). (10) We store the fitted flow parameters, the log priors log ˆ ωc, and the empirical Q0.001 and Q0.999 quantiles of the resulting log-densities to normalize densities at test time. The trained flows output class-conditional log-densities that, together with the empirical priors, yield density estimates for both seen and shifted queries. 
+
+Query-Density Estimator Prediction. At inference time we evaluate the latent density of candidate queries against the stored flow ensemble. Given a query vector z from the final decoder layer, we compute the class-conditional log-densities log qϕc (z) with the trained flows. We then com-pute the marginal log-density by aggregating over classes, weighted by the empirical priors ˆωc, which account for class imbalance and ensure that density estimates for rare classes are not penalized: 
+
+log q(z) = log 
+
+> C
+
+X
+
+> c=1
+
+exp(log qϕc (z) + log ˆ ωc) . (11) The scalar q(z) captures how closely the current query resem-bles the feature distribution of TP training objects. Following [52], we normalize the resulting log-density class-wise to 
+
+[0 , 1] using the cached per-class percentile statistics from the training log-densities, 
+
+log q(z)′ = clip 
+
+ log q(z) − Q0.001 
+
+Q0.999 − Q0.001 
+
+
+
+, (12) where clip( x) = max(0 , min(1 , x )) . The normalized den-sity log q(z)′ is high for in-distribution queries and decreases to zero as the query drifts away from the feature manifold, as illustrated in Figure 3. 
+
+3.4. Density-aware Post-hoc Calibration 
+
+Normalizing-flow densities provide a compact estimate of how familiar a query is to the training set, a signal we inject into several post-hoc calibrators. To measure the distance of the test-time query to the calibration density, we compute the standardized log-density deviation for each query’s feature 0 0.5 1 1.5 20500 1,000 1,500                 
+
+> Classification Entropy Count  Clean Brightness 1 Brightness 2 Brightness 3
+> 00.511.522.530500 1,000 1,500 2,000
+> Center covariance total variance Count
+> 00.20.40.60.810200 400 600 800
+> Query feature density log q(z)′
+> Count
+
+Figure 3. Uncertainties under distributional shift. We visualize classification entropy, centroid total variance, and query density for increasing brightness severity levels. The progressive drift of the query density histogram indicates that the density estimator effectively captures distributional shifts in the input data. 
+
+vector z:
+
+zdens (z) = log q(z)′ − ˆμlog q(z)′
+
+ˆσlog q(z)′
+
+, (13) where ˆμlog q(z)′ and ˆσlog q(z)′ are the empirical mean and standard deviation of the normalized log-densities from the calibration set. 
+
+Classification. Density-aware Temperature Scaling (DA-TS ) retains a single temperature T but modulates it per-instance using zdens . The instance-specific temperature becomes 
+
+T (z) = T · ϕγ
+
+ sT zdens (z), (14) where sT is a learned scaling parameter that controls the sensitivity of the density signal and ϕγ (·) is a gain function defined as ϕγ (x) = 1 + γ tanh( x) which maps argument x
+
+to the interval [1 − γ, 1 + γ]. We use ϕγ (·) here for bounding the density signal to a certain range to ensure that outliers or strong shifts in the densities do not lead to overly large corrections in the temperature. Applying the new tempera-ture T (z) to the logits ℓ yields the correction ℓ′(z) = ℓ/T (z)
+
+before applying the sigmoid function. Density-aware Platt Scaling ( DA-PS ) applies the same principle to both the scale and shift parameter 
+
+ℓ′(z) = ℓ · ϕγ
+
+ sscale zdens (z) + b · ϕγ
+
+ sshift zdens (z). (15) For Density-aware Isotonic Regression ( DA-IR ), we cre-ate a new feature u(z) by computing a weighted combination of confidence p(z) = sigmoid (ℓ(z)) and zdens , plus a bias term 
+
+u(z) = ws p(z) + wd zdens (z) + b. (16) An isotonic regressor is then fitted to this new feature u(z).This is necessary since IR is nonparametric and learns a 4681 piecewise-constant mapping, and applying zdens directly to the mapping parameters produces unstable fits. All calibration parameters, including the original pa-rameters ( T , b), the density-specific scaling factors (e.g., 
+
+sT , s scale ), and the feature weights ( ws, w d), are jointly opti-mized by minimizing the NLL on the calibration set. This ensures that the parameters are tuned to produce the most likely probability estimates, enabling the model to remain confident on high-density regions while becoming more con-servative as it moves into sparser parts of the feature space. 
+
+Regression. We calibrate the regression uncertainties produced by the KL-divergence uncertainty head using Density-aware Temperature Scaling ( DA-TS ) applied to each predicted variance and the yaw concentration. Let 
+
+S = σ2
+
+> x
+
+, σ 2 
+
+> y
+
+, σ 2 
+
+> z
+
+, σ 2 
+
+> ℓ
+
+, σ 2
+
+> w
+
+, σ 2
+
+> h
+
+, κ θ denote the regression uncertainties associated with (ˆ x, ˆy, ˆz, ˆℓ, ˆw, ˆh, ˆθ). For every 
+
+σ2 ∈ S we first apply an affine correction to the variance 
+
+ˆσ2 = s σ 2 + b, (17) and then use zdens (z) to apply a bounded correction 
+
+σ′2(z) = ˆ σ2 ϕγ
+
+ sσ zdens (z), ∀σ2 ∈ S . (18) For each regressor, the set of coefficients {s, b, s σ } is learned by minimizing the MCA so that low-density queries are as-signed larger uncertainties while familiar ones remain sharp. 
+
+3.5. Baseline Methods 
+
+Sample-based. We use Monte-Carlo Dropout (MCD) [12] and Deep Ensembles (DE) [25] as baselines for both regres-sion and classification. Similar to [40], we conduct repeated forward passes to produce multiple sets of detections that are clustered with DBSCAN. We group boxes of the same class, remove singleton clusters and for each cluster we average class scores and box parameters, compute the centroid and size covariances, as well as the angular concentration. 
+
+Classification. We use CalDETR [35] and TCD [34] as 
+
+train-time calibration baselines and report implementation details and parameter choices in the supplemental material. Following [23], we implement Platt Scaling (PS) [41], Iso-tonic Regression (IR) [54] and additionally Temperature Scaling (TS) [14] as post-hoc calibration baselines. 
+
+Regression. To introduce a simple regression baseline, we use an affine depth-based calibrator (Depth) that models the uncertainty as a linear function of distance to the ob-ject. Given the object’s distance d, the variance for each regression parameter is modeled as σ2(d) = aσ2 d + bσ2
+
+(angular concentration: κ(d) = aκd + bκ), where aκ and 
+
+bκ are learned parameters for each regression output. Addi-tionally, we follow the CalDETR [35] pipeline, and interpret the variance along the transformer layers as a measure of uncertainty. For each query, we collect the bounding box predictions from all six layers and compute their empirical variance. Following [5], we implement Temperature Scaling for each regression parameter σ′2 ← σ2/T σ2 , ∀ σ2 ∈σ2
+
+> x
+
+, σ 2 
+
+> y
+
+, σ 2 
+
+> z
+
+, σ 2 
+
+> ℓ
+
+, σ 2
+
+> w
+
+, σ 2
+
+> h
+
+, κ θ and minimize the respective MCA on the calibration set. We also report results obtained with an energy-based loss [15], as an alternative to KL [55]. 
+
+Accounting for Class Imbalance. Each density-aware cali-brator and its na¨ ıve counterpart is trained in a global fashion ( Glb. ), treating all classes as one class, and a class-wise 
+
+variant ( Cls. ), training a separate calibrator for each class. 
+
+## 4. Experiments 
+
+We evaluate the calibration performance of our density-based methods using the nuScenes dataset [2] for In-Distribution (ID) data and MultiCorrupt [1] for distribution-shift sce-narios. Our approach outperforms sample-based methods, classic post-hoc methods, and other baselines in both ID and distribution-shift scenarios. 
+
+4.1. Experimental Setup 
+
+The nuScenes dataset [2] consists of a diverse set of urban scenarios across multiple cities, where each frame includes six multi-view camera images, LiDAR and radar data. We train our camera and LiDAR-based detectors on the train split and evaluate on the validation split for ID accuracy performance. Both models are trained with 900 queries, for 32 epochs, following the training protocol of PETR [29]. To calibrate our probabilistic detectors, we follow [23] and split the validation set sequentially into a calibration set (40%) and a test set (60%). For distribution-shifted tests, we use MultiCorrupt [1], which contains ten different LiDAR and camera corruptions, at three severity levels, applied to the nuScenes validation set. We tune all post-hoc calibrators on the calibration set using Differential Evolution [44] with 20,000 iterations, which yields more deterministic and accu-rate results compared to gradient-based optimizers. During calibration we also store the mean and variance of the normal-ized query densities for each class to measure the deviation from the ID query densities at test time. For DE we use six ensemble members, each trained with different a random seed, and for MCD we use six forward passes with a dropout rate of 0.3 during inference. In contrast to [23], where only a single threshold is used for evaluation, we evaluate the quality of the uncertainty estimates at different confidence thresholds from 0.05 to 0.60 with increments of 0.05 , and report the mean over all thresholds. We limit the threshold at 
+
+0.60 to avoid missing predictions for rare classes 
+
+4.2. In-Distribution Evaluation 
+
+We report the threshold-averaged classification and regres-sion calibration errors in Table 1 and Table 2, respectively. DE and MCD perform poorly on both tasks, and also suf-fer a drop in accuracy. We ablated different clustering and 4682 Table 1. In-Distribution - Classification Calibration D-ECE and LaECE (in %) are reported as mean over detections thresholds from [0 .05 , 0.60] with 0.05 steps. Class-wise calibration: Cls. ;Global calibration: Glb. . +/-: better/worse than the na¨ ıve post-hoc method. 
+
+PETR SECOND Calib. Calib. Calibration Error Accuracy Calibration Error Accuracy Type Method D-ECE ↓ LaECE ↓ mAP ↑ NDS ↑ D-ECE ↓ LaECE ↓ mAP ↑ NDS ↑
+
+None Uncal. 8.556 27.211 38.25 45.05 15.509 17.378 54.53 63.57 Sample -based MCD [12] 9.487 30.110 36.90 44.23 16.517 19.523 51.80 62.30 DE [25] 9.091 32.754 33.20 43.39 15.997 19.635 50.83 62.36 Train -time CalDETR [35] 9.264 30.089 37.12 44.28 15.450 19.906 53.57 63.17 TCD [34] 9.567 24.533 38.27 45.05 18.182 18.869 54.37 63.81 Post -hoc TS [14] Glb. 7.859 26.115 38.26 45.04 10.050 16.194 54.53 63.58 TS [14] Cls. 5.312 24.660 38.26 45.04 7.818 13.968 54.53 63.58 PS [41] Glb. 7.752 25.686 38.26 45.04 10.092 15.810 54.53 63.58 PS [41] Cls. 3.996 22.782 38.26 45.04 2.311 9.076 54.53 63.58 IR [54] Glb. 7.451 25.753 38.26 45.04 9.900 15.642 54.53 63.58 IR [54] Cls. 2.999 22.869 38.26 45.04 1.867 9.078 54.53 63.58 Density -aware (Ours) DA-TS Glb. 7.688 + 24.831 + 38.36 45.03 9.676 + 15.185 + 54.36 63.65 DA-TS Cls. 5.772 - 24.185 + 38.36 45.03 7.351 + 13.237 + 54.36 63.65 DA-PS Glb. 7.598 + 24.960 + 38.36 45.03 9.628 + 15.043 + 54.36 63.65 DA-PS Cls. 3.899 + 22.393 + 38.36 45.03 2.224 + 8.812 + 54.36 63.65 DA-IR Glb. 7.209 + 24.015 + 38.36 45.03 5.217 + 10.982 + 54.36 63.65 DA-IR Cls. 2.955 + 22.550 + 38.36 45.03 1.839 + 8.877 + 54.36 63.65 
+
+Figure 4. Example Reliability Dia-gram (D-ECE) for SECOND. 0.0 0.2 0.4 0.6 0.8 1.0 
+
+> Confidence
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> ECE=11.7% IoU % of Samples
+> Accuracy
+
+Confidence 
+
+(a) Uncalibrated 0.0 0.2 0.4 0.6 0.8 1.0 
+
+> Confidence
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> ECE=1.6% IoU % of Samples
+> Accuracy
+
+Confidence 
+
+(b) Calibrated by DA-IR 
+
+Table 2. In-Distribution - Regression Calibration Metrics (MCA for centroid, size and orientation in %) are reported as mean over detections thresholds from [0 .05 , 0.60] with 0.05 steps. Class-wise calibration: Cls. ; Global calibration: Glb. . +/-: better/worse than the na¨ ıve post-hoc method. 
+
+PETR SECOND Calib. Calib. Calibration Error Accuracy Calibration Error Accuracy Type Method MCA xyz ↓ MCA lwh ↓ MCA ϕ↓ mAP ↑ NDS ↑ MCA xyz ↓ MCA lwh ↓ MCA ϕ↓ mAP ↑ NDS ↑
+
+Sample -based MCD [12] 35.878 42.135 34.356 36.90 44.23 31.620 40.353 32.627 51.80 62.30 DE [25] 28.871 38.092 27.257 33.20 43.39 23.089 39.337 31.997 50.83 62.36 CalDETR [35] 31.834 39.713 27.551 37.12 44.28 34.234 38.844 29.500 53.69 63.17 Train -time ES [15] 6.930 7.103 11.49 38.27 45.03 3.400 6.235 8.140 54.53 63.57 KL [55] 4.384 4.620 11.39 38.27 45.05 4.692 4.627 14.631 54.53 63.57 Post -hoc Depth Glb. 8.254 15.381 18.469 38.26 45.04 12.494 13.884 16.741 54.53 63.57 Depth Cls. 2.407 2.442 9.713 38.26 45.04 4.749 2.112 7.683 54.53 63.57 TS [5] Glb. 4.028 5.106 9.657 38.26 45.04 3.443 5.503 7.521 54.53 63.57 TS [5] Cls. 1.692 2.139 8.102 38.26 45.04 1.533 1.919 6.040 54.53 63.57 Density -aware DA-TS Glb. 4.059 - 5.236 - 9.710 - 38.36 45.03 2.875 + 4.693 + 7.309 + 54.36 63.65 DA-TS Cls. 1.538 + 2.141 - 8.099 + 38.36 45.03 1.518 + 1.758 + 6.037 + 54.36 63.65 
+
+Figure 5. Example Miscal. Area (MCA xyz ) for PETR. 0.0 0.2 0.4 0.6 0.8 1.0     
+
+> Expected Coverage Level p
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Observed Coverage Level  (p)
+> MCA x= 1.677 MCA y= 11.655 MCA z= 4.718
+> X-Translation Y-Translation Z-Translation Perfect Calibration
+
+(a) Uncalibrated KL [55] 0.0 0.2 0.4 0.6 0.8 1.0     
+
+> Expected Coverage Level p
+> 0.0 0.2 0.4 0.6 0.8 1.0
+> Observed Coverage Level  (p)
+> MCA x= 1.476 MCA y= 2.638 MCA z= 1.057
+> X-Translation Y-Translation Z-Translation Perfect Calibration
+
+(b) Calibrated by DA-TS 
+
+merging strategies, size of the ensemble and MCD samples (see supplemental material), but the performance remained at the level of an uncalibrated baseline. Previous work [40] focuses on the KITTI dataset, which contains only three classes, whereas nuScenes comprises ten categories, with object-dense scenes, including many small objects such as traffic cones and barriers whose boxes are often grouped closely together. This causes the clustering and merging to over-group adjacent boxes, making it difficult to obtain reliable consensus detections. Both training-time methods, CalDETR [35] and TCD [34], also struggle to improve cal-ibration performance. Since both approaches are designed for 2D object detection, they do not translate well to the 3D detection task. TCD is IoU-based, and the intersection in 3D decreases sharply compared to the 2D case. This leads small objects to have little or zero IoU with the ground truth boxes, make the loss signal noisy and unreliable. CalDETR, origi-nally designed for 2D detection using COCO, is not designed to consider large class imbalance present in nuScenes. For 
+
+classification , our proposed density-aware calibrators outper-form their non-density-aware counterparts in almost all cases, indicating that density deviations provide useful information for refining ID-trained post-hoc calibrators. For regression ,the uncertainty head trained with KL loss [55] provides a strong baseline, but requires calibration to minimize Miscali-bration Area (MCA). Our DA-TS method improves over the TS baseline in almost all cases, achieving the best regression calibration performance across both detectors. Figures 4 and 5 illustrate example reliability diagrams for classification and regression, respectively. For classification, both the uncali-brated model and DE are overconfident in their predictions, which is reduced by the post-hoc calibrators, bringing the 4683 Table 3. Distribution Shift - Classification Calibration Class-wise calibration: Cls. ; Global calibration: Glb. . +/-: better/worse than the na¨ ıve post-hoc method. 
+
+PETR SECOND Calib. Calib. D-ECE ↓ LaECE ↓ D-ECE ↓ LaECE ↓
+
+Type Method None Uncal. 13.040 29.059 22.490 21.558 Post -hoc TS [14] Glb. 12.271 27.671 15.758 19.638 TS [14] Cls. 10.271 26.881 13.363 17.319 PS [41] Glb. 12.147 27.510 15.812 19.523 PS [41] Cls. 7.990 24.602 7.037 11.052 IR [54] Glb. 11.969 27.429 15.689 19.441 IR [54] Cls. 7.449 24.333 7.076 11.093 Density -aware (Ours) DA-TS Glb. 11.382 + 25.825 + 15.257 + 18.657 +
+
+DA-TS Cls. 9.655 + 25.649 + 13.018 + 16.364 +
+
+DA-PS Glb. 11.396 + 26.308 + 15.368 + 18.556 +
+
+DA-PS Cls. 7.770 + 23.131 + 6.777 + 10.051 +
+
+DA-IR Glb. 10.802 + 24.315 + 9.966 + 11.879 +
+
+DA-IR Cls. 7.211 + 22.212 + 6.895 + 9.273 +
+
+empirical confidences close to the ideal calibration line. For regression, the uncalibrated variances of the KL uncertainty head exhibit miscalibration in both directions, undercon-fidence and overconfidence. In both cases, density-aware calibration aligns predicted with empirical coverage. These results further indicate that, on imbalanced datasets, post-hoc methods benefit from class-wise calibration ( Cls. ). 
+
+4.3. Distribution-Shift Evaluation 
+
+We use MultiCorrupt [1] to evaluate the robustness of un-certainty estimates under distribution-shift and report the mean calibration performance across all corruptions and their three severity levels in Table 3 and Table 4. The calibra-tion quality for the post-hoc methods drops under corruptions and is close to that of the uncalibrated model. However, in both classification and regression, our density-aware calibra-tors consistently outperform their non-density-aware coun-terparts, demonstrating the effectiveness of density-based adjustments for handling distribution shift. To evaluate ro-bustness against semantic distribution shifts, we conduct a transfer experiment using the Boston (train & calib.) and 
+
+Singapore (test) scenes of nuScenes. As shown in Ta-ble 5, our density-aware methods consistently improves clas-sification calibration. For regression, where geometric fea-tures remain relatively invariant across locations, our method maintains robust performance (Table 6). 
+
+4.4. Density Estimator Comparison 
+
+The choice of density estimator can impact the quality of the density estimates and thus the performance of our density-aware calibrators. We compare a Gaussian Mixture Model (GMM) [33] and Normalizing Flows (NF) [7] as density estimators and report the results for the distribution-shifted setting in Table 7. NF slightly outperforms GMM, indicating that NF is better suited for capturing complex latent feature 
+
+Table 4. Distribution Shift - Regression Calibration Class-wise calibration: Cls. ; Global calibration: Glb. . +/-: better/worse than the na¨ ıve post-hoc method.                                                                
+
+> PETR SECOND Calib. Calib. MCA xyz MCA lwh MCA ϕMCA xyz MCA lwh MCA ϕ
+> Type Method Train -time ES [15] 8.187 6.730 12.713 6.085 6.152 15.103 KL [55] 5.101 6.233 12.500 6.363 6.332 16.328 Post -hoc Depth Glb. 12.742 16.763 20.830 16.716 16.198 16.182 Depth Cls. 7.367 4.674 12.236 9.897 6.111 8.781 TS [5] Glb. 4.970 6.050 12.370 5.686 7.025 14.338 TS [5] Cls. 3.780 4.226 10.291 5.264 5.096 8.379 Density -aware DA-TS Glb. 4.735 +6.910 -10.486 +4.605 +5.863 +9.207 +
+> DA-TS Cls. 3.546 +4.217 +9.533 +4.037 +3.941 +8.105 +
+
+Table 5. Semantic Shift - Classification - Boston → Singapore 
+
+Using PETR and class-wise calibration ( Cls. ) for all results.                      
+
+> Metric Uncal. TS PS IR DA-TS DA-PS DA-IR D-ECE ↓10.109 8.510 6.340 5.137 7.987 +5.789 +3.645 +
+> LaECE ↓26.682 25.747 24.880 24.731 25.055 +23.354 +21.810 +
+
+Table 6. Semantic Shift - Regression - Boston → Singapore 
+
+Using PETR and class-wise calibration ( Cls. ) for all results.             
+
+> Metric Uncal. TS DA-TS MCA xyz ↓10.105 8.584 8.442 +MCA lwh ↓11.793 7.468 7.360 +MCA ϕ↓10.778 9.771 9.160 +
+
+Table 7. Distribution Shift - Density Estimator Comparison 
+
+Using PETR and class-wise calibration ( Cls. ). Density estimator latency measured on an NVIDIA A100 with a batch size of 300.                                   
+
+> Model Estimator D-ECE ↓MCA xyz ↓MCA lwh ↓MCA ϕ↓Params ↓Latency ↓
+> PETR GMM [33] 7.430 3.612 4.206 9.542 0.7M 0.58 ms NF [7] 7.211 3.546 4.217 9.533 2.1M 8.99 ms SEC-OND GMM [33] 6.997 4.085 4.053 8.583 0.7M 0.58 ms NF [7] 6.777 4.037 3.941 8.105 2.1M 8.99 ms
+
+distributions, albeit at the cost of an increased number of parameters and higher latency. 
+
+## 5. Conclusion 
+
+We proposed a novel density-aware post-hoc calibration method that effectively couples feature density estimation with common calibration methods. Our approach success-fully refines both classification and regression uncertainty estimates for modern query-based 3D detectors. Through extensive experiments, we demonstrate that our method out-performs strong baselines on both multi-view camera and LiDAR-based models. Notably, this performance holds true not only for in-distribution data but also across challeng-ing distribution shift. To enable this and future research, we established a comprehensive benchmark adapting the met-rics for evaluating the quality of uncertainty quantification in 3D object detection for both classification and bounding box regression. Our findings suggest that feature density is a powerful signal for improving uncertainty calibration in autonomous driving. 4684 Acknowledgements 
+
+This work has received funding from the European Union’s Horizon Europe Research and Innovation Programme un-der Grant Agreement No. 101076754 - AIthena project. A. Nekrasov acknowledges funding by BMBF project “WestAI” (grantwno. 01IS22094D). Computations were performed with computing resources granted by RWTH Aachen Uni-versity under project rwth1901 .
+
+## References 
+
+[1] Till Beemelmanns, Quan Zhang, Christian Geller, and Lutz Eckstein. MultiCorrupt: A Multi-Modal Robustness Dataset and Benchmark of LiDAR-Camera Fusion for 3D Object Detection. In IEEE Intell. Vehicles Symp. , 2024. 6, 8 [2] Holger Caesar, Varun Bankiti, Alex H Lang, Sourabh Vora, Venice Erin Liong, Qiang Xu, Anush Krishnan, Yu Pan, Gian-carlo Baldan, and Oscar Beijbom. nuScenes: A Multimodal Dataset for Autonomous Driving. In CVPR , 2020. 2, 3, 4, 6 [3] Nicolas Carion, Francisco Massa, Gabriel Synnaeve, Nicolas Usunier, Alexander Kirillov, and Sergey Zagoruyko. End-to-end object detection with transformers. In ECCV , pages 213–229. Springer, 2020. 2 [4] Jiwoong Choi, Dayoung Chun, Hyun Kim, and Hyuk-Jae Lee. Gaussian yolov3: An accurate and fast object detector using localization uncertainty for autonomous driving. In ICCV ,pages 502–511, 2019. 2 [5] Di Feng, Lars Rosenbaum, Claudius Glaeser, Fabian Timm, and Klaus Dietmayer. Can we trust you? on calibration of a probabilistic object detector for autonomous driving. In IROS ,2019. 2, 6, 7, 8 [6] Di Feng, Ali Harakeh, Steven L. Waslander, and Klaus Di-etmayer. A review and comparative study on probabilistic object detection in autonomous driving. IEEE Int. Conf. Intell. Transp. Syst. , 23(8):9961–9980, 2022. 2 [7] Laurent Dinh, Jascha Sohl-Dickstein, and Samy Bengio. Den-sity estimation using real NVP. In ICLR , 2017. 4, 8 [8] Simon Doll, Richard Schulz, Lukas Schneider, Viviane Ben-zin, Markus Enzweiler, and Hendrik PA Lensch. Spatialdetr: Robust scalable transformer-based 3d object detection from multi-view camera images with global cross-sensor attention. In ECCV , pages 230–245. Springer, 2022. 2 [9] Xuefeng Du, Zhaoning Wang, Mu Cai, and Yixuan Li. VOS: Learning What You Don’t Know by Virtual Outlier Synthesis. In ICLR , 2022. 2 [10] Gopi Krishna Erabati and Helder Araujo. Li3detr: A lidar based 3d detection transformer. In WACV , pages 4250–4259, 2023. 2 [11] Di Feng, Lars Rosenbaum, and Klaus Dietmayer. Towards safe autonomous driving: Capture uncertainty in the deep neural network for lidar 3d vehicle detection. In IEEE Int. Conf. Intell. Transp. Syst. , pages 3266–3273, 2018. 2 [12] Yarin Gal and Zoubin Ghahramani. Dropout as a Bayesian Approximation: Representing Model Uncertainty in Deep Learning. In Int. Conf. Mach. Learn. , 2017. 2, 6, 7 [13] Yarin Gal, Jiri Hron, and Alex Kendall. Concrete dropout, 2017. 2 [14] Chuan Guo, Geoff Pleiss, Yu Sun, and Kilian Q. Weinberger. On calibration of modern neural networks. In Int. Conf. Mach. Learn. , page 1321–1330, 2017. 1, 2, 3, 6, 7, 8 [15] Ali Harakeh and Steven L. Waslander. Estimating and Evalu-ating Regression Predictive Uncertainty in Deep Object De-tectors, 2021. 2, 6, 7, 8 [16] Ali Harakeh, Michael Smart, and Steven L. Waslander. BayesOD: A Bayesian Approach for Uncertainty Estimation in Deep Object Detectors. In ICRA , pages 87–93. IEEE, 2020. 2[17] Yihui He, Chenchen Zhu, Jianren Wang, Marios Savvides, and Xiangyu Zhang. Bounding box regression with uncertainty for accurate object detection. In CVPR , 2018. 2 [18] Severin Heidrich, Till Beemelmanns, Alexey Nekrasov, Bas-tian Leibe, and Lutz Eckstein. OCCUQ: Exploring Efficient Uncertainty Quantification for 3D Occupancy Prediction. In 
+
+ICRA , 2025. 2 [19] Tom Heskes. Practical confidence and prediction intervals. In 
+
+NeurIPS . MIT Press, 1996. 2 [20] Alex Kendall and Yarin Gal. What uncertainties do we need in bayesian deep learning for computer vision? NeurIPS , 30, 2017. 2 [21] Lingdong Kong, Xiang Xu, Jun Cen, Wenwei Zhang, Liang Pan, Kai Chen, and Ziwei Liu. Calib3D: Calibrating Model Preferences for Reliable 3D Scene Understanding. In WACV ,pages 1965–1978, 2025. 2 [22] Volodymyr Kuleshov, Nathan Fenner, and Stefano Ermon. Accurate uncertainties for deep learning using calibrated re-gression. In ICML , pages 2796–2804. PMLR, 2018. 2, 4 [23] Selim Kuzucu, Kemal Oksuz, Jonathan Sadeghi, and Puneet K. Dokania. On calibration of object detectors: Pitfalls, evaluation and baselines. In ECCV , 2024. 1, 2, 3, 6 [24] Fabian K¨ uppers, Jan Kronenberger, Amirhossein Shantia, and Anselm Haselhoff. Multivariate confidence calibration for object detection. In CVPRW , 2020. 2, 3 [25] Balaji Lakshminarayanan, Alexander Pritzel, and Charles Blundell. Simple and Scalable Predictive Uncertainty Es-timation using Deep Ensembles. In NeurIPS , 2017. 2, 6, 7[26] Kimin Lee, Kibok Lee, Honglak Lee, and Jinwoo Shin. A Simple Unified Framework for Detecting Out-of-Distribution Samples and Adversarial Attacks. In NeurIPS , 2018. 2 [27] Zhiqi Li, Wenhai Wang, Hongyang Li, Enze Xie, Chonghao Sima, Tong Lu, Yu Qiao, and Jifeng Dai. Bevformer: Learning bird’s-eye-view representation from multi-camera images via spatiotemporal transformers. In ECCV . Springer, 2022. 1, 2 [28] Chen Liang, Wenguan Wang, Jiaxu Miao, and Yi Yang. GMMSeg: Gaussian Mixture based Generative Semantic Seg-mentation Models. In NeurIPS , 2022. 2 [29] Yingfei Liu, Tiancai Wang, Xiangyu Zhang, and Jian Sun. PETR: Position Embedding Transformation for Multi-View 3D Object Detection. In ECCV , pages 531–548, 2022. 1, 2, 3, 6 [30] Yingfei Liu, Junjie Yan, Fan Jia, Shuailin Li, Qi Gao, Tian-cai Wang, Xiangyu Zhang, and Jian Sun. Petrv2: A unified framework for 3d perception from multi-camera images. In 
+
+ICCV , 2023. 1, 2 4685 [31] Zhe Liu, Jinghua Hou, Xiaoqing Ye, Tong Wang, Jingdong Wang, and Xiang Bai. Seed: A simple and effective 3d detr in point clouds. In ECCV , 2024. 2 [32] Yifan Lu, Quanhao Li, Baoan Liu, Mehrdad Dianati, Chen Feng, Siheng Chen, and Yanfeng Wang. Robust collaborative 3d object detection in presence of pose errors. In ICRA , pages 4812–4818. IEEE, 2023. 1, 2, 4 [33] Jishnu Mukhoti, Andreas Kirsch, Joost van Amersfoort, Philip HS Torr, and Yarin Gal. Deep Deterministic Uncer-tainty: A New Simple Baseline. In CVPR , 2023. 8 [34] Muhammad Akhtar Munir, Muhammad Haris Khan, M Sar-fraz, and Mohsen Ali. Towards improving calibration in ob-ject detection under domain shift. NeurIPS , 35:38706–38718, 2022. 2, 6, 7 [35] Muhammad Akhtar Munir, Salman Khan, Muhammad Haris Khan, Mohsen Ali, and Fahad Khan. Cal-DETR: Calibrated Detection Transformer. NeurIPS , 2023. 2, 3, 6, 7 [36] D. A. Nix and A. S. Weigend. Estimating the mean and variance of the target probability distribution. In 1994 IEEE International Conference on Neural Networks, 1994. IEEE World Congress on Computational Intelligence , pages 55–60 vol.1. IEEE / Institute of Electrical and Electronics Engineers Incorporated, 1994. 2 [37] Kemal Oksuz, Tom Joy, and Puneet K. Dokania. Towards building self-aware object detectors via reliable uncertainty quantification and calibration. In CVPR , 2023. 3 [38] Mahdi Pakdaman Naeini, Gregory F. Cooper, and Milos Hauskrecht. Obtaining well calibrated probabilities using bayesian binning. In AAAI , pages 2901–2907, 2015. 2 [39] Bimsara Pathiraja, Malitha Gunawardhana, and Muham-mad Haris Khan. Multiclass confidence and localization cali-bration for object detection. In CVPR , pages 19734–19743, 2023. 2 [40] Matthew Pitropov, Chengjie Huang, Vahdat Abdelzad, Krzysztof Czarnecki, and Steven Waslander. LiDAR-MIMO: Efficient Uncertainty Estimation for LiDAR-based 3D Object Detection. In IEEE Intell. Vehicles Symp. , pages 813–820, 2022. 2, 6, 7 [41] John Platt. Probabilistic Outputs for Support Vector Machines and Comparisons to Regularized Likelihood Methods. Adv. Large Margin Classif. , 10, 1999. 2, 6, 7, 8 [42] Janis Postels, Francesco Ferroni, Huseyin Coskun, Nassir Navab, and Federico Tombari. Sampling-free epistemic un-certainty estimation using approximated variance propagation. In CVPR , 2019. 2 [43] Joachim Sicking, Alexander Kister, Matthias Fahrland, Stefan Eickeler, Fabian H¨ uger, Stefan R¨ uping, Peter Schlicht, and Tim Wirtz. Approaching Neural Network Uncertainty Real-ism. In NeurIPS 2019 Workshop on Machine Learning for Autonomous Driving , Vancouver, Canada, 2019. 2, 4 [44] Rainer Storn and Kenneth Price. Differential evolution–a simple and efficient heuristic for global optimization over continuous spaces. Journal of global optimization , 11(4): 341–359, 1997. 6 [45] Christian Tomani, Sebastian Gruber, Muhammed Ebrar Er-dem, Daniel Cremers, and Florian Buettner. Post-hoc Un-certainty Calibration for Domain Drift Scenarios. In CVPR ,pages 10119–10127, 2021. 2 [46] Christian Tomani, Futa Kai Waseda, Yuesong Shen, and Daniel Cremers. Beyond In-Domain Scenarios: Robust Density-Aware Calibration. In PMLR , pages 34344–34368, 2023. 2 [47] Shihao Wang, Yingfei Liu, Tiancai Wang, Ying Li, and Xi-angyu Zhang. Exploring Object-Centric Temporal Modeling for Efficient Multi-View 3D Object Detection. In ICCV , 2023. 2[48] Yue Wang, Vitor Campagnolo Guizilini, Tianyuan Zhang, Yilun Wang, Hang Zhao, and Justin Solomon. DETR3D: 3D Object Detection from Multi-view Images via 3D-to-2D Queries. In CoRL , pages 180–191. PMLR, 2022. 2 [49] Xinshuo Weng, Jianren Wang, David Held, and Kris Kitani. 3D Multi-Object Tracking: A Baseline and New Evaluation Metrics. IROS , 2020. 1 [50] Junjie Yan, Yingfei Liu, Jianjian Sun, Fan Jia, Shuailin Li, Tiancai Wang, and Xiangyu Zhang. Cross modal transformer via coordinates encoding for 3d object dectection. In ICCV ,2023. 1 [51] Yan Yan, Yuxing Mao, and Bo Li. Second: Sparsely em-bedded convolutional detection. Sensors , 18(10):3337, 2018. 3[52] Taeseong Yoon and Heeyoung Kim. Uncertainty Estimation by Density Aware Evidential Deep Learning. In Int. Conf. Mach. Learn. , 2024. 5 [53] Bianca Zadrozny and Charles Elkan. Obtaining calibrated probability estimates from decision trees and naive Bayesian classifiers. In Int. Conf. Mach. Learn. , pages 609–616, San Francisco, CA, USA, 2001. Morgan Kaufmann Publishers Inc. 2 [54] Bianca Zadrozny and Charles Elkan. Transforming Classifier Scores into Accurate Multiclass Probability Estimates. Int. Conf. Knowl. Discov. Data Min. , 2002. 2, 6, 7, 8 [55] Yuanxin Zhong, Minghan Zhu, and Huei Peng. Uncertainty-Aware Voxel based 3D Object Detection and Tracking with von-Mises Loss. arXiv preprint arXiv:2011.02553 , 2020. 1, 2, 4, 6, 7, 8 [56] Zixiang Zhou, Xiangchen Zhao, Yu Wang, Panqu Wang, and Hassan Foroosh. CenterFormer: Center-based Transformer for 3D Object Detection. In ECCV , 2022. 1, 2 4686

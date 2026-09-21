@@ -1,0 +1,500 @@
+Title: Disentangle-then-Align: Non-Iterative Hybrid Multimodal Image Registration via Cross-Scale Feature Disentanglement
+
+URL Source: https://openaccess.thecvf.com/content/CVPR2026/papers/Zhang_Disentangle-then-Align_Non-Iterative_Hybrid_Multimodal_Image_Registration_via_Cross-Scale_Feature_Disentanglement_CVPR_2026_paper.pdf
+
+Published Time: Sat, 16 May 2026 16:48:23 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+# Disentangle-then-Align: Non-Iterative Hybrid Multimodal Image Registration via Cross-Scale Feature Disentanglement 
+
+## Chunlei Zhang 1 Jiahao Xia 1 Yun Xiao 2 Bo Jiang 3 Jian Zhang 1*
+
+> 1
+
+## Faculty of Engineering and IT, University of Technology Sydney, Australia 
+
+> 2
+
+## School of Artificial Intelligence, Anhui University, Hefei, China 
+
+> 3
+
+## School of Computer Science and Technology, Anhui University, Hefei, China 
+
+Chunlei.Zhang@student.uts.edu.au, {Jiahao.Xia-1, Jian.Zhang }@uts.edu.au, 
+
+{xiaoyun, jiangbo }@ahu.edu.cn 
+
+## Abstract 
+
+Multimodal image registration is a fundamental task and a prerequisite for downstream cross-modal analysis. Despite recent progress in shared feature extraction and multi-scale architectures, two key limitations remain. First, some meth-ods use disentanglement to learn shared features but mainly regularize the shared part, allowing modality-private cues to leak into the shared space. Second, most multi-scale frameworks support only a single transformation type, lim-iting their applicability when global misalignment and lo-cal deformation coexist. To address these issues, we for-mulate hybrid multimodal registration as jointly learning a stable shared feature space and a unified hybrid transfor-mation. Based on this view, we propose HRNet , a Hybrid 
+
+Registration Network that couples representation disentan-glement with hybrid parameter prediction. A shared back-bone with Modality-Specific Batch Normalization (MSBN) extracts multi-scale features, while a Cross-scale Disen-tanglement and Adaptive Projection (CDAP) module sup-presses modality-private cues and projects shared features into a stable subspace for matching. Built on this shared space, a Hybrid Parameter Prediction Module (HPPM) per-forms non-iterative coarse-to-fine estimation of global rigid parameters and deformation fields, which are fused into a coherent deformation field. Extensive experiments on four multimodal datasets demonstrate state-of-the-art per-formance on rigid and non-rigid registration tasks. The code is available at the project website 1.
+
+## 1. Introduction 
+
+With advances in sensing technologies, multimodal imag-ing has become increasingly widespread. However, view-*Corresponding author. 1https://github.com/Chunlei0913/HRNet      
+
+> decoder decoder decoder ww
+> Displacement vector field
+> decoder decoder
+> w
+> w
+> decoder
+> 𝐀2 𝐀3 𝐀1 …
+> 𝐀2 𝐀3 𝐀1 …
+> 𝐀2 𝐀3 𝐀1 …
+> Rigid transformation parameter
+> decoder decoder decoder ww
+> Rigid flow field (a) (b) (c)
+
+... ... ...  
+
+> fusion fusion
+
+Figure 1. Comparison of model structures. (a) non-rigid only, (b) rigid only; (c) Our hybrid structure. point differences introduce geometric misalignment that de-fines the objective of image registration, while different imaging mechanisms induce substantial cross-modal ap-pearance gaps, making alignment more challenging. There-fore, accurate multimodal registration is crucial for robust data fusion and for improving the reliability of downstream analysis and decision making. Image registration has been a long-standing research problem [2, 12–14, 21, 26]. Recently, deep learning–based approaches have been widely adopted for end-to-end reg-istration, and many of them employ multi-scale strategies to improve accuracy [19, 25, 28]. However, as illustrated in Fig. 1, the design of these models is typically limited to a single type of transformation, which restricts their abil-ity to handle complex real-world scenarios involving both global misalignment and local structural variation. This is because rigid transformations can correct global misalign-This CVPR paper is the Open Access version, provided by the Computer Vision Foundation. Except for this watermark, it is identical to the accepted version; the final published version of the proceedings is available on IEEE Xplore. 15912 Moving image Ground Truth Rgid Task Non-rigid Task 
+
+> Aligned Image uncorrected local distortion broken linear structure
+> Rigid Model
+> Non-rigid Model
+> (b) (a)
+> Figure 2. (a) Rigid registration fails to handle local deformations (first row). Non-rigid registration may distort structural integrity under large global offsets (second row). (b) Serial hybrid registra-tion.
+
+ment but cannot handle local deformations, whereas non-rigid transformations adapt to local variations but perform poorly under large global offsets and may distort structural integrity, as illustrated in Fig. 2(a). To leverage both, hy-brid registration has been explored [8, 16, 21]. However, most existing methods implement hybrid registration as a serial cascade of rigid and non-rigid stages, as illustrated in Fig. 2(b). This stage-wise structure leads to two crit-ical issues. First, rigid and non-rigid transformations are estimated in separate representation spaces, making it hard to coordinate the stages and obtain a unified hybrid defor-mation. Second, weak inter-stage coupling lets later pre-dictions inherit earlier biases. Beyond multi-scale designs, several studies seek to improve cross-modal registration by learning shared representations [10, 15]. Although these ap-proaches mitigate cross-modal distribution gaps to some ex-tent, their constraints mainly act on the shared component. They lack explicit constraints on the boundary and indepen-dence of the modality-private subspace, so private informa-tion can still leak back into the shared space and interfere with geometric correspondence. To address these limitations, we propose HRNet, a uni-fied Hybrid Registration Network that serves as a gen-eral template for jointly modeling global rigid alignment and local non-rigid deformation within a single framework. HRNet consists of three components: a shared encoder, a Cross-scale Disentanglement and Adaptive Projection (CDAP) module, and a Hybrid Parameter Prediction Mod-ule (HPPM). Unlike serial schemes, HPPM performs hybrid registration in a non-iterative, coarse-to-fine manner within the shared feature space: it jointly regresses global rigid pa-rameters and multi-scale displacement fields, encodes the rigid parameters into a global flow, and fuses this flow with progressively refined local deformation flows within a sin-gle pipeline, ultimately producing a single coherent defor-mation field. To ensure that hybrid parameter prediction is always carried out in the same feature space, and to avoid rigid and non-rigid components being estimated in separate representation spaces that cannot form a unified hybrid deformation, we adopt an extract-then-disentangle strategy. Specifically, we first use a shared backbone with Modality-Specific Batch Normalization (MSBN) to extract multi-scale features, which alleviates cross-modal statistical shift and allows the backbone to focus more on geometric commonalities. On top of this, we introduce the Cross-scale Disentanglement and Adaptive Projection (CDAP) module, which follows a decompose–gate–project pipeline to learn cleaner shared representations for hybrid registration: at each scale, features are decomposed into shared and pri-vate components, cross-scale gating is used to suppress the leakage of modality-private information into the shared space, and the shared features are adaptively projected into a more stable latent subspace. At the same time, we in-troduce structured regularization to reduce shared–private coupling, avoid subspace redundancy, and maintain cross-scale semantic consistency. Built upon this shared space, HPPM leverages a Mamba state-space architecture to model long-range dependencies with low computational cost, and completes joint estimation of rigid and non-rigid transfor-mations within the unified framework. The following are our main contributions: • We propose HRNet, a unified hybrid registration frame-work that couples feature disentanglement with hybrid parameter prediction, and achieves state-of-the-art perfor-mance on four multimodal datasets. • We develop a Hybrid Parameter Prediction Module (HPPM) that jointly predicts rigid and non-rigid transfor-mations within a single coarse-to-fine pipeline, producing a unified coherent deformation field. • We design the Cross-scale Disentanglement and Adap-tive Projection (CDAP) module, which follows a decom-pose–gate–project pipeline to learn multi-scale shared representations that are robust to modality-private leak-age. • We introduce three structured regularizations, Cross-Covariance Decorrelation, Basis Orthogonality, and Cross-Scale Directional Consistency, to shape the shared feature space by reducing shared–private coupling, alle-viating subspace redundancy, and enforcing cross-scale semantic consistency. 
+
+## 2. Related Work 
+
+This section briefly reviews previous multimodal image reg-istration methods. To cope with the inherent modality gap, existing approaches can be broadly grouped into three rep-resentative directions. 
+
+Multi-scale optimization. These approaches estimate 15913 transformation parameters in a coarse-to-fine manner, cor-recting global misalignment at coarser scales and refining details at finer scales. Ye et al. [25] proposed a three-stage framework that constructs a multi-scale pyramid via down-sampling and accumulates transformations from low to high resolution. Building on this idea, Zhu et al. [28] introduced iterative refinement at each scale to further improve accu-racy. For non-rigid tasks, Xu et al. [23] designed a bidi-rectional registration network with an inverse-consistency constraint to suppress one-way distortion during multi-stage refinement. To exploit the complementary strengths of rigid and non-rigid models, hybrid registration [8, 16, 21] has also been investigated. Xiao et al. [21] adopt a global-to-local two-stage pipeline, where an affine stage removes large misalignment followed by a deformable field for local correction. However, serially concatenated hybrids remain sensitive to early-stage biases and accumulate warping arti-facts, motivating a unified, single-pass hybrid formulation. 
+
+Learning modality-shared representations. This line seeks to mitigate cross-modal discrepancies by learning shared features, often via disentangling shared (geomet-ric) from modality-private (appearance) components. Shi et al. [15] separated images into content and style features us-ing domain adaptation and used the content features for pa-rameter prediction. Deng et al. [7] modeled multimodal reg-istration as disentangled convolutional sparse coding, ex-tracting registration-related features to improve accuracy and efficiency. In this work, we emphasize scale-aware consistency across the feature pyramid, limit private-to-shared leakage during cross-scale processing, and stabilize the shared subspace, yielding cleaner representations and more reliable correspondences under large modality gaps. 
+
+Modality translation. Another line translates one modal-ity into another to form pseudo mono-modal pairs for reg-istration. Wang et al. [18] and Wei et al. [20] utilized Cy-cleGAN [29]-based translation network to generate pseudo mono-modal pairs for registration. Arar et al. [1] alter-nate training translation and registration under a geometry-preserving constraint, enabling the registration network to learn smooth and accurate spatial transformations with mono-modal metrics. However, translation can introduce artificial noise [7], yielding biased correspondences; we therefore avoid synthesis and instead pursue feature disen-tanglement with scale-aware consistency and a stabilized shared space. 
+
+## 3. Method 3.1. Overview 
+
+The overall framework of HRNet is illustrated in Fig. 3. Given a fixed image If and a moving image Im, the HR-Net pipeline consists of three main stages. First, the image pair (If , I m) is processed by a shared backbone to extract multi-scale features F and M . Second, F and M are fed into the Cross-scale Disentanglement and Adaptive Projec-tion (CDAP) module to obtain multi-scale shared features 
+
+( ˆF s, ˆM s). Finally, ˆF s and ˆM s are passed into the Hybrid Parameter Prediction Module (HPPM) to estimate the trans-formation ω, which is then used to warp Im and produce the aligned image Ir in a single forward pass. 
+
+3.2. Shared Backbone with MSBN 
+
+According to work [6], when weights are shared across modalities, a single BN stream must absorb heterogeneous statistics from different modalities, which tends to mix modality-private information into the shared space and de-grades registration performance. To mitigate this, we adopt a shared backbone with Modality-Specific Batch Normal-ization (MSBN): convolutional weights are shared to learn geometric commonalities, while BN means, variances, and affine parameters are maintained per modality, allowing normalization to absorb appearance and radiometric dis-crepancies. This design introduces negligible overhead while producing cleaner modality-normalized features. For-mally, 
+
+F = Backbone( If ), F → {F0, F 1, ..., F i},M = Backbone( Im), M → {M0, M 1, ..., M i}, (1) where Fi and Mi denote modality-normalized features at scale i (i = 0 , . . . , 4 in our implementation). 
+
+3.3. Cross-scale Disentanglement and Adaptive Projection 
+
+After obtaining the multi-scale features, we introduce a Cross-scale Disentanglement and Adaptive Projection (CDAP) module, which consists of three stages: Decom-pose , Gate , and Project . The objective of CDAP is to gen-erate clean and alignable multi-scale shared representations. 
+
+Decompose: At each scale i, we apply two feature extrac-tors to decompose the feature into shared and private com-ponents: 
+
+F si = Eish (Fi) , F pi = Eipf (Fi) ,M si = Eish (Mi) , M pi = Eipm (Mi) , (2) where Eish shares convolutional weights across modalities to extract modality-agnostic geometric cues, while Eipf /m 
+
+captures modality-specific appearance and noise charac-teristics. However, decomposition alone cannot prevent private-to-shared leakage, which motivates a subsequent gating step. 
+
+Gate: We adopt Inter-Layer Disentanglement Attention (ILDA) to suppress modality-private information, where ILDA leverages neighboring-scale semantics to perform cross-scale, attention-guided gating. For each scale i, we 15914 Data Flow 
+
+ST   
+
+> Spatial Transformation Upsampling Addition
+> CConcat
+
+R-head Registration Head HPPM Conv LayerNorm 
+
+VSSM 
+
+> LayerNorm
+
+Conv 
+
+MLP R-head scale 
+
+> C×q
+> ST
+> ...
+
+RSSBscale GGCMLP Basis Generation DSS HybridReg Block HybridReg Block HybridReg Block HybridReg Block HybridReg Block HybridReg Block 
+
+> ILDA
+
+Base Block 
+
+Residual Block Residual Block Residual Block Residual Block 
+
+Residual Block Residual Block Residual Block Residual Block Base Block ILDADSS
+
+> ST
+
+CDAP GGGGGG··ILDA attention module SMLP attention module MLP SS Sigmoid · Subtraction Multiplication G Global average pooling Deformable Field 
+
+Figure 3. The schematic diagram and detailed architectures of the Hybrid Registration Network, namely HRNet, which consists of three main components: a shared backbone with Modality-Specific Batch Normalization (MSBN), a Cross-scale Disentanglement and Adaptive Projection (CDAP) module for feature disentanglement, and a Hybrid Parameter Prediction Module (HPPM) for transformation parameter estimation. first construct query, key, and value triplets from the shared branch: 
+
+Qsi = W iq G(F si ),K si = [ W i→1 
+
+> k
+
+G(F si→1), W ikG(F si ), W i+1  
+
+> k
+
+G(F si+1 )] ,V si = [ W i→1 
+
+> v
+
+G(F si→1), W ivG(F si ), W i+1  
+
+> v
+
+G(F si+1 )] ,
+
+(3) where G denotes global average pooling, Wq, W k, W v are learnable projections, and the brackets denote concatena-tion along the scale dimension. Cross-scale attention and the gating coefficient are computed as: 
+
+csi =
+
+> 3
+
+∑
+
+> j=1
+
+softmax j( Qsi (Ksi )→ 
+
+> ↑d
+
+)V si,j , εsi = ϑ(MLP( csi )) ,
+
+(4) where d is the feature dimension, and ϑ denotes the sig-moid function. We similarly obtain a gating coefficient εpi
+
+from the private branch using the same procedure. Then, the attention-guided suppression is computed as: 
+
+˜F si = εsi ↑ F si ↓ ϖiεpi ↑ F pi , (5) where ↑ denotes channel-wise scaling and ϖi ↔ 0 is a learn-able scalar. The same operations are applied to M si and M pi
+
+to obtain ˜M si .
+
+Project: Next, we use Dynamic Shared Subspace (DSS) projection to map the shared features into a single low-dimensional subspace with approximately orthogonal bases for cross-scale consistent alignment. DSS generates projec-tion bases in an input-adaptive manner: 
+
+zsi = Concat (GAP( ˜F si ), GAP( ˜M si )). (6) then a small generator Gen i predicts an approximately or-thonormal basis: 
+
+W si = Gen i(zsi ) . (7) We project the shared features into this subspace: 
+
+ˆF si = ˜F si W si
+
+> ↓
+
+, ˆM si = ˜M si W si
+
+> ↓
+
+. (8) The resulting ˆF si and ˆM si are the final multi-scale shared features, exhibiting reduced cross-modal statistical shift and strengthened cross-scale consistency. 
+
+3.4. Hybrid Parameter Prediction Module 
+
+After obtaining the multi-scale shared features 
+
+{ ˆM s 
+
+> 0
+
+, . . . , ˆM s 
+
+> 4
+
+} and { ˆF s 
+
+> 0
+
+, . . . , ˆF s 
+
+> 4
+
+} for the moving and fixed images, respectively, we predict the transformation parameters using a Hybrid Parameter Prediction Module 15915 (HPPM). HPPM is designed as a unified hybrid registration module that performs rigid and non-rigid registration within the same shared feature space and a single coarse-to-fine pipeline, in contrast to serial hybrids that attach a separate rigid stage followed by a non-rigid stage on different feature representations. In HPPM, global rigid alignment and local non-rigid refinement are tightly coupled: the rigid prediction at the coarsest scale is immediately encoded into a flow field and progressively refined by subsequent non-rigid updates, yielding a single coherent deformation field. As shown in Fig. 3, HPPM processes feature pairs from coarse to fine resolutions. At the coarsest scale, ˆM s 
+
+> 4
+
+and ˆF s
+
+> 4
+
+are concatenated and fed into a Hybrid Registration Block (HRB). The HRB begins with an initial convolution fol-lowed by q = 2 Residual State Space Blocks (RSSB) [9], producing the fused representation f4. A registration head then maps f4 to an incremental transformation parameter 
+
+ω4, which is encoded as a coarse flow capturing the global alignment. For the next scale, we first upsample the trans-formation parameter ω4 obtained at the previous scale and use it to warp the moving feature ˆM s 
+
+> 3
+
+, producing ˆM s↔ 
+
+> 3
+
+. We then concatenate ˆM s↔ 
+
+> 3
+
+, ˆF s 
+
+> 3
+
+, and the fused feature f4, and feed them into a new HRB at this scale. The last RSSB outputs the fused representation f3, which is passed to the registration head to generate the incremental transformation parameter ω↔
+
+> 3
+
+. The updated transformation is obtained by accumulating the previous estimate and the increment: 
+
+ω3 = upsample( ω4) + ω↔
+
+> 3
+
+. (9) This coarse-to-fine refinement is repeated across all remain-ing scales until the finest level is reached, at which point we obtain the final hybrid transformation field ω. In this way, each scale refines the deformation in a shared feature space that already encodes the accumulated global and local align-ment estimated at coarser scales. 
+
+Hybrid Registration Block. The HRB is the core unit of HPPM and employs two specialized heads for rigid and non-rigid registration on top of the fused representation. The rigid registration head maps the fused features fi at the coarsest scale to a low-dimensional parameter vector H via global average pooling followed by two fully connected lay-ers, capturing the global rigid transformation. The resulting 
+
+H is then encoded into a coarse deformable field, which is fed into finer scales through the accumulation process described above. For the non-rigid registration head, the fused features are directly mapped to a dense deformation field through a stack of 3 ↗ 3 convolutional layers, enabling fine-grained local refinement. In practice, HPPM is implemented with five scales: the coarsest scale is dedicated to estimating the global rigid transformation, while the remaining four scales progres-sively refine local non-rigid deformations. Thanks to the RSSB blocks, HPPM can capture long-range dependen-cies within each scale with low computational overhead, while the coarse-to-fine accumulation mechanism ensures that rigid and non-rigid transformations are predicted in a coordinated manner and composed into a single unified de-formation field. 
+
+3.5. Loss Functions 
+
+The overall loss consists of registration losses and disen-tanglement losses: the former optimizes rigid and non-rigid transformations, and the latter guides the learning of clean shared representations. 
+
+Registration losses. The registration loss comprises three terms: Lr, Ln, and Ls. Lr and Ln supervise rigid and non-rigid registration, respectively, by penalizing both parame-ter errors and image reprojection errors, while Ls regular-izes the smoothness of the deformation field. The formula is calculated as follows: 
+
+Lr = ∥∥ϱpre ↓ ϱgt ∥∥1 + ∥∥I rig r ↓ I rig gt 
+
+> r
+
+∥∥1,Ln = ∥∥ωpre ↓ ωgt ∥∥1 + ∥∥I non r ↓ I gt r
+
+∥∥1, (10) where ϱpre and ωpre denote the predicted rigid parameters and final hybrid deformation field, respectively, and ϱgt and 
+
+ωgt are their ground-truth counterparts. I rig r and I non r de-note the rigidly registered image and the final hybrid reg-istered image, while I rig gt  
+
+> r
+
+and I gt r are their corresponding ground-truth images. The smoothness term Ls penalizes large spatial gradients in the deformation field to avoid unrealistic, highly oscilla-tory warps: 
+
+Ls = 1
+
+S
+
+∑
+
+> p↗ω
+
+[( ςω (p)
+
+ςx
+
+)2
+
++
+
+( ςω (p)
+
+ςy
+
+)2]
+
+, (11) where p denotes a spatial location in the deformation field 
+
+ω, and S is the total number of locations. 
+
+Disentanglement losses. The disentanglement loss com-prises four terms: cross-covariance decorrelation Lccd , ba-sis orthogonality Lbo , cross-scale directional consistency 
+
+Lcs , and triplet loss Ltri . Together, they shape the shared feature space so that it is weakly coupled with private com-ponents, non-redundant, and cross-scale consistent, while preserving cross-modal alignment. 
+
+Lccd reduces statistical coupling between shared and pri-vate components so that the shared space carries as little modality-private information as possible: 
+
+Lccd = 1
+
+L
+
+> L
+
+∑
+
+> i=1
+
+w(i)(
+
+∥∥∥Cov ( ˆF si , F pi
+
+)∥∥∥2
+
+> F
+
++
+
+∥∥∥Cov ( ˆM si , M pi
+
+)∥∥∥2
+
+> F
+
+),
+
+Cov( X, Y ) = 1
+
+Bs ↓ 1 X ↓Y, 
+
+(12) 15916 where w(i) denotes the scale weight, Bs is the batch size, and ↘ · ↘F denotes the Frobenius norm. 
+
+Lbo encourages the DSS projection bases to be approxi-mately orthonormal, avoiding subspace degeneracy and re-dundancy: 
+
+Lbo = 1
+
+L
+
+> L
+
+∑
+
+> i=1
+
+∥∥∥W (i)W (i)↓ ↓ I
+
+∥∥∥2
+
+> F
+
+, (13) where W (i) is the DSS basis at scale i and I is the identity matrix. L represents the number of layers 
+
+Lcs encourages the shared features at neighboring scales to point in similar semantic directions, promoting cross-scale consistency of the shared space: 
+
+Lcs = 1
+
+L ↓ 1
+
+> L→1
+
+∑
+
+> i=1
+
+(
+
+1 ↓ cos ( ˆF si , ˆF si+1 
+
+))
+
+, (14) where cos( ·, ·) denotes cosine similarity between features at adjacent scales. 
+
+Ltri aligns cross-modal co-located features in the shared space while pushing away modality-private distractors: 
+
+Ltri = 1
+
+L
+
+> L
+
+∑
+
+> i=1
+
+[
+
+max (0, m + d( ˆF si , ˆM si ) ↓ d( ˆF si , F pi ))
+
++ max (0, m + d( ˆM si , ˆF si ) ↓ d( ˆM si , M pi ))]
+
+,
+
+(15) where m > 0 is the margin and d(·, ·) denotes a distance measure in the shared space. The final total loss is: 
+
+Loss = εrLr + εnLn + εsLs + εtri Ltri +
+
+εcs Lcs + εccd Lccd + εbo Lbo , (16) where εr, εn, εs, εtri , εcs , εccd , and εbo denote the loss weights. 
+
+## 4. Experiments 4.1. Datasets 
+
+We evaluate HRNet on UAV-captured RGB–Thermal (TIR) and RGB–near-infrared (NIR) datasets for natural scenes, as well as on remote-sensing RGB–infrared (IR) and RGB–SAR datasets. For RGB-TIR task, we utilize the TBBR dataset [24], sampling 3,000 pairs for training and 300 pairs for testing. For RGB-NIR task, we use data from the RGB-NIR Scene dataset [3], which includes 442 large-size image pairs. We crop these images to generate 3,000 pairs for training and 300 pairs for testing. For RGB-IR and RGB-SAR tasks, we employ the MRSR dataset [21], con-sisting of 3,850 pairs of RGB-SAR images and 4,000 pairs of RGB-IR images. For both datasets, we use 3,500 pairs for training and the remaining data for testing. Table 1. Loss weight configuration across three-phase curriculum training. stage εr εn εs εtri εcs εccd εbo                      
+
+> warmup (10%) 760.5 0.5 0.05 00.1 mid (50%) 510 0.5 10.1 0.05 0.2 late (40%) 312 0.7 10.1 0.05 0.2
+
+4.2. Implementation Details 
+
+Our model is implemented in PyTorch and trained on an NVIDIA L40 GPU. We use the Adam optimizer [11] with a learning rate of 1e-4 and a batch size of 8 for 100 epochs. All images are resized to 256 ↗ 256 pixels. For the rigid registration task, we generate training data with in-plane rotations in the range of [↓20 ↘, 20 ↘], translations in [↓15% , 15%] , and scaling in [↓13% , 13%] . Based on the rigid transformation, we further apply a non-rigid trans-formation with a deformation degree of 140 and a Gaussian smoothing radius of 35 for the non-rigid registration task. We adopt a three-phase curriculum training strategy, adjust-ing the loss weights across warmup, mid, and late stages to progressively refine alignment performance, as summa-rized in Table 1. Following [21, 22], we use reprojection error (RE) and normalized correlation coefficient (NCC) to evaluate both rigid and non-rigid registration. 
+
+4.3. Results and Analysis 
+
+For rigid registration, we compare HRNet against IHN [4], InMIRNet [7], RHWF [5], SCPNet [27], MCNet [28], and MMRNet [22]. For non-rigid registration, we compare HR-Net against SuperFusion [17], InMIRNet [7], MMRNet, NBRNet [23], and ADRNet [21]. 
+
+4.3.1. Quantitative and Qualitative comparisons 
+
+Table 2 and Table 3 report quantitative results for rigid and non-rigid registration, respectively. For the rigid task, HR-Net consistently achieves the best performance on all four modality pairs, with the lowest RE and highest NCC. Com-pared with a strong baseline, MMRNet, HRNet reduces RE by 75.3%, 69.9%, 86.9%, and 55.3% on RGB–NIR, RGB–TIR, RGB–IR, and RGB–SAR, respectively (about 72% relative improvement on average), while also yielding higher NCC in all cases. For example, on RGB–IR, HR-Net attains an RE of 0.578 (vs. 4.406 for MMRNet) and an NCC of 0.9172, indicating excellent pixel-level consis-tency. Even on the challenging RGB–SAR dataset, HRNet still provides a clear margin, reducing RE from 7.075 to 3.161 and increasing NCC from 0.7419 to 0.8664. For the non-rigid task, HRNet likewise shows consistent superiority, outperforming all existing methods on both RE and NCC across all modality pairs. Relative to the previ-ous hybrid registration method ADRNet, HRNet reduces RE by 61.2%, 62.5%, 66.9%, and 23.3% on RGB–NIR, 15917 Table 2. Registration results ( mean std ) for the rigid registration task. The best results are marked in bold and second bests are underlined. Methods RGB-NIR RGB-TIR RGB-IR RGB-SAR RE ≃ NCC ⇐ RE ≃ NCC ⇐ RE ≃ NCC ⇐ RE ≃ NCC ⇐                                                 
+
+> IHN 3.8870 .009 0.6560 .000 3.0060 .004 0.6950 .000 5.6840 .004 0.7470 .000 7.0870 .030 0.7410 .003
+> InMIRNet 7.3120 .018 0.5090 .001 5.9520 .053 0.5580 .003 17 .9580 .158 0.2680 .009 15 .7490 .223 0.4400 .012
+> RHWF 5.0810 .011 0.6160 .001 3.9940 .024 0.6540 .001 7.2890 .033 0.6920 .001 8.4460 .006 0.6970 .000
+> SCPNet 3.0560 .037 0.6920 .002 3.1870 .279 0.6740 .019 6.1560 .378 0.7220 .017 16 .9740 .396 0.3760 .012
+> MCNet 3.5820 .012 0.6660 .001 3.2210 .023 0.6780 .001 12 .2810 .275 0.4830 .011 8.8430 .147 0.6820 .005
+> MMRNet 3.1790 .130 0.6840 .009 2.4720 .091 0.71320 .005 4.4060 .315 0.7990 .014 7.0750 .094 0.7420 .003
+> Ours 0.7850 .013 0 .7880 .001 0 .7440 .053 0 .7960 .002 0 .5780 .019 0 .9170 .000 3 .1610 .152 0 .8660 .004
+
+Table 3. Registration results ( mean std ) for the non-rigid registra-tion task. The best results are marked in bold and second bests are underlined. Methods RGB-NIR RGB-TIR RGB-IR RGB-SAR RE ≃ NCC ⇐ RE ≃ NCC ⇐ RE ≃ NCC ⇐ RE ≃ NCC ⇐                                         
+
+> SuperFusion 4.0340 .021 0.6390 .001 4.3250 .042 0.5710 .002 36 .1840 .019 0.1000 .000 39 .3410 .011 0.0960 .000
+> InMIRNet 16 .5360 .048 0.2120 .001 14 .3720 .055 0.2110 .000 26 .3010 .004 0.1200 .000 28 .8860 .046 0.1100 .002
+> NBRNet 10 .4260 .110 0.3510 .004 9.6610 .107 0.3410 .003 17 .6090 .146 0.2750 .009 24 .7870 .242 0.1850 .003
+> ADRNet 4.2150 .029 0.6460 .002 6.0310 .382 0.4900 .023 4.5770 .073 0.8040 .003 9.3510 .054 0.6450 .001
+> MMRNet 3.7720 .043 0.6750 .002 2.9540 .002 0.6680 .000 5.8020 .031 0.7380 .001 8.6360 .096 0.6750 .003
+> Ours 1.6330 .044 0 .7550 .002 2 .2640 .029 0 .7010 .003 1 .5160 .031 0 .8930 .001 7 .1720 .131 0 .7200 .004
+
+RGB–TIR, RGB–IR, and RGB–SAR, respectively. Com-pared with the strongest non-hybrid baseline MMRNet, the RE reductions are 56.7%, 23.4%, 73.9%, and 17.0% on the same four datasets. These results demonstrate that the proposed joint rigid–non-rigid modeling substantially en-hances multimodal registration accuracy and robustness, overcoming the limitations of single-paradigm deformation models. Qualitative comparisons are shown in Fig. 4 and Fig. 5. For rigid registration, some methods produce reasonable re-sults, but small residual rotation or translation still leads to visible global misalignment. For non-rigid registration, methods such as InMIRNet and SuperFusion often fail un-der large geometric discrepancies. In contrast, HRNet de-livers the most visually consistent alignment in both cases, achieving more accurate geometry and better preserving cross-modal structures. 
+
+4.4. Ablation Study 4.4.1. Module Ablation 
+
+Table 4 reports the ablation results of MSBN and CDAP. On RGB–TIR, removing MSBN or CDAP degrades per-formance, increasing RE from 0.744 to 0.924 and 0.822, respectively, with slight drops in NCC. A similar pattern is observed on RGB–SAR: RE rises from 3.161 to 3.475 with-out MSBN and to 3.407 without CDAP. Overall, MSBN yields about 19.5% and 9.0% RE reduction on RGB–TIR and RGB–SAR, while CDAP contributes 9.5% and 7.2%, confirming that both components are important for high-
+
+IHN MCNet MMRNet RHWF SCPNet Ours F M
+
+Figure 4. Qualitative comparison of rigid registration. F: fixed image, M: moving image. From top to bottom: RGB-SAR, RGB-IR, RGB-NIR, and RGB-TIR. 
+
+F M InMIRNet SuperF NBRNet ADRNet MMRNet Ours 
+
+Figure 5. Qualitative comparison of non-rigid registration. F: fixed image, M: moving image. From top to bottom: RGB-SAR, RGB-IR, RGB-NIR, and RGB-TIR. Table 4. Ablation of MSBN and CDAP on rigid registration for RGB–TIR and RGB–SAR datasets. Method RGB-TIR RGB-SAR RE → NCC ↑ RE → NCC ↑
+
+(1) w/o MSBN 0.924 0.790 3.475 0.855 (2) w/o CDAP 0.822 0.793 3.407 0.857 (3) Ours 0.744 0.796 3.161 0.866 
+
+quality hybrid registration. Fig. 6 further illustrates cross-modal consistency mea-sured by linear centered kernel alignment (CKA) be-tween features at the same scale across backbone lay-ers. The model with MSBN consistently achieves higher CKA scores than its counterpart without MSBN, especially in lower layers, indicating that MSBN reduces modality-induced distribution shifts and better aligns feature geome-try across modalities. This agrees with the observed gains in RE and NCC. We also visualize feature distributions on RGB–TIR and RGB–SAR using t-SNE, as shown in Fig. 7. With CDAP, the shared components from both modalities form a single, highly overlapped cluster, while the modality-private components remain separated from each other and from the shared cluster. This suggests that 15918 Figure 6. Linear CKA comparison with/without MSBN across scales        
+
+> RBG _sh TIR RGB TIR _sh _pri _pri RGB _sh SAR _sh RGB _pri SAR_ pri
+
+Figure 7. Visualization of disentangled feature distributions on RGB–TIR and RGB–SAR datasets. CDAP suppresses private-to-shared leakage and stabilizes a registration-relevant shared subspace, enabling more reli-able correspondences under large modality gaps. 
+
+4.4.2. Loss Ablation 
+
+Table 5 presents a stepwise ablation of the disentangle-ment losses. From setting (1) to (5), progressively adding 
+
+Lccd , Lbo , Lcs , and Ltri yields monotonic gains on both RGB–TIR and RGB–SAR: on RGB–TIR, RE decreases from 2.403 to 2.264 (-5.8%) and NCC increases from 0.6905 to 0.7008; on RGB–SAR, RE decreases from 7.445 to 7.172 (-3.7%) and NCC increases from 0.7125 to 0.7198. These results confirm that decorrelating shared and private components ( Lccd ), enforcing an orthogonal projection ba-sis ( Lbo ), aligning cross-scale semantics ( Lcs ), and separat-ing shared features from private distractors ( Ltri ) act in a complementary way to produce cleaner shared representa-tions and more stable multi-scale registration. 
+
+4.4.3. Parameter Selection 
+
+With the total number of steps fixed to 5, Table 6 shows that the setting Nrigid = 1 , Nnonrigid = 4 consistently yields the best performance. For the rigid task, moving from an all-rigid scheme ( Nrigid = 5 ) to mixed settings steadily im-proves RE and NCC, and the optimum at Nrigid = 1 in-dicates that one rigid step is sufficient for global pose cor-rection, while multiple non-rigid steps still help refine local Table 5. Loss ablation on non-rigid registration for RGB–TIR and RGB–SAR datasets.                                          
+
+> Lccd Lbo Lcs Ltri
+> RGB-TIR RGB-SAR RE ≃NCC ⇐RE ≃NCC ⇐
+> (1) 2.403 0.6905 7.445 0.7125 (2) ↭2.356 0.6916 7.344 0.7126 (3) ↭↭2.309 0.6970 7.306 0.7153 (4) ↭↭↭2.297 0.6982 7.242 0.7164 (5) ↭↭↭↭2.264 0.7008 7.172 0.7198
+
+Table 6. Ablation on the number of rigid vs. non-rigid steps in HPPM on non-rigid registration for RGB–TIR and RGB–SAR datasets. (total steps fixed to 5). Task Steps in HPPM RGB-TIR RGB-SAR                                                            
+
+> Nrigid Nnonrigid RE ≃NCC ⇐RE ≃NCC ⇐
+> Rigid task 506.378 0.5284 15.498 0.4473 411.872 0.7277 9.712 0.6320 321.344 0.7689 7.795 0.7712 230.801 0.7931 4.572 0.8074
+> 140.744 0.7960 3.161 0.8664
+> Non-rigid task 052.619 0.6743 15.731 0.3138
+> 142.264 0.7008 7.172 0.7198
+> 232.628 0.6730 8.514 0.6600 323.165 0.6273 10.079 0.5822 415.498 0.4495 16.474 0.2701
+
+structures. For the non-rigid task, the same configuration also outperforms purely non-rigid ( Nrigid = 0 ) and overly rigid (e.g., Nrigid ↔ 3) variants, which either lack a stable global initialization or under-model fine-grained deforma-tions. These trends support our HPPM design of using a small Nrigid plus a larger Nnonrigid for coherent hybrid align-ment. 
+
+## 5. Conclusion 
+
+This paper presents HRNet, a non-iterative coarse-to-fine multimodal hybrid registration network that jointly es-timates global rigid and local non-rigid transformations within a single shared feature space. By combining a shared multi-scale backbone with modality-specific batch normal-ization, a cross-scale disentanglement and adaptive projec-tion module, and a Mamba-based hybrid parameter pre-diction module, HRNet instantiates a generic “disentangle-then-align” template for hybrid registration. Experiments on four multimodal datasets demonstrate state-of-the-art performance on both rigid and non-rigid tasks, confirming the effectiveness of performing hybrid registration in a uni-fied shared space. We believe this formulation provides a principled basis for extending hybrid registration to higher-dimensional, multi-view, and task-aware multimodal align-ment in future work. 
+
+Acknowledgments. This work was supported by the program of China Scholarships Council under Grant 202506500011. 15919 References 
+
+[1] Moab Arar, Yiftach Ginger, Dov Danon, Amit H Bermano, and Daniel Cohen-Or. Unsupervised multi-modal image reg-istration via geometry preserving image-to-image transla-tion. In IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR) ,pages 13410–13419, 2020. 3 [2] Herbert Bay, Tinne Tuytelaars, and Luc Van Gool. Surf: Speeded up robust features. In Eur. Conf. Comput. Vis. (ECCV) , pages 404–417. Springer, 2006. 1 [3] Matthew Brown and Sabine S¨ usstrunk. Multi-spectral sift for scene category recognition. In IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR) , pages 177–184. IEEE, 2011. 6 [4] Si-Yuan Cao, Jianxin Hu, Zehua Sheng, and Hui-Liang Shen. Iterative deep homography estimation. In IEEE Conf. Com-put. Vis. Pattern Recognit. (CVPR) , pages 1879–1888, 2022. 6[5] Si-Yuan Cao, Runmin Zhang, Lun Luo, Beinan Yu, Zehua Sheng, Junwei Li, and Hui-Liang Shen. Recurrent homog-raphy estimation using homography-guided image warping and focus transformer. In IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR) , pages 9833–9842, 2023. 6 [6] Woong-Gi Chang, Tackgeun You, Seonguk Seo, Suha Kwak, and Bohyung Han. Domain-specific batch normalization for unsupervised domain adaptation. In IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR) , pages 7354–7362, 2019. 3 [7] Xin Deng, Enpeng Liu, Shengxi Li, Yiping Duan, and Mai Xu. Interpretable multi-modal image registration network based on disentangled convolutional sparse coding. IEEE Trans. Image Process. (TIP) , 32:1078–1091, 2023. 3, 6 [8] Xiaoru Gao, Jeroen Van Houtte, Zihao Chen, and Guoyan Zheng. Deepasdm: a deep learning framework for affine and deformable image registration incorporating a statistical de-formation model. In IEEE EMBS Int. Conf. Biomed. Health Inform. (BHI) , pages 1–4. IEEE, 2021. 2, 3 [9] Hang Guo, Jinmin Li, Tao Dai, Zhihao Ouyang, Xudong Ren, and Shu-Tao Xia. Mambair: A simple baseline for im-age restoration with state-space model. In Eur. Conf. Com-put. Vis. (ECCV) , 2024. 5 [10] Yibo Hu, Qi Zhang, Ziqi Zhao, Xiaoyi Ding, Wentao Li, Jijin Yang, Jianqi Sun, and Lisa X Xu. Ardmr: Adaptive recur-sive inference and representation disentanglement for mul-timodal large deformation registration. Med. Image Anal. (MIA) , page 103844, 2025. 2 [11] Diederik P Kingma and Jimmy Ba. Adam: A method for stochastic optimization. arXiv preprint arXiv:1412.6980 ,2014. 6 [12] Jiayuan Li, Qingwu Hu, and Mingyao Ai. Rift: Multi-modal image matching based on radiation-variation insensitive fea-ture transform. IEEE Trans. Image Process. (TIP) , 29:3296– 3310, 2019. 1 [13] Liangzhi Li, Ling Han, Mingtao Ding, Zhiheng Liu, and Hongye Cao. Remote sensing image registration based on deep learning regression model. IEEE Geosci. Remote Sens. Lett. (GRSL) , 19:1–5, 2020. [14] David G Lowe. Distinctive image features from scale-invariant keypoints. Int. J. Comput. Vis. (IJCV) , 60:91–110, 2004. 1 [15] Lukui Shi, Ruiyun Zhao, Bin Pan, Zhengxia Zou, and Zhen-wei Shi. Unsupervised multimodal remote sensing image registration via domain adaptation. IEEE Trans. Geosci. Re-mote Sens. (TGRS) , 61:1–11, 2023. 2, 3 [16] Kun Tang, Zhi Li, Lili Tian, Lihui Wang, and Yuemin Zhu. Admir–affine and deformable medical image registration for drug-addicted brain images. IEEE Access , 8:70960–70968, 2020. 2, 3 [17] Linfeng Tang, Yuxin Deng, Yong Ma, Jun Huang, and Ji-ayi Ma. Superfusion: A versatile image registration and fu-sion network with semantic awareness. IEEE-CAA J AUTO-MATIC (JAS) , 9(12):2121–2137, 2022. 6 [18] Di Wang, Jinyuan Liu, Xin Fan, and Risheng Liu. Unsuper-vised misaligned infrared and visible image fusion via cross-modality image generation and registration. In Int. Joint Conf. Artif. Intell.(IJCAI) , pages 3508–3515, 2022. 3 [19] Wenqing Wang, Kunpeng Mu, and Han Liu. A multi-hierarchy flow field prediction network for multimodal re-mote sensing image registration. IEEE J. Sel. Top. Appl. Earth Obs. Remote Sens. (JSTARS) , 2025. 1 [20] Dongming Wei, Sahar Ahmad, Jiayu Huo, Wen Peng, Yun-hao Ge, Zhong Xue, Pew-Thian Yap, Wentao Li, Dinggang Shen, and Qian Wang. Synthesis and inpainting-based mr-ct registration for image-guided thermal ablation of liver tu-mors. In Int. Conf. Med. Image Comput. Comput.-Assisted Intervention. (MICCAI) , pages 512–520. Springer, 2019. 3 [21] Yun Xiao, Chunlei Zhang, Yuan Chen, Bo Jiang, and Jin Tang. Adrnet: Affine and deformable registration networks for multimodal remote sensing images. IEEE Trans. Geosci. Remote Sens. (TGRS) , 62:1–13, 2024. 1, 2, 3, 6 [22] Yun Xiao, Chunlei Zhang, Bo Jiang, Yuan Chen, and Jin Tang. Multi-modal remote sensing image registration via modality perception and self-supervised position estimation. 
+
+IEEE Trans. Geosci. Remote Sens. (TGRS) , 2025. 6 [23] Yingxiao Xu, Jun Li, Chun Du, and Hao Chen. Nbr-net: A nonrigid bidirectional registration network for multitemporal remote sensing images. IEEE Trans. Geosci. Remote Sens. (TGRS) , 60:1–15, 2022. 3, 6 [24] Fumihito Yasuma, Tomoo Mitsunaga, Daisuke Iso, and Shree K Nayar. Generalized assorted pixel camera: post-capture control of resolution, dynamic range, and spectrum. 
+
+IEEE Trans. Image Process.(TIP) , 19(9):2241–2253, 2010. 6[25] Yuanxin Ye, Tengfeng Tang, Bai Zhu, Chao Yang, Bo Li, and Siyuan Hao. A multiscale framework with unsupervised learning for remote sensing image registration. IEEE Trans. Geosci. Remote Sens. (TGRS) , 60:1–15, 2022. 1, 3 [26] Han Zhang, Lin Lei, Weiping Ni, Xiaoliang Yang, Tao Tang, Kenan Cheng, Deliang Xiang, and Gangyao Kuang. Optical and sar image dense registration using a robust deep optical flow framework. IEEE J. Sel. Top. Appl. Earth Obs. Remote Sens. (JSTARS) , 16:1269–1294, 2023. 1 [27] Runmin Zhang, Jun Ma, Si-Yuan Cao, Lun Luo, Beinan Yu, Shu-Jie Chen, Junwei Li, and Hui-Liang Shen. Scpnet: Unsupervised cross-modal homography estimation via intra-modal self-supervised learning. In Eur. Conf. Comput. Vis. (ECCV) , pages 460–477, 2024. 6 15920 [28] Haokai Zhu, Si-Yuan Cao, Jianxin Hu, Sitong Zuo, Beinan Yu, Jiacheng Ying, Junwei Li, and Hui-Liang Shen. Mcnet: Rethinking the core ingredients for accurate and efficient ho-mography estimation. In IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR) , pages 25932–25941, 2024. 1, 3, 6 [29] Jun-Yan Zhu, Taesung Park, Phillip Isola, and Alexei A Efros. Unpaired image-to-image translation using cycle-consistent adversarial networks. In Int. Conf. Comput. Vis. (ICCV) , pages 2223–2232, 2017. 3 15921

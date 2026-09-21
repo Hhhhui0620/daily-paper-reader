@@ -1,0 +1,62 @@
+{
+  "version": 2,
+  "extractor": "pymupdf-images",
+  "figures": [
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-ren-minima-modality-invariant-image-matching-cvpr-2025-paper/fig-001.webp",
+      "caption": "",
+      "page": 2,
+      "index": 1,
+      "width": 480,
+      "height": 384
+    },
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-ren-minima-modality-invariant-image-matching-cvpr-2025-paper/fig-002.webp",
+      "caption": "",
+      "page": 2,
+      "index": 2,
+      "width": 480,
+      "height": 465
+    },
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-ren-minima-modality-invariant-image-matching-cvpr-2025-paper/fig-003.webp",
+      "caption": "",
+      "page": 4,
+      "index": 3,
+      "width": 1280,
+      "height": 945
+    },
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-ren-minima-modality-invariant-image-matching-cvpr-2025-paper/fig-004.webp",
+      "caption": "",
+      "page": 4,
+      "index": 4,
+      "width": 1280,
+      "height": 945
+    },
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-ren-minima-modality-invariant-image-matching-cvpr-2025-paper/fig-005.webp",
+      "caption": "",
+      "page": 4,
+      "index": 5,
+      "width": 1280,
+      "height": 947
+    },
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-ren-minima-modality-invariant-image-matching-cvpr-2025-paper/fig-006.webp",
+      "caption": "",
+      "page": 4,
+      "index": 6,
+      "width": 487,
+      "height": 272
+    },
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-ren-minima-modality-invariant-image-matching-cvpr-2025-paper/fig-007.webp",
+      "caption": "",
+      "page": 4,
+      "index": 7,
+      "width": 487,
+      "height": 298
+    }
+  ]
+}

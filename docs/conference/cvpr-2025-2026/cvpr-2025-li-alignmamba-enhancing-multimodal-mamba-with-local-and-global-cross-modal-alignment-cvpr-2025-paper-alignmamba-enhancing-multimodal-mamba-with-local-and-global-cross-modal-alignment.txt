@@ -1,0 +1,467 @@
+Title: AlignMamba: Enhancing Multimodal Mamba with Local and Global Cross-modal Alignment
+
+URL Source: https://openaccess.thecvf.com/content/CVPR2025/papers/Li_AlignMamba_Enhancing_Multimodal_Mamba_with_Local_and_Global_Cross-modal_Alignment_CVPR_2025_paper.pdf
+
+Published Time: Mon, 02 Jun 2025 12:49:47 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+# AlignMamba: Enhancing Multimodal Mamba with Local and Global Cross-modal Alignment 
+
+# Yan Li 12 , Yifei Xing 1, Xiangyuan Lan 1, Xin Li 1, Haifeng Chen 3, Dongmei Jiang 12 *
+
+> 1
+
+# Pengcheng Laboratory, Shenzhen, China 
+
+> 2
+
+# Northwestern Polytechnical University, Xi’an, China 
+
+> 3
+
+# Shaanxi University of Science and Technology, Xi’an, China      
+
+> liyan4ai@gmail.com, {xingyf, lanxy, lix07, jiangdm }@pcl.ac.cn, chenhaifeng@sust.edu.cn
+
+# Abstract 
+
+Cross-modal alignment is crucial for multimodal repre-sentation fusion due to the inherent heterogeneity between modalities. While Transformer-based methods have shown promising results in modeling inter-modal relationships, their quadratic computational complexity limits their ap-plicability to long-sequence or large-scale data. Although recent Mamba-based approaches achieve linear complex-ity, their sequential scanning mechanism poses fundamen-tal challenges in comprehensively modeling cross-modal re-lationships. To address this limitation, we propose Align-Mamba, an efficient and effective method for multimodal fusion. Specifically, grounded in Optimal Transport, we introduce a local cross-modal alignment module that ex-plicitly learns token-level correspondences between differ-ent modalities. Moreover, we propose a global cross-modal alignment loss based on Maximum Mean Discrepancy to implicitly enforce the consistency between different modal distributions. Finally, the unimodal representations after local and global alignment are passed to the Mamba back-bone for further cross-modal interaction and multimodal fu-sion. Extensive experiments on complete and incomplete multimodal fusion tasks demonstrate the effectiveness and efficiency of the proposed method. For instance, on the CMU-MOSI dataset, AlignMamba improves classification accuracy by 0.9%, reduces GPU memory usage by 20.3%, and decreases inference time by 83.3%. 
+
+# 1. Introduction 
+
+In recent years, multimodal representation fusion has emerged as a critical technology for integrating and under-standing information across different modalities (e.g., au-dio, video, language). This capability is fundamental to 
+
+> *Corresponding author
+
+a wide range of applications such as visual-language un-derstanding [18, 42, 48] and audio-visual analysis [19, 21, 45, 46]. However, due to the inherent heterogeneity be-tween modalities - each with its distinct statistical properties and feature distributions - achieving effective cross-modal alignment and fusion remains a significant challenge. Traditional approaches to this challenge have primarily relied on Transformer-based [38] architectures, which can be broadly categorized into two paradigms. Single-stream methods concatenate features from different modalities into a unified sequence and process them through a shared Transformer layer [13, 17, 28]. In contrast, multi-stream approaches employ separate encoders for each modality with cross-modal Transformers to facilitate information ex-change [30, 36, 37, 56]. While these methods have demon-strated promising results in capturing dynamic cross-modal interactions, they suffer from a fundamental limitation: the quadratic computational complexity of attention mecha-nisms makes them inefficient for processing long-sequence or large-scale data common in real-world multimodal appli-cations. Recent advances in sequence modeling have introduced the Mamba [5] architecture, based on State Space Models (SSMs) [6, 7], which achieves linear computational com-plexity while maintaining strong modeling capabilities. By incorporating selection mechanisms and hardware-aware parallel algorithms into SSMs, Mamba effectively captures long-range dependencies without the computational burden of attention mechanisms. This breakthrough has sparked considerable interest in adapting Mamba for multimodal fusion tasks, with approaches ranging from direct feature concatenation [29, 33, 44, 54] to multi-stream architec-tures [3, 10, 24]. However, our analysis reveals a critical limitation. As shown in Fig. 1, Mamba’s sequential scan-ning mechanism, while computationally efficient, struggles to capture comprehensive cross-modal relationships, par-ticularly with unscanned tokens. This inherent limitation This CVPR paper is the Open Access version, provided by the Computer Vision Foundation. Except for this watermark, it is identical to the accepted version; the final published version of the proceedings is available on IEEE Xplore. 24774 Figure 1. Transformer leverages attention mechanisms to model relationships across different modalities (top left), whereas Mamba struggles to achieve this due to its sequential scanning mechanism (top right). In contrast, the proposed AlignMamba uti-lizes both local (OT-based) and global (MMD-based) cross-modal alignment information to achieve efficient and effective multi-modal fusion (bottom). 
+
+leads to suboptimal alignment between modalities and con-sequently affects the quality of learned multimodal fusion representations. To address these issues, we propose AlignMamba, which integrates local and global cross-modal alignment informa-tion into Mamba for efficient and effective multimodal fu-sion. Specifically, we introduce a local alignment module based on Optimal Transport (OT), which learns a transport plan to align features across different modalities by mini-mizing the cost of feature transportation. While local align-ment captures token-level cross-modal relationships, it does not account for distributional differences between modal-ities. Therefore, we also propose a global alignment loss based on Maximum Mean Discrepancy (MMD). Leverag-ing the theoretical advantages of reproducing kernel Hilbert space, MMD maps the feature distributions of different modalities into a high-dimensional space and achieves im-plicit alignment by minimizing their distributional differ-ences. After local and global cross-modal alignment, all unimodal features are combined and fed into the Mamba backbone for further multimodal fusion. This dual align-ment strategy ensures that Mamba can exploit both local and global relationships between modalities, thereby learn-ing more comprehensive multimodal representations. In summary, the contributions of this paper are threefold: • We observe the limitation of directly applying Mamba to multimodal fusion tasks, which ignores more comprehen-sive cross-modal alignment information, and propose the AlignMamba framework to achieve efficient and effective multimodal fusion. • We introduce an OT-based local alignment module for explicit learning of token-level correspondences, comple-mented by an MMD-based global alignment loss for im-plicit distribution alignment. These two types of align-ment information complement each other, achieving com-prehensive cross-modal alignment. • Extensive experiments on both complete and incomplete multimodal fusion tasks demonstrate that AlignMamba achieves state-of-the-art results in terms of both effective-ness and efficiency. 
+
+# 2. Related Work 
+
+## 2.1. Transformer-based Multimodal Fusion 
+
+Transformer [38], with its powerful modeling capabilities, has become the cornerstone architecture in modern neu-ral networks. Existing multimodal fusion methods mainly rely on Transformers to model relationships between differ-ent modalities and learn multimodal fusion representations. These approaches can be categorized into two main types: multi-stream and single-stream methods. Multi-stream methods employ cross-modal Transform-ers to model interactions between any two modalities [15, 23]. For vision-language pre-training tasks, models like ViLBERT [30] and LXMERT [36] utilize two co-attention Transformer layers to model bidirectional relationships be-tween visual and textual modalities. For audio-visual-textual trimodal fusion tasks, MulT [37] leverages cross-modal Transformers to model pairwise modal interac-tions, and then concatenate all bimodal fusion representa-tions to obtain trimodal fusion representations. Similarly, CMA [37], based on cross-modal attention mechanisms, was proposed to fuse features from three modalities. More recently, BLIP-2 [16] introduced Q-Former, a lightweight querying Transformer architecture, to align vision-language modalities and learn multimodal fusion representations. Single-stream methods adopt a more straightforward strategy by concatenating features from different modal-ities and feeding them into a Transformer encoder for cross-modal interaction and multimodal fusion [22, 43]. For instance, in vision-language pre-training tasks, Visual-BERT [17] extracts features from key regions using object detectors and concatenates these region feature sequences with text token embeddings before feeding them into a Transformer. In contrast, ViLT [13] replaces region fea-ture sequences with image patch embedding sequences, dis-carding the object detection backbone and improving ef-ficiency. Recent multimodal pre-training models, such as LLaVA [28], have adopted similar approaches to model cross-modal correspondences and learn multimodal fusion representations for downstream tasks. Existing methods achieve cross-modal interaction and fusion through cross-attention or self-attention mecha-nisms, learning comprehensive and effective multimodal fu-sion representations. However, the quadratic time complex-ity of Transformers limits their efficiency when processing 24775 large-scale or long-sequence data. This limitation necessi-tates the development of novel multimodal fusion methods that balance effectiveness and efficiency. 
+
+## 2.2. Mamba-based Multimodal Fusion 
+
+As a novel architectural paradigm, Mamba [5] incorporates selection mechanisms and hardware-aware parallel algo-rithms into SSMs [6, 7], achieving efficient and effective sequence modeling in the language domain. Inspired by its success, recent studies have explored adapting Mamba for multimodal fusion tasks. For instance, Pan-mamba [10] and Fusion-mamba [3] incorporate features from other modali-ties as inputs to unimodal Mamba to enable cross-modal interaction and fusion. Similarly, MambaDFuse [24] and MTMamba [26] utilize multimodal representations as in-puts to unimodal Mamba for cross-modal interaction and fusion. In contrast, some approaches adopt a simpler strat-egy: VL-Mamba [33] and Cobra [54], for example, con-catenate visual and textual representation sequences before feeding them into Mamba for sequence modeling and mul-timodal fusion. While these Mamba-based approaches demonstrate significant computational advantages compared to Transformer-based multimodal fusion methods, they face inherent limitations due to Mamba’s sequential scan-ning mechanism. This mechanism makes it challenging to effectively learn cross-modal correspondences, particularly with unscanned tokens. The resulting loss in cross-modal alignment information may constrain the effectiveness of learned multimodal fusion representations. Therefore, how to effectively leverage cross-modal relationships within the Mamba framework to learn more comprehensive mul-timodal fusion representations remains an open research challenge. 
+
+# 3. Method 
+
+## 3.1. Overview 
+
+Fig. 2 presents the framework of our proposed Align-Mamba. Using audio-visual-language trimodal data as a case study, the framework first processes raw signals from each modality through modality-specific encoders to gen-erate corresponding unimodal embedding sequences Xa,
+
+Xv , and Xl. The framework then employs two comple-mentary alignment mechanisms: an OT-based local align-ment module that captures token-level correspondences, and an MMD-based global alignment loss that ensures distribution-level consistency. These mechanisms yield aligned embedding sequences ˜Xa and ˜Xv (illustrated here by aligning audio and visual modalities to the language modality as the anchor). The aligned unimodal embeddings, which now incorporate cross-modal correspondence infor-mation, are subsequently processed by the Mamba back-bone for multimodal fusion. The following sections provide a detailed description of each component. 
+
+## 3.2. OT-based Local Cross-modal Alignment 
+
+Optimal Transport provides a principled framework for comparing and aligning probability distributions by finding the optimal way to transform one distribution into another while minimizing the transportation cost [39]. In our multi-modal alignment context, OT offers a natural way to estab-lish token-level correspondences between different modali-ties by treating feature sequences as discrete distributions. Given the unimodal feature sequences Xa ∈ RTa×d,
+
+Xv ∈ RTv ×d, and Xl ∈ RTl×d from audio, video, and language modalities respectively, where Ta, Tv , and Tl de-note the sequence lengths of different modalities and d is the feature dimension, we aim to learn the transport ma-trix M that capture fine-grained correspondences between different modalities. Take video-to-language alignment as an example, the classical optimal transport problem can be formulated as follows: 
+
+min 
+
+> Tv2l
+> Tv
+
+X
+
+> i=1
+> Tl
+
+X
+
+> j=1
+
+Mv2l(i, j )Cv2l(i, j ). (1) The optimization is constrained by: 
+
+PTl 
+
+> j=1
+
+Mv2l(i, j ) = 1 
+
+> Tv
+
+, ∀i ∈ [1 , T v ]
+
+PTv 
+
+> i=1
+
+Mv2l(i, j ) = 1 
+
+> Tl
+
+, ∀j ∈ [1 , T l]
+
+Mv2l(i, j ) ≥ 0, ∀i, j 
+
+(2) where Cv2l ∈ RTv ×Tl is the cost matrix. Given that the cosine distance emphasizes angular relationships between feature vectors while providing numerical stability through its bounded range, we use cosine distance as the cost matrix: 
+
+Cv2l(i, j ) = 1 − Xiv · Xjl
+
+|| Xiv || 2|| Xjl || 2
+
+. (3) However, solving this OT problem is extremely computa-tionally expensive. Following [14], we adopt a relaxed ver-sion by removing the incoming sum constraint: 
+
+(PTl 
+
+> j=1
+
+Mv2l(i, j ) = 1 
+
+> Tv
+
+, ∀i ∈ [1 , T v ]
+
+Mv2l(i, j ) ≥ 0, ∀i, j  (4) This relaxed formulation allows each textual feature to be matched with multiple video features without constraining the total incoming flow, significantly reducing the compu-tational complexity while maintaining the ability to capture meaningful cross-modal correspondences. The correspond-ing solution is defined as: 
+
+Mv2l(i, j ) = 
+
+( 1 
+
+> Tv
+
+, j = arg min j Cv2l(i, j ),
+
+0, j̸ = arg min j Cv2l(i, j ). (5) 24776 Language 
+
+> Transport Matrix
+> 𝑀 𝑎2𝑙
+> Cost Matrix
+> 𝐶 a2𝑙
+> OT -based Local Alignment
+> Transport Matrix
+> 𝑀 𝑣2𝑙
+> Cost Matrix
+> 𝐶 𝑣2𝑙
+> OT -based Local Alignment
+> Audio
+> Multimodal Mamba
+> Backbone
+
+# … 
+
+> Scan
+> Mamba Layers
+> Linear Linear
+> Conv
+> Act
+> SSM
+> Act
+
+# ⊗
+
+> Video
+
+𝑋 𝑎 
+
+𝑋 𝑙 
+
+𝑋 𝑣 
+
+෨𝑋 𝑎 
+
+෨𝑋 𝑣 
+
+> RKHS Original Space
+> 𝜙 (·)
+> MMD -based
+> Global
+> Alignment
+> RKHS Original Space
+> 𝜙 (·)
+> MMD -based
+> Global
+> Alignment
+> Multimodal
+> Representation
+
+𝑋 𝑚𝑚 
+
+> Encoder
+> Encoder
+> Encoder
+
+Figure 2. AlignMamba enhances multimodal Mamba by incorporating token-level alignment and distribution-level alignment, enabling more effective multimodal fusion. 
+
+Similarly, we compute the transport matrix Ma2l for audio-to-language alignment. Finally, the aligned video and audio features can then be obtained through: 
+
+( ˜Xv = M ⊤
+
+> v2l
+
+Xv ∈ RTl×d,
+
+˜Xa = M ⊤
+
+> a2l
+
+Xa ∈ RTl×d. (6) This relaxed OT-based alignment process provides an efficient way to capture fine-grained cross-modal corre-spondences while maintaining computational tractability. The resulting transport matrices provide interpretable align-ment information between different modalities. However, while this token-level alignment effectively captures local correspondences, ensuring global distribution-level consis-tency across modalities requires additional consideration, which we address through our MMD-based global align-ment mechanism in the following section. 
+
+## 3.3. MMD-based Global Cross-modal Alignment 
+
+To ensure distribution-level consistency across modali-ties, we employ Maximum Mean Discrepancy as the global alignment metric [4]. MMD measures the statis-tical discrepancy between different modalities in a high-dimensional Reproducing Kernel Hilbert Space (RKHS) by comparing all orders of their statistics. For two feature se-quences X and Y , the squared MMD distance is defined as: 
+
+MMD 2(X, Y ) = 1
+
+T
+
+> T
+
+X
+
+> i=1
+
+ϕ(xi) − 1
+
+T
+
+> T
+
+X
+
+> j=1
+
+ϕ(yj )
+
+> 2
+> H
+
+, (7) where ϕ(·) is a feature mapping to a RKHS H. Using the kernel trick, this can be computed as: 
+
+MMD 2(X, Y ) = 1
+
+T 2
+
+> T
+
+X
+
+> i=1
+> T
+
+X
+
+> i′=1
+
+k(xi, x i′ ) + 1
+
+T 2
+
+> T
+
+X
+
+> j=1
+> T
+
+X
+
+> j′=1
+
+k(yj , y j′ )
+
+− 2
+
+T 2
+
+> T
+
+X
+
+> i=1
+> T
+
+X
+
+> j=1
+
+k(xi, y j ),
+
+(8) where k(·, ·) is a positive definite kernel function. In our implementation, we adopt the Gaussian kernel: 
+
+k(x, y ) = exp( − ∥x − y∥22
+
+2σ2 ), (9) where σ is the kernel bandwidth parameter. 24777 For the aligned audio features ˜Xa, the aligned video fea-tures ˜Xv , and the language features Xl, the global align-ment loss is defined as the sum of MMD distances between each pair of modalities: 
+
+Lalign = MMD 2( ˜Xv , X l) + MMD 2( ˜Xa, X l). (10) By minimizing this loss during training, we encourage the feature distributions of different modalities to be aligned in the RKHS. While OT establishes token-level correspon-dences, MMD ensures the consistency of overall feature distributions, providing complementary alignment signals at different granularities. This dual-alignment strategy facil-itates more effective multimodal fusion in subsequent pro-cessing stages. 
+
+## 3.4. Mamba-based Fusion and Optimization 
+
+Mamba-based Multimodal Fusion. Following the local and global alignment processes, we employ Mamba to fa-cilitate efficient multimodal fusion while maintaining its in-herent linear computational complexity. Unlike traditional Transformer-based methods that process all tokens simul-taneously through self-attention mechanisms, our approach implements a time-priority scanning strategy that preserves Mamba’s sequential nature while enabling effective cross-modal interactions. Given the aligned audio features ˜Xa,the aligned video features ˜Xv , and the language features Xl,we construct a unified multimodal feature sequence Xmm 
+
+by interleaving features from different modalities at each timestep: 
+
+Xmm = [ ˜X1 
+
+> a
+
+, ˜X1 
+
+> v
+
+, X 1 
+
+> l
+
+, ˜X2 
+
+> a
+
+, ˜X2 
+
+> v
+
+, X 2 
+
+> l
+
+, ..., ˜XTa , ˜XTv , X Tl ],
+
+(11) where the superscript denotes the temporal index. This temporal-priority organization ensures that features from different modalities at the same timestep are processed sequentially, allowing the selective scan mechanism of Mamba to effectively capture both intra- and inter-modal dependencies. The fused representations are obtained by processing the constructed sequence through multiple Mamba layers. 
+
+Training Objective. The framework is optimized end-to-end using a composite loss function that combines the task-specific objective with the alignment constraints: 
+
+L = Ltask + λLalign , (12) where Ltask is determined by the downstream task (e.g., cross-entropy loss for classification or mean squared error for regression), Lalign is the MMD-based alignment loss, and λ is a hyperparameter that balances the two objectives. During training, minimizing Ltask drives the model to learn task-relevant multimodal representations, while Lalign en-sures consistent feature distributions across modalities. 
+
+# 4. Experiment 
+
+We evaluate our proposed method on two distinct multi-modal fusion scenarios: complete multimodal fusion and incomplete multimodal fusion. In the complete fusion set-ting, all modalities are available during both training and inference, which tests the model’s ability to effectively in-tegrate complementary information across modalities. The incomplete fusion scenario, where certain modalities may be missing during inference, presents a more challenging yet practical setting that evaluates the model’s robustness and adaptability to partial observations. Through extensive experiments on these two scenarios, we demonstrate the effectiveness of our approach in both ideal conditions and more challenging practical situations. 
+
+## 4.1. Datasets and Evaluation Metrics 
+
+We conduct experiments on two multimodal representation fusion benchmarks: CMU-MOSI [52] and CMU-MOSEI [53]. Both datasets consist of video segments collected from online platforms, containing visual (facial expres-sions), acoustic (voice), and textual (transcribed speech) modalities. Each segment in both datasets is annotated with a sentiment score ranging from -3 (highly negative) to +3 (highly positive). These scores are binarized into positive and negative sentiments for classification. To evaluate the effectiveness of our method, we adopt the following met-rics based on previous works [25, 41]: binary accuracy and binary F 1 score. 
+
+## 4.2. Comparison with SoTA Methods 
+
+4.2.1. Results on Complete Multimodal Fusion Tasks 
+
+Method CMU-MOSI CMU-MOSEI ICCN [35] 83.0 / 83.0 84.2 / 84.2 MISA [9] 83.4 / 83.6 85.5 / 85.3 MulT [37] 84.1 / 83.9 82.5 / 82.3 MAG-BERT [34] 84.3 / 84.6 84.8 / 84.7 CM-BERT [50] 84.5 / 84.5 83.6 / 83.6 ULGM [11] 84.5 / 84.5 85.0 / 85.1 FDMER [47] 84.6 / 84.7 86.1 / 85.8 Self-MM [51] 84.8 / 84.9 85.0 / 84.9 MMIM [8] 85.1 / 85.0 85.1 / 85.0 HyCon [31] 85.2 / 85.1 85.4 / 85.6 ConFEDE [49] 85.5 / 85.5 85.8 / 85.8 AOBERT [12] 85.6 / 86.4 86.2 / 85.9 DMD [20] 85.8 / 85.8 86.0 / 86.1 MTMD [27] 86.0 / 86.0 86.1 / 85.9 
+
+AlignMamba 86.9 / 86.9 86.6 / 86.5   
+
+> Table 1. Performance comparison on CMU-MOSI and CMU-MOSEI datasets. Results are reported as Accuracy / F 1(%). 24778
+
+Dataset MR DCCA [1] DCCAE [40] MCTN [32] MMIN [55] GCNet [25] IMDer [41] AlignMamba 
+
+MOSI 10% 72.1 / 72.2 74.5 / 74.7 78.4 / 78.5 81.8 / 81.8 82.3 / 82.3 84.9 / 84.8 85.7 / 85.6 
+
+20% 69.3 / 69.1 71.8 / 71.9 75.6 / 75.7 79.0 / 79.1 79.4 / 79.5 83.5 / 83.4 84.3 / 84.1 
+
+30% 65.4 / 65.2 67.0 / 66.7 71.3 / 71.2 76.1 / 76.2 77.2 / 77.2 81.2 / 81.0 82.2 / 82.2 
+
+40% 62.8 / 62.0 63.6 / 62.8 68.0 / 67.6 71.7 / 71.6 74.3 / 74.4 78.6 / 78.5 80.0 / 79.6 
+
+50% 60.9 / 59.9 62.0 / 61.3 65.4 / 64.8 67.2 / 66.5 70.0 / 69.8 76.2 / 75.9 77.6 / 77.3 
+
+60% 58.6 / 57.3 59.6 / 58.5 63.8 / 62.5 64.9 / 64.0 67.7 / 66.7 74.7 / 74.0 75.8 / 75.1 
+
+70% 57.4 / 56.0 58.1 / 57.4 61.2 / 59.0 62.8 / 61.0 65.7 / 65.4 71.9 / 71.2 73.8 / 73.2 
+
+Avg. 63.8 / 63.1 65.2 / 64.8 69.1 / 68.5 71.9 / 71.5 73.8 / 73.6 78.7 / 78.4 79.9 / 79.6 
+
+∆ 14.7 / 16.2 16.4 / 17.3 17.2 / 19.5 19.0 / 20.8 16.6 / 16.9 13.0 / 13.6 11.9 / 12.4 
+
+MOSEI 10% 77.4 / 77.3 78.4 / 78.3 81.8 / 81.6 81.9 / 81.3 82.3 / 82.1 84.8 / 84.6 85.4 / 85.4 
+
+20% 73.8 / 74.0 75.5 / 75.4 79.0 / 78.7 79.8 / 78.8 80.3 / 79.9 82.7 / 82.4 83.6 / 83.3 
+
+30% 71.1 / 71.2 72.3 / 72.2 76.9 / 76.2 77.2 / 75.5 77.5 / 76.8 81.3 / 80.7 82.5 / 81.0 
+
+40% 69.5 / 69.4 70.3 / 70.0 74.3 / 74.1 75.2 / 72.6 76.0 / 74.9 79.3 / 78.1 81.7 / 80.5 
+
+50% 67.5 / 65.4 69.2 / 66.4 73.6 / 72.6 73.9 / 70.7 74.9 / 73.2 79.0 / 77.4 80.1 / 78.7 
+
+60% 66.2 / 63.1 67.6 / 63.2 73.2 / 71.1 73.2 / 70.3 74.1 / 72.1 78.0 / 75.5 79.4 / 78.2 
+
+70% 65.6 / 61.0 66.6 / 62.6 72.7 / 70.5 73.1 / 69.5 73.2 / 70.4 77.3 / 74.6 78.8 / 76.9 
+
+Avg. 70.2 / 68.8 71.4 / 69.7 75.9 / 75.0 76.3 / 74.1 76.9 / 75.6 80.3 / 79.0 81.6 / 80.6 
+
+∆ 11.8 / 16.3 11.8 / 15.7 9.1 / 11.1 8.8 / 11.8 9.1 / 11.7 7.5 / 10.0 6.6 / 8.5  
+
+> Table 2. Performance comparison on CMU-MOSI and CMU-MOSEI datasets. Results are reported as Accuracy / F 1(%).
+
+Table 1 presents a comprehensive comparison between our approach and various state-of-the-art methods on the complete multimodal representation fusion task, which can be categorized into three main groups according to the net-work architecture: (1) LSTM methods, including ICCN [35], MISA [9], and MMIM [8]; (2) Cross-modal Trans-former methods: MulT [37], Self-MM [51], and DMD [20]; (3) Contrastive learning methods: HyCon [31], Con-FEDE [49], and MTMD [27]. It should be noted that although some methods have explored cross-modal align-ment within the context of Transformer or LSTM architec-tures [20, 35, 37, 49], this paper specifically investigates the alignment issue within the Mamba architecture. On one hand, AlignMamba additionally incorporates token-level alignment to enhance multimodal fusion com-pared to contrastive learning approaches. On the other hand, AlignMamba’s advantage over cross-modal Trans-former methods lies in its consideration of distributional alignment relationships. Consequently, AlignMamba at-tains the best performance on all metrics in both datasets. For example, on the CMU-MOSI dataset, AlignMamba achieves a binary classification accuracy of 86.9%, repre-senting a 0.9% improvement over previous methods. These results can be ascribed to AlignMamba’s capacity to con-duct extensive cross-modal alignment by leveraging its lo-cal alignment module and global alignment loss, thereby adeptly exploiting cross-modal correlations across differ-ent granularities and enabling the learning of more effective multimodal fusion representations. 
+
+4.2.2. Results on Incomplete Multimodal Fusion Tasks 
+
+Table 2 presents experimental results on incomplete mul-timodal representation fusion tasks. We compare Align-Mamba with various state-of-the-art methods, which can be categorized into two main groups: (1) modality recov-ery approaches, including MCTN [32], MMIN [55], GCNet [25], and IMDer [41], which attempt to reconstruct missing modalities from available ones; and (2) non-recovery ap-proaches, such as DCCA [1] and DCCAE [40], which di-rectly learn from available modalities. The results demonstrate that AlignMamba consistently outperforms existing methods across different missing rates (MR), achieving an average accuracy of 79.9% on the CMU-MOSI dataset, a 1.2% improvement over previous methods. More importantly, AlignMamba demonstrates stronger robustness to increasing modality missing rates. For instance, on the CMU-MOSI dataset, while MMIN and IMDer experience significant performance degradation with accuracy drops of 19.0% and 13.0% respectively, Align-Mamba shows better resilience with only an 11.9% decrease in binary classification accuracy. In conclusion, these improvements on both complete and incomplete multimodal fusion tasks can be attributed to the proposed dual alignment strategy: the local token-level alignment and global distribution-level alignment mecha-nisms work together to capture comprehensive cross-modal correspondences. This dual alignment strategy, combined with Mamba’s efficient sequence modeling capabilities, not only enables learning more comprehensive and accurate 24779 multimodal fusion representations in complete multimodal scenarios, but also improves the robustness of learned rep-resentations in incomplete multimodal settings. 
+
+## 4.3. Efficiency Analysis 
+
+We conduct comprehensive efficiency analysis for Align-Mamba and compare them against both single-stream and multi-stream Transformer methods. Our evaluation metrics consist of GPU memory usage, inference time, and com-putational complexity. For a fair comparison, we specifi-cally focus on the cross-modal interaction and fusion com-ponents, excluding the computational costs of unimodal en-coders. All experiments are performed under identical con-ditions. 
+
+4.3.1. GPU Memory Usage 
+
+First, we report the GPU memory usage of each method with respect to varying input sequence lengths in Fig. 3. We exclude multi-stream Transformers on the 12.8k-token setting as they encounter an out-of-memory error. Align-Mamba consistently achieves the best trade-off between sequence length and memory usage across all settings, surpassing other Transformer-based approaches by a non-trivial margin. For instance, when processing 6.4k tokens, AlignMamba requires only 8.53 GB of memory, achieving 20.3% and 58.0% memory reduction compared to single-stream (10.7 GB) and multi-stream (20.3 GB) Transform-ers, respectively. This significant advantage in memory con-sumption is particularly valuable for processing longer se-quences and deploying models on resource-constrained de-vices. 
+
+> Figure 3. GPU memory usage comparison with varying lengths.
+
+4.3.2. Inference Time 
+
+Next, we report the inference time of each method with re-spect to varying input sequence lengths in Fig. 4. To en-sure fairness, we aggregate the running time of 50 infer-ence passes for each model. AlignMamba again demon-strates consistent and substantial speed advantages over Transformer-based approaches across all settings. For in-stance, when processing 6.4k tokens, AlignMamba takes only 6.05 seconds, achieving 83.3% and 87.6% reduction in inference time compared to single-stream (36.13s) and multi-stream (48.61s) Transformers, respectively. 
+
+> Figure 4. Inference time comparison with varying lengths.
+
+4.3.3. Computational Complexity 
+
+Finally, we analyze the FLOPs required by each method to quantify their computational efficiency. Without loss of generality, we fix the input sequence length to 1024 for each model. AlignMamba demonstrates superior efficiency with only 46.7G FLOPs, compared to 101.6G FLOPs for single-stream Transformer and 203.2G FLOPs for multi-stream Transformer. This represents a reduction of more than 54% compared to single-stream and 77% compared to multi-stream approaches, highlighting AlignMamba’s com-putational advantages in cross-modal alignment and multi-modal fusion tasks. This also justifies the lower memory consumption and swift inference speed as presented in the previous sections. 
+
+## 4.4. Ablation Study 
+
+We conduct comprehensive ablation studies from three as-pects to evaluate our proposed method, as shown in Table 3. 
+
+Component analysis. First, we evaluate the effectiveness of the OT-based local alignment module and MMD-based global alignment loss. Removing either component led to performance degradation across both datasets. For instance, on the CMU-MOSI dataset, accuracy dropped by 2.3% and 1.1% respectively. Notably, the OT-based alignment mod-ule demonstrated superior performance compared to the MMD-based alignment loss, likely because OT-based align-ment provides explicit alignment plans while MMD-based alignment only imposes implicit alignment constraints. 
+
+Mamba-based fusion. Furthermore, we ablate Align-Mamba with regular single-stream [54] and multi-stream Mamba-based fusion methods [3] to show the effective-ness of our method in terms of multimodal fusion. Results demonstrate reduced performances in these two Mamba-based methods, suggesting their lack of explicit consider-ation of inter-modal correspondences, which makes it diffi-cult to learn comprehensive cross-modal relationships. This shows that naive Mamba architecture alone does not suffice in effective multimodal fusion and highlights both the lim-itations of Mamba’s original scanning mechanism and the necessity of our proposed cross-modal alignment. 
+
+Modality ablation. Lastly, we conduct modality ablation 24780 Figure 5. The learned optimal transport plan. We only show the transport plan between video and language modalities for brevity. 
+
+experiments by removing one modality at a time. When the text modality is removed, we only align the audio modal-ity with the video modality. This results in significant per-formance degradation, likely due to the strong correlation between language and emotions. In contrast, removing the audio modality results in a smaller performance drop, pos-sibly due to the sizable presence of irrelevant information in the audio modality such as background noise, reducing its impact on the overall performance. CMU-MOSI CMU-MOSEI 
+
+AlignMamba 86.9 / 86.9 86.6 / 86.5 
+
+Alignment w/o Local 84.6 / 84.4 84.1 / 84.0 w/o Global 85.8 / 85.7 85.7 / 85.5 w/o both 82.5 / 82.3 82.8 / 82.6 Fusion Single-stream 82.3 / 82.1 81.8 / 81.4 Multi-stream 83.7 / 83.5 83.5 / 83.2 Modality w/o Audio 84.4 / 84.6 83.9 / 83.5 w/o Video 83.7 / 83.8 83.3 / 82.8 w/o Language 65.3 / 63.4 64.6 / 62.2   
+
+> Table 3. Ablation studies on CMU-MOSI and CMU-MOSEI datasets. Results are reported as Accuracy / F 1(%).
+
+## 4.5. Further Analysis 
+
+4.5.1. Cross-modal Alignment 
+
+To quantitatively assess our dual alignment strategy, we measure the A-distance between modality pairs in Table 4. The A-distance ∈ [0 , 2] is a common metric for domain discrepancy, with higher values indicating greater modal-ity differences [2]. Aal and Avl represents the audio-language and video-language distances respectively. The results reveal significant and consistent reductions in inter-modal distances through our dual alignment strategy in both CMU-MOSI and CMU-MOSEI. These improvements demonstrate the effectiveness of our strategy in bridging the modality gap by learning meaningful cross-modal correla-tions, leading to more robust fusion representations. CMU-MOSI CMU-MOSEI 
+
+Aal Avl Aal Avl 
+
+w/ Dual-align 1.59 1.49 1.61 1.53 w/o Dual-align 1.68 1.57 1.72 1.65  
+
+> Table 4. A-distance between different modalities.
+
+4.5.2. Optimal Transport Plan 
+
+Here, we qualitatively present the learned optimal trans-port plan. Fig. 5 illustrates an example from the CMU-MOSI dataset. Notice that modalities exhibit temporal mis-alignment: the sentiment correspondence between different modalities may appear at different timesteps, which poses a challenge for multimodal representation fusion. For in-stance, the visual modality exhibits negative expressions at the beginning, while the textual modality introduces neg-ative words toward the end. The original Mamba model struggles to explicitly learn these correspondences due to its sequential scanning mechanisms. In contrast, our proposed method leverages optimal transport to explicitly transform and align features in different temporal stages across modal-ities, reducing the modality gap and improving the effec-tiveness of multimodal fusion. 
+
+# 5. Conclusion 
+
+In this paper, we proposed AlignMamba, an efficient and effective method for multimodal representation fu-sion. By integrating OT-based local alignment and MMD-based global alignment, our method captures comprehen-sive cross-modal relationships while maintaining lower computational complexity. Extensive experiments on both complete and incomplete multimodal fusion tasks demon-strate that AlignMamba achieves state-of-the-art perfor-mance with significantly reduced computational costs. 
+
+Acknowledgment. This work is supported in part by the National Natural Science Foundation of China 24781 (62236006) and in part by the Key Research and De-velopment Program of Shaanxi (2022ZDLGY06-03). 
+
+# References 
+
+[1] Galen Andrew, Raman Arora, Jeff Bilmes, and Karen Livescu. Deep canonical correlation analysis. In Interna-tional conference on machine learning , pages 1247–1255. PMLR, 2013. 6 [2] Shai Ben-David, John Blitzer, Koby Crammer, and Fernando Pereira. Analysis of representations for domain adapta-tion. Advances in neural information processing systems ,19, 2006. 8 [3] Wenhao Dong, Haodong Zhu, Shaohui Lin, Xiaoyan Luo, Yunhang Shen, Xuhui Liu, Juan Zhang, Guodong Guo, and Baochang Zhang. Fusion-mamba for cross-modality object detection. arXiv preprint arXiv:2404.09146 , 2024. 1, 3, 7 [4] Arthur Gretton, Karsten M Borgwardt, Malte J Rasch, Bern-hard Sch¨ olkopf, and Alexander Smola. A kernel two-sample test. The Journal of Machine Learning Research , 13(1):723– 773, 2012. 4 [5] Albert Gu and Tri Dao. Mamba: Linear-time sequence modeling with selective state spaces. arXiv preprint arXiv:2312.00752 , 2023. 1, 3 [6] Albert Gu, Isys Johnson, Karan Goel, Khaled Saab, Tri Dao, Atri Rudra, and Christopher R´ e. Combining recurrent, convolutional, and continuous-time models with linear state space layers. Advances in neural information processing sys-tems , 34:572–585, 2021. 1, 3 [7] Albert Gu, Karan Goel, Ankit Gupta, and Christopher R´ e. On the parameterization and initialization of diagonal state space models. Advances in Neural Information Processing Systems , 35:35971–35983, 2022. 1, 3 [8] Wei Han, Hui Chen, and Soujanya Poria. Improving mul-timodal fusion with hierarchical mutual information maxi-mization for multimodal sentiment analysis. arXiv preprint arXiv:2109.00412 , 2021. 5, 6 [9] Devamanyu Hazarika, Roger Zimmermann, and Soujanya Poria. Misa: Modality-invariant and-specific representations for multimodal sentiment analysis. In Proceedings of the 28th ACM international conference on multimedia , pages 1122–1131, 2020. 5, 6 [10] Xuanhua He, Ke Cao, Keyu Yan, Rui Li, Chengjun Xie, Jie Zhang, and Man Zhou. Pan-mamba: Effective pan-sharpening with state space model. arXiv preprint arXiv:2402.12192 , 2024. 1, 3 [11] Yewon Hwang and Jong-Hwan Kim. Self-supervised uni-modal label generation strategy using recalibrated modality representations for multimodal sentiment analysis. In Find-ings of the Association for Computational Linguistics: EACL 2023 , pages 35–46, 2023. 5 [12] Kyeonghun Kim and Sanghyun Park. Aobert: All-modalities-in-one bert for multimodal sentiment analysis. In-formation Fusion , 92:37–45, 2023. 5 [13] Wonjae Kim, Bokyung Son, and Ildoo Kim. Vilt: Vision-and-language transformer without convolution or region su-pervision. In International conference on machine learning ,pages 5583–5594. PMLR, 2021. 1, 2 [14] Matt Kusner, Yu Sun, Nicholas Kolkin, and Kilian Wein-berger. From word embeddings to document distances. In 
+
+International conference on machine learning , pages 957– 966. PMLR, 2015. 3 [15] Deng Li, Aming Wu, Yaowei Wang, and Yahong Han. Prompt-driven dynamic object-centric learning for single do-main generalization. In Proceedings of the IEEE/CVF Con-ference on Computer Vision and Pattern Recognition , pages 17606–17615, 2024. 2 [16] Junnan Li, Dongxu Li, Silvio Savarese, and Steven Hoi. Blip-2: Bootstrapping language-image pre-training with frozen image encoders and large language models. In In-ternational conference on machine learning , pages 19730– 19742. PMLR, 2023. 2 [17] Liunian Harold Li, Mark Yatskar, Da Yin, Cho-Jui Hsieh, and Kai-Wei Chang. Visualbert: A simple and perfor-mant baseline for vision and language. arXiv preprint arXiv:1908.03557 , 2019. 1, 2 [18] Yan Li, Tao Yang, Le Yang, Xiaohan Xia, Dongmei Jiang, and Hichem Sahli. A multimodal framework for state of mind assessment with sentiment pre-classification. In Pro-ceedings of the 9th International on Audio/Visual Emotion Challenge and Workshop , pages 13–18, 2019. 1 [19] Yan Li, Xiaohan Xia, Dongmei Jiang, Hichem Sahli, and Ramesh Jain. Memos: A multi-modal emotion stream database for temporal spontaneous emotional state detection. In Companion Publication of the 2020 International Confer-ence on Multimodal Interaction , pages 370–378, 2020. 1 [20] Yong Li, Yuanzhi Wang, and Zhen Cui. Decoupled multi-modal distilling for emotion recognition. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 6631–6640, 2023. 5, 6 [21] Yan Li, Liang Zhang, Xiangyuan Lan, and Dongmei Jiang. Towards adaptable graph representation learning: An adap-tive multi-graph contrastive transformer. In Proceedings of the 31st ACM International Conference on Multimedia ,pages 6063–6071, 2023. 1 [22] Yan Li, Wei Gan, Ke Lu, Dongmei Jiang, and Ramesh Jain. Aves: An audio-visual emotion stream dataset for temporal emotion detection. IEEE Transactions on Affective Comput-ing , 2024. 2 [23] Yan Li, Xiangyuan Lan, Haifeng Chen, Ke Lu, and Dong-mei Jiang. Multimodal pear chain-of-thought reasoning for multimodal sentiment analysis. ACM Transactions on Mul-timedia Computing, Communications and Applications , 20 (9):1–23, 2025. 2 [24] Zhe Li, Haiwei Pan, Kejia Zhang, Yuhua Wang, and Fengming Yu. Mambadfuse: A mamba-based dual-phase model for multi-modality image fusion. arXiv preprint arXiv:2404.08406 , 2024. 1, 3 [25] Zheng Lian, Lan Chen, Licai Sun, Bin Liu, and Jianhua Tao. Gcnet: Graph completion network for incomplete mul-timodal learning in conversation. IEEE Transactions on pat-tern analysis and machine intelligence , 45(7):8419–8432, 2023. 5, 6 24782 [26] Baijiong Lin, Weisen Jiang, Pengguang Chen, Yu Zhang, Shu Liu, and Ying-Cong Chen. Mtmamba: Enhancing multi-task dense scene understanding by mamba-based decoders. 
+
+arXiv preprint arXiv:2407.02228 , 2024. 3 [27] Ronghao Lin and Haifeng Hu. Multi-task momentum distil-lation for multimodal sentiment analysis. IEEE Transactions on Affective Computing , 2023. 5, 6 [28] Haotian Liu, Chunyuan Li, Qingyang Wu, and Yong Jae Lee. Visual instruction tuning. arXiv preprint arXiv:2304.08485 ,2023. 1, 2 [29] Jiaming Liu, Mengzhen Liu, Zhenyu Wang, Lily Lee, Kaichen Zhou, Pengju An, Senqiao Yang, Renrui Zhang, Yandong Guo, and Shanghang Zhang. Robomamba: Mul-timodal state space model for efficient robot reasoning and manipulation. arXiv preprint arXiv:2406.04339 , 2024. 1 [30] Jiasen Lu, Dhruv Batra, Devi Parikh, and Stefan Lee. Vilbert: Pretraining task-agnostic visiolinguistic representations for vision-and-language tasks. Advances in neural information processing systems , 32, 2019. 1, 2 [31] Sijie Mai, Ying Zeng, Shuangjia Zheng, and Haifeng Hu. Hybrid contrastive learning of tri-modal representation for multimodal sentiment analysis. IEEE Transactions on Affec-tive Computing , 2022. 5, 6 [32] Hai Pham, Paul Pu Liang, Thomas Manzini, Louis-Philippe Morency, and Barnab´ as P´ oczos. Found in translation: Learn-ing robust joint representations by cyclic translations be-tween modalities. In Proceedings of the AAAI conference on artificial intelligence , pages 6892–6899, 2019. 6 [33] Yanyuan Qiao, Zheng Yu, Longteng Guo, Sihan Chen, Zijia Zhao, Mingzhen Sun, Qi Wu, and Jing Liu. Vl-mamba: Ex-ploring state space models for multimodal learning. arXiv preprint arXiv:2403.13600 , 2024. 1, 3 [34] Wasifur Rahman, Md Kamrul Hasan, Sangwu Lee, Amir Zadeh, Chengfeng Mao, Louis-Philippe Morency, and Ehsan Hoque. Integrating multimodal information in large pre-trained transformers. In Proceedings of the conference. Asso-ciation for Computational Linguistics. Meeting , page 2359. NIH Public Access, 2020. 5 [35] Zhongkai Sun, Prathusha Sarma, William Sethares, and Yingyu Liang. Learning relationships between text, audio, and video via deep canonical correlation for multimodal lan-guage analysis. In Proceedings of the AAAI Conference on Artificial Intelligence , pages 8992–8999, 2020. 5, 6 [36] Hao Tan and Mohit Bansal. Lxmert: Learning cross-modality encoder representations from transformers. arXiv preprint arXiv:1908.07490 , 2019. 1, 2 [37] Yao-Hung Hubert Tsai, Shaojie Bai, Paul Pu Liang, J Zico Kolter, Louis-Philippe Morency, and Ruslan Salakhutdinov. Multimodal transformer for unaligned multimodal language sequences. In Proceedings of the conference. Association for Computational Linguistics. Meeting , page 6558. NIH Public Access, 2019. 1, 2, 5, 6 [38] Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszko-reit, Llion Jones, Aidan N Gomez, Łukasz Kaiser, and Illia Polosukhin. Attention is all you need. Advances in neural information processing systems , 30, 2017. 1, 2 [39] C´ edric Villani. Topics in optimal transportation . American Mathematical Soc., 2021. 3 [40] Weiran Wang, Raman Arora, Karen Livescu, and Jeff Bilmes. On deep multi-view representation learning. In 
+
+International conference on machine learning , pages 1083– 1092. PMLR, 2015. 6 [41] Yuanzhi Wang, Yong Li, and Zhen Cui. Incomplete multimodality-diffused emotion recognition. Advances in Neural Information Processing Systems , 36, 2024. 5, 6 [42] Linhui Xiao, Xiaoshan Yang, Fang Peng, Ming Yan, Yaowei Wang, and Changsheng Xu. Clip-vg: Self-paced curriculum adapting of clip for visual grounding. IEEE Transactions on Multimedia , 26:4334–4347, 2023. 1 [43] Linhui Xiao, Xiaoshan Yang, Fang Peng, Yaowei Wang, and Changsheng Xu. Hivg: Hierarchical multimodal fine-grained modulation for visual grounding. In Proceedings of the 32nd ACM International Conference on Multimedia ,pages 5460–5469, 2024. 2 [44] Yifei Xing, Xiangyuan Lan, Ruiping Wang, Dongmei Jiang, Wenjun Huang, Qingfang Zheng, and Yaowei Wang. Emma: Empowering multi-modal mamba with structural and hierar-chical alignment. arXiv preprint arXiv:2410.05938 , 2024. 1[45] Meng Xu, Xinhong Chen, and Jianping Wang. A novel topology adaptation strategy for dynamic sparse training in deep reinforcement learning. IEEE Transactions on Neural Networks and Learning Systems , 2024. 1 [46] Meng Xu, Xinhong Chen, and Jianping Wang. Policy cor-rection and state-conditioned action evaluation for few-shot lifelong deep reinforcement learning. IEEE transactions on neural networks and learning systems , 2024. 1 [47] Dingkang Yang, Shuai Huang, Haopeng Kuang, Yangtao Du, and Lihua Zhang. Disentangled representation learning for multimodal emotion recognition. In Proceedings of the 30th ACM International Conference on Multimedia , pages 1642– 1651, 2022. 5 [48] Danni Yang, Jiayi Ji, Yiwei Ma, Tianyu Guo, Haowei Wang, Xiaoshuai Sun, and Rongrong Ji. Sam as the guide: mas-tering pseudo-label refinement in semi-supervised referring expression segmentation. arXiv preprint arXiv:2406.01451 ,2024. 1 [49] Jiuding Yang, Yakun Yu, Di Niu, Weidong Guo, and Yu Xu. Confede: Contrastive feature decomposition for multimodal sentiment analysis. In Proceedings of the 61st Annual Meet-ing of the Association for Computational Linguistics (Volume 1: Long Papers) , pages 7617–7630, 2023. 5, 6 [50] Kaicheng Yang, Hua Xu, and Kai Gao. Cm-bert: Cross-modal bert for text-audio sentiment analysis. In Proceed-ings of the 28th ACM international conference on multime-dia , pages 521–528, 2020. 5 [51] Wenmeng Yu, Hua Xu, Ziqi Yuan, and Jiele Wu. Learning modality-specific representations with self-supervised multi-task learning for multimodal sentiment analysis. In Proceed-ings of the AAAI conference on artificial intelligence , pages 10790–10797, 2021. 5, 6 [52] Amir Zadeh, Rowan Zellers, Eli Pincus, and Louis-Philippe Morency. Mosi: multimodal corpus of sentiment intensity and subjectivity analysis in online opinion videos. arXiv preprint arXiv:1606.06259 , 2016. 5 24783 [53] AmirAli Bagher Zadeh, Paul Pu Liang, Soujanya Poria, Erik Cambria, and Louis-Philippe Morency. Multimodal lan-guage analysis in the wild: Cmu-mosei dataset and inter-pretable dynamic fusion graph. In Proceedings of the 56th Annual Meeting of the Association for Computational Lin-guistics (Volume 1: Long Papers) , pages 2236–2246, 2018. 5[54] Han Zhao, Min Zhang, Wei Zhao, Pengxiang Ding, Siteng Huang, and Donglin Wang. Cobra: Extending mamba to multi-modal large language model for efficient inference. 
+
+arXiv preprint arXiv:2403.14520 , 2024. 1, 3, 7 [55] Jinming Zhao, Ruichen Li, and Qin Jin. Missing modal-ity imagination network for emotion recognition with un-certain missing modalities. In Proceedings of the 59th An-nual Meeting of the Association for Computational Linguis-tics and the 11th International Joint Conference on Natural Language Processing (Volume 1: Long Papers) , pages 2608– 2618, 2021. 6 [56] Jiahao Zheng, Sen Zhang, Zilu Wang, Xiaoping Wang, and Zhigang Zeng. Multi-channel weight-sharing autoencoder based on cascade multi-head attention for multimodal emo-tion recognition. IEEE Transactions on Multimedia , 25: 2213–2225, 2022. 1 24784

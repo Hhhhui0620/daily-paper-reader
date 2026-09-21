@@ -1,0 +1,410 @@
+Title: Self-Supervised Spatial Correspondence Across Modalities
+
+URL Source: https://openaccess.thecvf.com/content/CVPR2025/papers/Shrivastava_Self-Supervised_Spatial_Correspondence_Across_Modalities_CVPR_2025_paper.pdf
+
+Published Time: Sun, 18 May 2025 22:25:17 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+## Self-Supervised Spatial Correspondence Across Modalities 
+
+Ayush Shrivastava Andrew Owens University of Michigan 
+
+https://ayshrv.com/cmrw RGB Thermal Photo Sketch  
+
+> Photorealistic style Anime style
+
+(a) Geometric Correspondence (b) Semantic Correspondence  
+
+> RGB Depth
+
+Figure 1. Finding spatial correspondences across modalities. We present a method for cross-modal matching, trained entirely through self-supervision using a simple formulation based on contrastive random walks [14]. (a) Given two images taken by different visual modalities and at different positions and times, we predict the pairs of image patches that physically correspond to the same points. (b) We also apply our method to semantic matching tasks, using a visual encoder initialized with pretrained DINOv2 [27] weights and fine-tuned during training. These include tasks such as photo-sketch alignment [26] and style-based matching between images of different styles generated with a text-to-image model [19]. 
+
+Abstract 
+
+We present a method for finding cross-modal space-time correspondences. Given two images from different visual modalities, such as an RGB image and a depth map, our model identifies which pairs of pixels correspond to the same physical points in the scene. To solve this problem, we extend the contrastive random walk framework to simultaneously learn cycle-consistent feature representations for both cross-modal and intra-modal matching. The resulting model is simple and has no explicit photo-consistency assumptions. It can be trained entirely using unlabeled data, without the need for any spatially aligned multimodal image pairs. We evaluate our method on both geometric and semantic cor-respondence tasks. For geometric matching, we consider challenging tasks such as RGB-to-depth and RGB-to-thermal matching (and vice versa); for semantic matching, we evalu-ate on photo-sketch and cross-style image alignment. Our method achieves strong performance across all benchmarks. 
+
+1. Introduction 
+
+Cameras take a multitude of different forms. While RGB, thermal, and depth cameras each record images, what is stored within each pixel differs drastically. Consequently, when a scene is captured using cameras that are based on different sensory modalities, it is difficult to determine which pixels within them correspond to the same physical points. These cross-modal pixel correspondences have a number of applications, such as cross-modal registration, 3D reconstruc-tion, and multimodal data fusion [1, 6, 22, 43]. Recent work on multimodal learning has provided effective ways of learn-ing cross-modal correspondences through self-supervision, yet these methods largely rely on having paired data from multiple sensors, which is not available for pixel-level corre-spondence. Traditional self-supervised methods for pixel correspon-dences often make strong assumptions about the visual ap-pearance of pixels that should be matched together, such as by assuming that matching image patches should be photo-This CVPR paper is the Open Access version, provided by the Computer Vision Foundation. Except for this watermark, it is identical to the accepted version; the final published version of the proceedings is available on IEEE Xplore. 6383 consistent [16, 17, 34, 47, 53], or that cross-modal transla-tion methods can estimate one modality from another as part of the matching process [1]. However, these assumptions are frequently violated in multimodal data, making it challeng-ing to use them as general-purpose multimodal matching methods. Depth images and RGB images, for example, may look alike to a human, but their intensity values record in-formation that is so different—depth vs. lightness—that they cannot be matched using local information. And cross-modal prediction requires being able to solve a notoriously difficult problem—monocular depth estimation—without explicit paired data. We take inspiration from recent advances in self-supervised tracking [2, 14, 23, 44] that learn correspon-dences between video frames through cycle consistency .These methods assume that the content within a scene per-sists between frames, and that there should thus be a one-to-one correspondence between the pixels in them. Our approach extends the contrastive random walk [14] to the 
+
+cross-modal pixel correspondence problem. We create a directed graph in which nodes correspond to image patches in each modality, and where edges connect patches across modalities. We train a network, based on the recently pro-posed global matching transformer [32, 45], to assign tran-sition probabilities to pairs of patches for a random walk. A random walker uses these transition probabilities to step through the graph, moving from patches in one modality to another, and then back. To train the model, we maximize the walker’s return probability, thus encouraging matches to be cycle-consistent. A key challenge in our setting is that, unlike many cor-respondence tasks, the patches we match are visually very different. We therefore incorporate intra-modal random walks between images of the same modality, such that the model must learn a representation that simultaneously al-lows it to match intra- and inter-modally. To get these image pairs, we apply data augmentation to input images, simu-lating the challenges of matching frames of a video. We also show that, in contrast to image-based matching [32], spatial smoothness priors are important for obtaining strong performance. Moreover, in contrast to other cross-modal correspondence methods [1, 17, 34], our method does not rely on hand-crafted measures of photoconsistency. Instead, it learns visual similarity through cycle-consistent represen-tation learning, defined by the learned embedding space, thereby making it possible to apply it to different pairs of modalities without any modifications. We evaluate our model on both geometric and semantic cross-modal correspondence tasks. For geometric match-ing, we focus on two challenging tasks: RGB-to-depth and RGB-to-thermal matching (Figure 1a). In both cases, we match images captured at different times and positions, with different sensors. For semantic matching (Figure 1b), we use a visual encoder initialized with pretrained DINOv2 [27] weights and fine-tune it during training. We evaluate on photo-to-sketch alignment, where our method performs com-petitively with approaches specifically tailored to this task, and on a new cross-style image matching task, using im-ages generated in different styles from the same diffusion model [19]. Our work makes several contributions: • We show that space-time cross-modal pixel correspon-dence can be learned from unlabeled data through cycle consistency. • We extend the contrastive random walk framework for cross-modal pixel correspondence. • Through experiments, we show that our model success-fully finds correspondences in geometric tasks such as RGB-to-depth and RGB-to-thermal, significantly outper-forming prior methods. In semantic tasks like photo-to-sketch matching, our method is competitive with other self-supervised approaches. • We propose benchmarks for evaluating RGB-to-depth, RGB-to-thermal, and cross-style image matching. For cross-style matching, we use generative models to synthe-size images with similar content but different styles. 
+
+2. Related Work 
+
+Cycle consistency for correspondence. Zhou et al. [51] proposed learning correspondences across 2D views of 3D objects, by matching the viewpoints to a 3D model, then projecting back to other images. In contrast, we focus on matching two images that differ in modality , space , and time ,rather than just 3D viewpoint. Later work extended cycle consistency to space-time tracking. Wang et al. [44] trained a model to track forward and backward in time, penalizing deviation from the original position, using a formulation based on the spatial transformer [15]. Jabri et al.[14] framed this as a random walk on a space-time graph, enabling self-supervised tracking, followed by improvements such as shortcut removal[37] and smoothness priors [2] for fine-grained correspondence. Recent works further integrated this framework with global matching transformers [32, 45] to address the tracking-any-point problem [4]. While these works focus on temporal matching, we ex-tend contrastive random walks to cross-modal matching, introducing both intra- and inter-modal random walks. Al-though contrastive random walks have been explored in mul-timodal settings like image-audio alignment [11] or audio-to-audio matching [3], these approaches operate at the patch or node level and do not aim for dense pixel-to-pixel corre-spondence, which is the focus of our work. 
+
+Cross-modal pixel correspondence. Cross-modal cor-respondence has been explored through contrastive learn-ing [10, 28, 40], but these approaches typically learn global or patch-level embeddings, not dense pixel-wise matches. 6384 RGB 
+
+> Encoder
+> Transformer
+> Self-Attention Scoring
+
+Affinity matrix  
+
+> <latexit sha1_base64="Uxw/HtL/8L1pHHm8QfnVEV/nVCU=">AAAB8HicbVDLSgNBEOz1GeMr6tHLYhDiJexKUI9BL3qLYB6SLGF2MpsMmZldZnqFEPIVXjwo4tXP8ebfOEn2oIkFDUVVN91dYSK4Qc/7dlZW19Y3NnNb+e2d3b39wsFhw8SppqxOYxHrVkgME1yxOnIUrJVoRmQoWDMc3kz95hPThsfqAUcJCyTpKx5xStBKj51kwEt3XTzrFope2ZvBXSZ+RoqQodYtfHV6MU0lU0gFMabtewkGY6KRU8Em+U5qWELokPRZ21JFJDPBeHbwxD21Ss+NYm1LoTtTf0+MiTRmJEPbKQkOzKI3Ff/z2ilGV8GYqyRFpuh8UZQKF2N3+r3b45pRFCNLCNXc3urSAdGEos0ob0PwF19eJo3zsn9RrtxXitXrLI4cHMMJlMCHS6jCLdSgDhQkPMMrvDnaeXHenY9564qTzRzBHzifPwM7j+c=</latexit>
+
+ (It) 
+
+> <latexit sha1_base64="bQhiF4XNJNAZSNYHDCgkqvSzhBw=">AAAB9HicbVDLSgNBEOyNrxhfUY9eBoMQEcKuSPQY8KK3COYByRJmJ7PJkNmHM72BsOQ7vHhQxKsf482/cZLsQRMLGoqqbrq7vFgKjbb9beXW1jc2t/LbhZ3dvf2D4uFRU0eJYrzBIhmptkc1lyLkDRQoeTtWnAae5C1vdDvzW2OutIjCR5zE3A3oIBS+YBSN5HbjoSjf91K8GE3Pe8WSXbHnIKvEyUgJMtR7xa9uP2JJwENkkmrdcewY3ZQqFEzyaaGbaB5TNqID3jE0pAHXbjo/ekrOjNInfqRMhUjm6u+JlAZaTwLPdAYUh3rZm4n/eZ0E/Rs3FWGcIA/ZYpGfSIIRmSVA+kJxhnJiCGVKmFsJG1JFGZqcCiYEZ/nlVdK8rDjVSvXhqlQjWRx5OIFTKIMD11CDO6hDAxg8wTO8wps1tl6sd+tj0Zqzsplj+APr8wf4IpF9</latexit>
+
+ω(It+k) 
+
+> <latexit sha1_base64="w6oLDRz8MhBN3joT96WDlvtc0Q0=">AAAB7HicbVBNS8NAEJ3Ur1q/qh69LBbBU0mkqMeiIB4rmLbQhrLZbtulm03YnQgl9Dd48aCIV3+QN/+N2zYHbX0w8Hhvhpl5YSKFQdf9dgpr6xubW8Xt0s7u3v5B+fCoaeJUM+6zWMa6HVLDpVDcR4GStxPNaRRK3grHtzO/9cS1EbF6xEnCg4gOlRgIRtFK/l0vw2mvXHGr7hxklXg5qUCORq/81e3HLI24QiapMR3PTTDIqEbBJJ+WuqnhCWVjOuQdSxWNuAmy+bFTcmaVPhnE2pZCMld/T2Q0MmYShbYzojgyy95M/M/rpDi4DjKhkhS5YotFg1QSjMnsc9IXmjOUE0so08LeStiIasrQ5lOyIXjLL6+S5kXVu6zWHmqV+k0eRxFO4BTOwYMrqMM9NMAHBgKe4RXeHOW8OO/Ox6K14OQzx/AHzucP7HOOxg==</latexit>
+
+Ft 
+
+> <latexit sha1_base64="2toe+EBJ8lpQUVnA2FPh/4fPGUA=">AAAB7nicbVBNS8NAEJ3Ur1q/qh69LBZBEEoiUj0WBPFYwX5AG8pmu2mXbjZhdyKU0B/hxYMiXv093vw3btsctPXBwOO9GWbmBYkUBl332ymsrW9sbhW3Szu7e/sH5cOjlolTzXiTxTLWnYAaLoXiTRQoeSfRnEaB5O1gfDvz209cGxGrR5wk3I/oUIlQMIpWat/1M7wYT/vlilt15yCrxMtJBXI0+uWv3iBmacQVMkmN6Xpugn5GNQom+bTUSw1PKBvTIe9aqmjEjZ/Nz52SM6sMSBhrWwrJXP09kdHImEkU2M6I4sgsezPxP6+bYnjjZ0IlKXLFFovCVBKMyex3MhCaM5QTSyjTwt5K2IhqytAmVLIheMsvr5LWZdWrVWsPV5U6yeMowgmcwjl4cA11uIcGNIHBGJ7hFd6cxHlx3p2PRWvByWeO4Q+czx8UFo9Q</latexit>
+
+Ft+k 
+
+> <latexit sha1_base64="gndNX/sivwFTMEhCh/Y2tLRu6wA=">AAAB8nicbVBNS8NAEN34WetX1aOXxSIIQklEqseKF48V7AeksWy2m3bpZjfsToQS8jO8eFDEq7/Gm//GbZuDtj4YeLw3w8y8MBHcgOt+Oyura+sbm6Wt8vbO7t5+5eCwbVSqKWtRJZTuhsQwwSVrAQfBuolmJA4F64Tj26nfeWLacCUfYJKwICZDySNOCVjJv+lnkD9mcD7O+5WqW3NnwMvEK0gVFWj2K1+9gaJpzCRQQYzxPTeBICMaOBUsL/dSwxJCx2TIfEsliZkJstnJOT61ygBHStuSgGfq74mMxMZM4tB2xgRGZtGbiv95fgrRdZBxmaTAJJ0vilKBQeHp/3jANaMgJpYQqrm9FdMR0YSCTalsQ/AWX14m7YuaV6/V7y+rDVzEUULH6ASdIQ9doQa6Q03UQhQp9Ixe0ZsDzovz7nzMW1ecYuYI/YHz+QNkzZE9</latexit>
+
+At+kt
+
+Intra-modal cycles Cross-modal cycles 
+
+RGB RGB → →
+
+Depth Depth Depth → → Depth RGB Depth → →
+
+RGB Depth RGB → →
+
+Image <latexit sha1_base64="ZLrP6IXwYKrPWp9gEt2414CkqFU=">AAAB6nicbVBNS8NAEJ34WetX1YvgZbEIglASkeqx4MVjRfsBbSib7aZdutmE3YlQQn+CFw+KePUXefPfuG1z0NYHA4/3ZpiZFyRSGHTdb2dldW19Y7OwVdze2d3bLx0cNk2casYbLJaxbgfUcCkUb6BAyduJ5jQKJG8Fo9up33ri2ohYPeI44X5EB0qEglG00gNejHqlsltxZyDLxMtJGXLUe6Wvbj9macQVMkmN6Xhugn5GNQom+aTYTQ1PKBvRAe9YqmjEjZ/NTp2QM6v0SRhrWwrJTP09kdHImHEU2M6I4tAselPxP6+TYnjjZ0IlKXLF5ovCVBKMyfRv0heaM5RjSyjTwt5K2JBqytCmU7QheIsvL5PmZcWrVqr3V+XacR5HAU7gFM7Bg2uowR3UoQEMBvAMr/DmSOfFeXc+5q0rTj5zBH/gfP4ABWyNgw==</latexit> 
+
+t + k
+
+Image <latexit sha1_base64="QvfTbXYgj7NhtQ/nOXxWVd8gJos=">AAAB6HicbVBNS8NAEJ3Ur1q/qh69LBbBU0lEqseCF48t2A9oQ9lsN+3azSbsToQS+gu8eFDEqz/Jm//GbZuDtj4YeLw3w8y8IJHCoOt+O4WNza3tneJuaW//4PCofHzSNnGqGW+xWMa6G1DDpVC8hQIl7yaa0yiQvBNM7uZ+54lrI2L1gNOE+xEdKREKRtFKTRyUK27VXYCsEy8nFcjRGJS/+sOYpRFXyCQ1pue5CfoZ1SiY5LNSPzU8oWxCR7xnqaIRN362OHRGLqwyJGGsbSkkC/X3REYjY6ZRYDsjimOz6s3F/7xeiuGtnwmVpMgVWy4KU0kwJvOvyVBozlBOLaFMC3srYWOqKUObTcmG4K2+vE7aV1WvVq01ryt1ksdRhDM4h0vw4AbqcA8NaAEDDs/wCm/Oo/PivDsfy9aCk8+cwh84nz/ZgYzh</latexit> 
+
+t
+
+> Encoder  12
+
+Figure 2. Model Architecture. We learn to find pixel-level correspondences between images that may differ in sensory modality, time, and scene position. Given images from two modalities (e.g., unpaired RGB and depth images from the same scene), we perform a contrastive random walk on a graph whose nodes come from patches within the two images using a global matching transformer architecture [32]. We simultaneously perform auxiliary intra-modal random walks within each modality’s augmented crops of images to improve the model’s ability to avoid local minima during optimization. Through this process, we learn to match in both directions (e.g., RGB-to-depth and depth-to-RGB). 
+
+Arar et al.[1] proposed a method for RGB-infrared matching by jointly training a GAN for modality translation and a spatial transformation network. In contrast, our model does not require explicit cross-modal translation; it learns from cycle-consistency alone. Other methods such as[26] address photo-sketch alignment through a two-stage process involv-ing cross-modal embeddings, whereas we learn fine-grained correspondence directly through self-supervision. Some re-cent work has explored matching across 2D-3D modalities (e.g., RGB and point clouds [22, 43]), but these approaches often rely on explicit geometric priors and operate on sparse data like LiDAR. Our method, by contrast, is designed for dense 2D image domains and does not rely on any hand-crafted similarity metric. 
+
+Self-supervised correspondence. Unsupervised learning of correspondence has a long history in optical flow [16, 17, 34, 47, 53], often relying on photometric loss as a train-ing signal. Other approaches use cues like color simi-larity [20, 23, 42] or temporal coherence [7, 46] for self-supervised tracking. However, these techniques assume single-modality inputs and struggle to generalize to cross-modal settings. Simulated data has also been used for learn-ing correspondence [4, 5, 8, 9, 35], but generating realistic, time-varying multimodal signals remains a significant chal-lenge. In contrast, our method learns from real multimodal videos without requiring ground-truth annotations or simula-tion. 
+
+3. Method 
+
+Our goal is to learn pixel-wise correspondences between images from different modalities (e.g., RGB, thermal, depth, sketch, stylistically diverse images) solely through self-supervision. We build upon the contrastive random walk framework [14] and extend it to handle multiple modalities (Figure 2). The recently proposed Global Matching Random Walk (GMRW) model [32] allows for dense correspondences between RGB images by enforcing cycle consistency via contrastive random walks over videos [32, 45]. We leverage this framework to train on unlabeled videos from different modalities, learning cycle-consistent tracking across pairs such as RGB-depth, RGB-thermal, photo-sketch, and cross-style images. However, we find that directly optimizing the model for cross-modal cycle consistency leads to poor convergence: training plateaus at a suboptimal solution with high loss and non-semantic matches. We hypothesize that this difficulty arises due to the substantial domain gap between modalities. For instance, unlike space-time matching—where initial ran-dom features provide reasonable gradients—cross-modal inputs may align arbitrarily (e.g., bright regions in RGB could align with distant areas in depth due to similarly high intensity values). To mitigate this, we introduce auxiliary intra-modality random walk supervision, encouraging the model to learn representations effective for both intra- and cross-modality matching. 
+
+3.1. Model architecture 
+
+To address the challenge of cross-modal dense correspon-dence, we require an architecture capable of producing high-resolution matches while remaining modality-agnostic. We adopt the Global Matching Random Walk (GMRW) model [32], which performs all-pairs pixel matching [39, 45] and is trained using a cycle consistency objective via con-trastive random walks. Crucially, it does not rely on modality-specific assumptions like photo-consistency. Each modality uses a dedicated visual encoder to produce input tokens, while a shared Transformer backbone performs the global matching across modalities. 
+
+Image Features. For geometric tasks, we use a CNN-based encoder to extract visual features. For each image Imt at time t and modality m ∈ { rgb , depth , thermal }, we 6385 compute d-dimensional features ϕ(Imt ) ∈ R Hc × Wc ×d with a downsampling factor c = 4 . Each modality has its own encoder, and we append 2D positional encodings to the features. For depth inputs, the single-channel image is repli-cated across three channels to match the RGB architecture. For semantic tasks (e.g., photo-sketch, cross-style), we use DINOv2 [27] as a shared visual encoder across modali-ties. We initialize it with pretrained weights and finetune it, leveraging the rich semantic priors learned during DINOv2 pretraining. 
+
+Cross-modal Matching Transformer. Given a pair of im-ages Im1 
+
+> t
+
+and Im2
+
+> t+k
+
+, we feed their extracted features into a shared Transformer consisting of six blocks of self-attention, cross-attention, and feed-forward layers. The final layer produces correlation features F m1 
+
+> t
+
+and F m2
+
+> t+k
+
+. This module supports both intra-modality ( m1 = m2) and cross-modality (m1̸ = m2) matching. 
+
+Cross-modal Transition Matrix. We compute the transition matrix from F m1 
+
+> t
+
+and F m2 
+
+> t+k
+
+as Am1,m 2 
+
+> t,t +k
+
+=
+
+softmax (F m1 
+
+> t
+
+(F m2
+
+> t+k
+
+)⊤/τ ), which represents the likelihood of a pixel in modality m1 at time t corresponding to a pixel in modality m2 at time t + k. This matrix defines the transition probabilities for contrastive random walks (CRW) in both intra- and cross-modality matching. Following [32, 45], we normalize features using τ = √d instead of the L2 normal-ization used in earlier work [2, 14, 37]. The expected change in pixel position is computed as: 
+
+f m1,m 2 
+
+> t,t +k
+
+= EAt,t +k [Am1,m 2 
+
+> t,t +k
+
+D − D] (1) where ft,t +k is the predicted flow between modalities m1
+
+and m2, D is the constant pixel coordinate grid and Am1,m 2
+
+> t,t +k
+
+is the transition matrix from frame t to t + k.
+
+3.2. Learning cross-modal correspondences 
+
+Cross-modal cycle-consistency. To learn cross-modal corre-spondences, we extend the cycle consistency objective from GMRW [32] to multi-modal data. Given a palindrome se-quence {Im1 
+
+> t
+
+, I m2
+
+> t+k
+
+, I m1 
+
+> t
+
+}, we treat it as a space-time graph and train our model to perform random walks across it. The model estimates two transition matrices: Am1,m 2 
+
+> t,t +k
+
+which maps pixels from modality m1 at time t to modality m2 at time t + k, and Am2,m 1 
+
+> t+k,t
+
+, which returns the walker back to modality m1 at time t. We chain these two transitions to obtain a round-trip path from a point in Im1 
+
+> t
+
+, through Im2
+
+> t+k
+
+,and back. To enforce cycle consistency, we maximize the probability that the walker returns to its original position. This is done using the label-warping loss from [32]: 
+
+Lcross -crw = LCE (Am1,m 2 
+
+> t,t +k
+
+Am2,m 1 
+
+> t+k,t
+
+, T bf (I)) , (2) where I is the identity matrix and T bf (I) is the warped label target designed to prevent shortcut learning [32], and LCE is the cross-entropy loss. 
+
+Intra-modal cycle-consistency. We further apply the same contrastive random walk objective within each modality to stabilize training. For a palindrome {Imi
+
+> ori
+
+, I mi
+
+> aug
+
+, I mi
+
+> ori
+
+}, where 
+
+Imi 
+
+> aug
+
+is an augmented crop of Imi
+
+> ori
+
+, the intra-modal cycle loss is: 
+
+Lintra -crw =
+
+> 2
+
+X
+
+> i=1
+
+LCE (Ami 
+
+> ori ,aug
+
+Ami
+
+> aug ,ori
+
+, T bf (I)) (3) 
+
+Smoothness loss. To encourage spatial coherence, we ap-ply an edge-aware smoothness loss [17] — used in prior contrastive random walk work [2, 32]. It penalizes large second-order derivatives in flow, weighted by image gradi-ents. We apply this loss only when the source image is from the RGB modality, where visual similarity is a reliable cue for perceptual grouping. The loss is defined as: 
+
+Lsmooth = Ep
+
+X
+
+> d∈{ x,y }
+
+exp (−λcId(p)) | ∂2fs,t (p)
+
+∂d 2 | (4) where the p is a pixel in the RGB image, Id(p) is the average gradient magnitude across color channels in direction d. The coefficient λc controls edge sensitivity. 
+
+Overall loss. The final training objective combines all losses: 
+
+Lcross -crw + Lintra -crw + λsLsmooth (5) 
+
+4. Experiments 
+
+Our method estimates pixel-level correspondences between pairs of images across different modalities. We evaluate its performance on both geometric and semantic correspon-dence tasks. For geometric matching, we consider two set-tings: RGB-Depth and RGB-Thermal. For RGB-Depth, we use the NYU Depth V2 dataset [33] for both training and evaluation. For RGB-Thermal, we train and evaluate on two datasets: the indoor Thermal-IM dataset [38] and the outdoor KAIST dataset [13]. Notably, our method does not require spatially or temporally aligned image pairs during training. We sample frames at different time steps, allowing for scene changes and motion, while assuming partial scene overlap. For semantic correspondence, we consider two tasks. The first is photo-sketch alignment, using the PSC6K dataset [26], which includes annotated keypoints that match real-world photos with corresponding human-drawn sketches. The sec-ond task is cross-style image matching, where the goal is to match corresponding points across stylistic variants (e.g., photorealistic, anime, watercolor) of the same scene. We construct this benchmark using a text-to-image generation model conditioned on consistent prompts and varying style modifiers. For all benchmarks, evaluation sets are created by manually annotating keypoints across modalities or, where applicable, by propagating tracked points from the RGB domain using a point-tracking algorithm. 6386 Table 1. RGB-Depth and RGB-Thermal Matching . We compare our method with supervised and several unsupervised baselines on NYU-Depth V2, Thermal-IM and KAIST datasets. Our method performs best when computing cross-modality matching, significantly outperforming the baselines. D: Depth, T: Thermal, SSL: Self-Supervised Learning                                                                                                                                                         
+
+> Method SSL NYU-Depth ,< δ x
+> avg ↑Thermal-IM ,< δ x
+> avg ↑KAIST ,< δ x
+> avg ↑
+> Intra-modal Cross-modal Intra-modal Cross-modal Cross-modal
+> RGB )RGB D)DRGB )DD)RGB RGB )RGB T)TRGB )TT)RGB RGB )TT)RGB
+> RAFT [39] 91.5 59.2 7.9 1.3 81.7 53.3 5.6 0.9 29.2 7.4 GMFlow [45] 79.7 58.2 12.7 12.5 82.2 53.4 3.8 2.6 23.1 22.3 Arar et al. [1] ✓--1.3 0.8 --2.3 1.9 2.1 4.7
+> CycleGAN RGB )D/T + GMFlow ✓--8.5 7.8 --7.9 7.1 8.3 8.2
+> CycleGAN D/T )RGB + GMFlow ✓--16.2 16.6 --6.1 5.8 6.8 7.4 ARFlow [25] ✓76.1 53.5 7.5 7.4 82.1 53.3 12.5 13.2 31.0 30.4 ARFlow (Retrained) ✓--9.3 8.1 --13.4 13.1 29.1 27.7 DIFT [36] ✓40.6 18.5 3.3 4.3 68.2 50.3 17.5 18.2 7.1 8.8 SD-DINO [48] ✓25.2 13.9 7.8 6.4 44.5 49.9 29.3 34.9 19.6 20.6 Ours ✓80.1 62.3 33.5 34.3 81.6 53.1 41.8 47.9 35.2 34.1
+
+4.1. Geometric Correspondence 
+
+RGB-Depth Training. We train our model on the NYU Depth V2 dataset [33], which contains approximately 400K unlabeled RGB-D frames. Training is performed in three stages: 1) intra-modality CRW applied to RGB-RGB and Depth-Depth pairs, 2) additionally cross-modality CRW applied to RGB-Depth and Depth-RGB pairs, 3) adding the smoothness loss to encourage spatial coherence. Dur-ing training, we randomly sample two frames ( Im1 
+
+> t
+
+, Im2
+
+> t+k
+
+)from a scene, separated by a few random timesteps, drawn from both modalities. We then apply different random re-sized crops to forward ( Im1 
+
+> t
+
+, Im2
+
+> t+k
+
+) and backward images (Im1
+
+> t, aug
+
+) [32] and train for cycle-consistency losses. 
+
+RGB-Thermal Training. We use the Thermal-IM and KAIST datasets for RGB-Thermal training. Thermal-IM consists of 783 video sequences with RGB and thermal modalities, though they are spatially unaligned. KAIST contains 320 video sequences with spatially aligned RGB and thermal views. As with RGB-Depth training, we ran-domly sample two frames per scene from both modalities and follow the same three-stage training pipeline with intra-and cross-modality CRW losses. 
+
+RGB-Depth Evaluation. Since RGB and depth frames in NYU are spatially aligned, we use PIP++ [50], a point track-ing method, to generate ground-truth correspondences. We create 10-frame video clips and track points across them, retaining those visible in all frames. These tracks are used to evaluate RGB-RGB, Depth-Depth, and RGB-Depth corre-spondence. Our final dataset includes 250 video clips with an average of 688 annotated tracks per clip. 
+
+RGB-Thermal Evaluation. Thermal-IM videos are not spa-tially aligned, so we manually annotate 100 RGB-Thermal frame pairs across 5 timesteps, with 10 keypoints each, fol-lowing the protocol from TAP-Vid [4], resulting in 1,000 evaluation points. For KAIST, where RGB and thermal frames are aligned, we use a strategy similar to NYU Depth, using CoTracker [18] to generate correspondences, as it per-forms better than other trackers on KAIST videos. 
+
+Evaluation Metrics. We adopt the positional accuracy met-ric from TAP-Vid [4], denoted as < δ x
+
+> avg
+
+. This metric reports the fraction of visible keypoints that are predicted within a pixel distance threshold from ground truth, averaged over thresholds 1, 2, 4, 8, 16 .
+
+4.2. Semantic Correspondence 
+
+Photo-Sketch Matching. We use the PSC6K dataset [26] for both training and evaluation. The dataset contains 6,250 annotated photo-sketch pairs, with 8 keypoints per pair in the evaluation set, and over 130K photo-sketch pairs in the training set. Performance is measured using Percentage of Correct Keypoints (PCK) at thresholds α = 0 .05 and 0.1,denoted as PCK-5 and PCK-10. 
+
+Cross-style Image Matching. We introduce a new bench-mark to evaluate correspondence across different visual styles of the same scene. We generate images using the Flux text-to-image model [19], conditioned on a base prompt and a style modifier (added to the prompt). We consider 10 distinct styles: anime, dark, light, photorealistic, pixel art, watercolor, comic book, neon, pastel, and sci-fi (examples in Figure 6). Prompts are generated using BLIP-2[21] by captioning images from the ImageNet dataset [31], and are then used to generate stylistic variants via Flux. We generate 10K images per style, resulting in 100K train-ing samples. For evaluation, we sample 50 unseen prompts and generate 10 images per prompt—one in each style— 6387 yielding 500 test images. We manually annotate correspond-ing keypoints across styles for each prompt. All possible pairs of styles are compared within each prompt, resulting in 2,250 total image pair comparisons in the test set. 
+
+5. Results 
+
+We train our model for RGB-Depth, RGB-Thermal, photo-sketch and cross-style matching tasks and present both quan-titative and qualitative results alongside comparisons with baseline methods. 
+
+5.1. Geometric correspondence 
+
+Table 1 compares our method against a range of super-vised and unsupervised baselines for RGB-Depth and RGB-Thermal matching, evaluated in the direct setting where query frames are matched directly to target frames without chaining [32]. Among the supervised baselines, we include RAFT [39] and GMFlow [45], state-of-the-art optical flow models trained on RGB images, applied to thermal and depth data by treating them as RGB inputs. For unsupervised base-lines, we evaluate Arar et al.[1], a CycleGAN[52]-based cross-modal registration method, which struggles to gener-alize due to the difficulty of translating between modalities without paired supervision. To address this, we introduce a variant (CycleGAN+GMFlow) that first translates depth or thermal inputs to RGB using CycleGAN, followed by matching in the RGB domain using GMFlow. We also test the reverse direction—translating RGB to depth or thermal— before applying GMFlow. We further evaluate ARFlow [25], an unsupervised optical flow model trained with photomet-ric losses, and include a retrained version adapted to our setting with modality-specific encoders. Finally, we com-pare against recent diffusion-based correspondence methods, including DIFT [36], which leverages Stable Diffusion fea-tures, and SD-DINO [48], which combines Stable Diffusion and DINOv2 features for robust geometric and semantic matching. Across both RGB-Depth and RGB-Thermal tasks, our method significantly outperforms all baselines. 
+
+Qualitative results. We present geometric matching qual-itative results showing the effectiveness of our method in cross-modal matching. As shown in Figures 3 and 4, our method consistently produces accurate and meaningful cor-respondences across RGB-Thermal and RGB-Depth pairs, significantly outperforming RAFT and GMFlow, which of-ten yield noisy or incorrect matches. 
+
+Model Ablations. Table 2 presents ablations on the NYU-Depth and Thermal-IM datasets. Training with only intra-modal losses yields good performance within the same modality but fails on cross-modal tasks. In contrast, using only cross-modal losses leads to unstable training and poor convergence. Pretraining with intra-modal losses followed by joint intra- and cross-modal training significantly im-NYU Depth V2 Dataset   
+
+> Ours GMFlow RAFT
+> Figure 3. RGB-Depth Matching. We show qualitative compar-isons on the NYU Depth V2 dataset. RAFT and GMFlow struggle to establish accurate correspondences in the depth domain, while our method successfully matches keypoints across RGB and depth images. The points shown are randomly sampled from the dataset annotations.
+
+proves performance across both settings. Adding a smooth-ness loss further enhances cross-modal accuracy, highlight-ing its value as a regularization strategy. 
+
+5.2. Semantic correspondence 
+
+Photo-Sketch Matching. In Table 3, we compare our method on PSC6K with several baselines from [26], includ-ing DINOv2+NN [27], which performs nearest-neighbor search on DINO features, and SD-DINO [48]. When using a CNN encoder, our method performs poorly due to the lack of semantic priors. Replacing it with DINOv2 features and fine-tuning the encoder leads to a significant performance boost, highlighting the importance of DINOv2’s semantic pretraining. Our final model, with DINOv2 and full training, performs best among our variants and is competitive with state-of-the-art methods. Qualitative results are shown in Figure 5. 
+
+Cross-style Image Matching. We evaluate our model (us-ing a DINOv2 encoder) alongside baselines including DI-NOv2+NN, DIFT, and SD-DINO in Table 4. We also com-pare with GeoAwareSC [49], a state-of-the-art supervised semantic correspondence method. Our model outperforms all baselines, including the supervised approach, albeit by a small margin. The performance gap between our method and DINOv2+NN demonstrates the effectiveness of our learned correspondence framework over simple feature similarity using pretrained DINO features. Qualitative results are pre-sented in Figure 6. 
+
+6. Discussion 
+
+We have presented a modality-agnostic method for learning pixel-level correspondences between images taken using dif-ferent visual sensors. Our method extends the contrastive 6388 Table 2. Model Ablations. We evaluate the impact of different loss functions and show that pretraining with intra-modal losses followed by fine-tuning with all losses achieves the best performance for our method. X denotes D (Depth) or T (Thermal), based on the dataset. 
+
+Losses NYU Depth , < δ x 
+
+> avg
+
+↑ Thermal-IM , < δ x 
+
+> avg
+
+↑
+
+Intra-modal Cross-modal Cross-modal 
+
+LRGB )RGB  
+
+> intra -crw
+
+LX)X 
+
+> intra -crw
+
+LRGB )X 
+
+> inter -crw
+
+LX)RGB  
+
+> inter -crw
+
+Lsmooth RGB ) RGB D ) D RGB ) D D ) RGB RGB ) T T ) RGB 
+
+✓ ✓ - - - 78.8 49.2 2.5 2.2 4.9 6.2 - - ✓ ✓ - 18.5 4.4 5.6 4.5 6.2 8.3 
+
+✓ ✓ ✓ ✓ - 80.4 61.1 19.1 21.1 30.2 38.5 
+
+✓ ✓ ✓ ✓ ✓ 80.1 62.3 33.5 34.3 41.8 47.9 Ours GMFlow RAFT  
+
+> Thermal-IM Dataset KAIST Dataset
+
+Figure 4. RGB-Thermal Matching. Qualitative comparisons on the Thermal-IM (left) and KAIST (right) datasets. Our method accurately tracks keypoints across RGB and thermal images, even in the presence of motion. In contrast, RAFT and GMFlow often fail to produce meaningful correspondences, frequently matching points to the same spatial location in the other modality. Here, we show all 10 annotated points from the dataset. Table 3. Photo-Sketch Matching . Qualitative comparison on the PSC6K dataset [26], demonstrating the competitive performance of our method against several baselines. 
+
+Method Trained PCK-5 PCK-10 on PSC6K 
+
+CNNGeo [29] 27.59 57.71 CNNGeo [29] ✓ 19.19 42.57 DINOv2 + NN [27] 11.48 31.66 SD-DINO [48] 33.10 70.50 WeakAlign [29] 35.65 68.76 WeakAlign [29] ✓ 43.55 78.60 NC-Net [30] 40.60 63.50 DCCNet [12] 42.43 66.53 PMD [24] 35.77 71.24 WarpC-Net [41] 48.79 71.43 WarpC-Net [41] ✓ 56.78 79.70 PSCNet [26] ✓ 57.92 84.72 
+
+Ours (CNN + Stage 1, 2, 3) ✓ 26.22 60.89 Ours (DINO + Stage 2, 3) ✓ 50.66 80.70 Ours (DINO + Stage 1, 2, 3) ✓ 53.61 82.20 Table 4. Cross-style Image Matching (Sec. 4.2). Quantitative comparisons on the cross-style image matching task. We compare our method against a few self-supervised and one supervised base-line, and show that it outperforms both. 
+
+Method SSL PCK-5 PCK-10 
+
+DINOv2 + NN [27] ✓ 23.13 56.52 DIFT [36] ✓ 39.81 57.97 SD-DINO [48] ✓ 60.14 80.72 GeoAwareSC [49] 68.30 79.67 Ours (DINO) ✓ 69.26 84.19 
+
+random walk to perform cross-modal matching. A random walker transitions from patches in one modality to another, and then back, using transition probabilities that are pro-duced by a global matching transformer [1, 32]. We avoid local minima in this process by including intra-modal ran-dom walks between frames of the same modality, as well as a spatial smoothness constraint. We evaluate our method on diverse tasks—including RGB-to-depth, RGB-to-thermal, photo-to-sketch, and cross-style image matching—and find 6389 PSC6K Dataset Figure 5. Photo-Sketch Matching. Qualitative results of our method on the PSC6K dataset [26]. For each image pair, all annotated points from the dataset are used as query keypoints. prompt: a man in a diving suit and mask   
+
+> anime style dark style light style neon style pixel art style watercolor style
+> prompt: a dog standing next to a wicker
+> comic book style sci-fi style
+> prompt: a man in a diving suit and mask
+> light style anime style prompt: a baby gorilla hanging from a tree branch neon style photorealistic style
+> prompt: a small newt with a long tail
+
+Figure 6. Cross-style Image Matching. We show qualitative results of our method on matching images across different styles. The images are generated using the Flux [19] model, with the prompts and styles used for generation shown above. 
+
+that it significantly outperforms existing methods on geomet-ric correspondence and is competitive with state-of-the-art methods on semantic matching. We see our work as opening new directions in multimodal matching, making it signifi-cantly easier to match images without hand-crafted measures of visual similarity. Our approach can be trained entirely using multimodal video data, which can be acquired at scale. We also see our work as experimentally demonstrating the generality of self-supervised matching methods, which can be applied in scenarios that would be difficult to simulate or acquire labeled data for. 
+
+Limitations. We have demonstrated our model for four do-mains, RGB-depth, RGB-thermal, photo-sketch, cross-style matching. While the model successfully handles these cases, it is possible that other modalities would present additional challenges, especially if they lacked other distinctive visual structures that may be used in matching, such as occlud-ing contours (which are visible in all 3 current modalities, RGB, Thermal, Depth). In cross-style image matching, we observe occasional failures, such as confusion between left and right limbs in animals (see Figure 6, top-right). While our method places few assumptions on the underlying signal (e.g., no hand-crafted photo-consistency assumption), both of our datasets include RGB images due to their ubiquity. 6390 Acknowledgements. We thank Xuanchen Lu, Adam Harley, Qianqian Wang, Daniel Geng, Ziyang Chen, Jeongsoo Park, Yiming Dou and the reviewers for the valuable discussion and feedback. This work was supported by Toyota Research Institute and Cisco Systems. 
+
+References 
+
+[1] Moab Arar, Yiftach Ginger, Dov Danon, Amit H Bermano, and Daniel Cohen-Or. Unsupervised multi-modal image reg-istration via geometry preserving image-to-image translation. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , 2020. 1, 2, 3, 5, 6, 7 [2] Zhangxing Bian, Allan Jabri, Alexei A Efros, and Andrew Owens. Learning pixel trajectories with multiscale contrastive random walks. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 6508– 6519, 2022. 2, 4 [3] Ting Chen, Simon Kornblith, Mohammad Norouzi, and Ge-offrey Hinton. A simple framework for contrastive learning of visual representations. In International conference on machine learning , pages 1597–1607. PMLR, 2020. 2 [4] Carl Doersch, Ankush Gupta, Larisa Markeeva, Adrià Re-casens, Lucas Smaira, Yusuf Aytar, João Carreira, Andrew Zisserman, and Yi Yang. Tap-vid: A benchmark for tracking any point in a video. arXiv preprint arXiv:2211.03726 , 2022. 2, 3, 5 [5] Carl Doersch, Yi Yang, Mel Vecerik, Dilara Gokay, Ankush Gupta, Yusuf Aytar, Joao Carreira, and Andrew Zisserman. Tapir: Tracking any point with per-frame initialization and temporal refinement. arXiv preprint arXiv:2306.08637 , 2023. 3[6] Yiming Dou, Fengyu Yang, Yi Liu, Antonio Loquercio, and Andrew Owens. Tactile-augmented radiance fields. Computer Vision and Pattern Recognition (CVPR) , 2024. 1 [7] Daniel Gordon, Kiana Ehsani, Dieter Fox, and Ali Farhadi. Watching the world go by: Representation learning from unlabeled videos. arXiv preprint arXiv:2003.07990 , 2020. 3 [8] Klaus Greff, Francois Belletti, Lucas Beyer, Carl Doersch, Yilun Du, Daniel Duckworth, David J Fleet, Dan Gnanapra-gasam, Florian Golemo, Charles Herrmann, et al. Kubric: A scalable dataset generator. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition ,pages 3749–3761, 2022. 3 [9] Adam W Harley, Zhaoyuan Fang, and Katerina Fragkiadaki. Particle video revisited: Tracking through occlusions using point trajectories. In European Conference on Computer Vision , pages 59–75. Springer, 2022. 3 [10] Kaiming He, Haoqi Fan, Yuxin Wu, Saining Xie, and Ross Girshick. Momentum contrast for unsupervised visual rep-resentation learning. In Proceedings of the IEEE/CVF con-ference on computer vision and pattern recognition , pages 9729–9738, 2020. 2 [11] Xixi Hu, Ziyang Chen, and Andrew Owens. Mix and localize: Localizing sound sources in mixtures. Computer Vision and Pattern Recognition (CVPR) , 2022. 2 [12] Shuaiyi Huang, Qiuyue Wang, Songyang Zhang, Shipeng Yan, and Xuming He. Dynamic context correspondence network for semantic alignment. In Proceedings of the IEEE/CVF International Conference on Computer Vision ,pages 2010–2019, 2019. 7 [13] Soonmin Hwang, Jaesik Park, Namil Kim, Yukyung Choi, and In So Kweon. Multispectral pedestrian detection: Benchmark dataset and baselines. In Proceedings of IEEE Conference on Computer Vision and Pattern Recognition (CVPR) , 2015. 4 [14] Allan Jabri, Andrew Owens, and Alexei Efros. Space-time correspondence as a contrastive random walk. Advances in neural information processing systems , 33:19545–19560, 2020. 1, 2, 3, 4 [15] Max Jaderberg, Karen Simonyan, Andrew Zisserman, et al. Spatial transformer networks. Advances in neural information processing systems , 28, 2015. 2 [16] Joel Janai, Fatma Guney, Anurag Ranjan, Michael Black, and Andreas Geiger. Unsupervised learning of multi-frame optical flow with occlusions. In Proceedings of the European conference on computer vision (ECCV) , pages 690–706, 2018. 2, 3 [17] Rico Jonschkowski, Austin Stone, Jonathan T Barron, Ariel Gordon, Kurt Konolige, and Anelia Angelova. What matters in unsupervised optical flow. In Computer Vision–ECCV 2020: 16th European Conference, Glasgow, UK, August 23– 28, 2020, Proceedings, Part II 16 , pages 557–572. Springer, 2020. 2, 3, 4 [18] Nikita Karaev, Ignacio Rocco, Benjamin Graham, Natalia Neverova, Andrea Vedaldi, and Christian Rupprecht. Co-tracker: It is better to track together. In Proc. ECCV , 2024. 5[19] Black Forest Labs. Flux. https://github.com/ black-forest-labs/flux , 2024. 1, 2, 5, 8 [20] Zihang Lai, Erika Lu, and Weidi Xie. Mast: A memory-augmented self-supervised tracker. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 6479–6488, 2020. 3 [21] Junnan Li, Dongxu Li, Silvio Savarese, and Steven Hoi. Blip-2: Bootstrapping language-image pre-training with frozen image encoders and large language models. In International conference on machine learning , pages 19730–19742. PMLR, 2023. 5 [22] Minhao Li, Zheng Qin, Zhirui Gao, Renjiao Yi, Chenyang Zhu, Yulan Guo, and Kai Xu. 2d3d-matr: 2d-3d matching transformer for detection-free registration between images and point clouds. In Proceedings of the IEEE/CVF Interna-tional Conference on Computer Vision , pages 14128–14138, 2023. 1, 3 [23] Xueting Li, Sifei Liu, Shalini De Mello, Xiaolong Wang, Jan Kautz, and Ming-Hsuan Yang. Joint-task self-supervised learning for temporal correspondence. Advances in Neural Information Processing Systems , 32, 2019. 2, 3 [24] Xin Li, Deng-Ping Fan, Fan Yang, Ao Luo, Hong Cheng, and Zicheng Liu. Probabilistic model distillation for semantic correspondence. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 7505– 7514, 2021. 7 [25] Liang Liu, Jiangning Zhang, Ruifei He, Yong Liu, Yabiao Wang, Ying Tai, Donghao Luo, Chengjie Wang, Jilin Li, and 6391 Feiyue Huang. Learning by analogy: Reliable supervision from transformations for unsupervised optical flow estima-tion. In IEEE Conference on Computer Vision and Pattern Recognition(CVPR) , 2020. 5, 6 [26] Xuanchen Lu, Xiaolong Wang, and Judith E Fan. Learn-ing dense correspondences between photos and sketches. In 
+
+International Conference on Machine Learning , pages 22899– 22916. PMLR, 2023. 1, 3, 4, 5, 6, 7, 8 [27] Maxime Oquab, Timothée Darcet, Théo Moutakanni, Huy Vo, Marc Szafraniec, Vasil Khalidov, Pierre Fernandez, Daniel Haziza, Francisco Massa, Alaaeldin El-Nouby, et al. Dinov2: Learning robust visual features without supervision. arXiv preprint arXiv:2304.07193 , 2023. 1, 2, 4, 6, 7 [28] Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sastry, Amanda Askell, Pamela Mishkin, Jack Clark, et al. Learning transferable visual models from natural language supervision. In International conference on machine learning . PMLR, 2021. 2 [29] Ignacio Rocco, Relja Arandjelovi´ c, and Josef Sivic. End-to-end weakly-supervised semantic alignment. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition , pages 6917–6925, 2018. 7 [30] Ignacio Rocco, Mircea Cimpoi, Relja Arandjelovi´ c, Akihiko Torii, Tomas Pajdla, and Josef Sivic. Neighbourhood con-sensus networks. Advances in neural information processing systems , 31, 2018. 7 [31] Olga Russakovsky, Jia Deng, Hao Su, Jonathan Krause, San-jeev Satheesh, Sean Ma, Zhiheng Huang, Andrej Karpathy, Aditya Khosla, Michael Bernstein, et al. Imagenet large scale visual recognition challenge. International journal of computer vision , 115:211–252, 2015. 5 [32] Ayush Shrivastava and Andrew Owens. Self-supervised any-point tracking by contrastive random walks. In European Conference on Computer Vision (ECCV) , 2024. 2, 3, 4, 5, 6, 7[33] Nathan Silberman, Derek Hoiem, Pushmeet Kohli, and Rob Fergus. Indoor segmentation and support inference from rgbd images. In Computer Vision–ECCV 2012: 12th European Conference on Computer Vision, Florence, Italy, October 7-13, 2012, Proceedings, Part V 12 , pages 746–760. Springer, 2012. 4, 5 [34] Austin Stone, Daniel Maurer, Alper Ayvaci, Anelia Angelova, and Rico Jonschkowski. Smurf: Self-teaching multi-frame unsupervised raft with full-image warping. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 3887–3896, 2021. 2, 3 [35] Deqing Sun, Daniel Vlasic, Charles Herrmann, Varun Jampani, Michael Krainin, Huiwen Chang, Ramin Zabih, William T Freeman, and Ce Liu. Autoflow: Learning a better training set for optical flow. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition ,pages 10093–10102, 2021. 3 [36] Luming Tang, Menglin Jia, Qianqian Wang, Cheng Perng Phoo, and Bharath Hariharan. Emergent correspondence from image diffusion. In Thirty-seventh Conference on Neural Information Processing Systems , 2023. 5, 6, 7 [37] Yansong Tang, Zhenyu Jiang, Zhenda Xie, Yue Cao, Zheng Zhang, Philip HS Torr, and Han Hu. Breaking shortcut: Ex-ploring fully convolutional cycle-consistency for video corre-spondence learning. arXiv preprint arXiv:2105.05838 , 2021. 2, 4 [38] Zitian Tang, Wenjie Ye, Wei-Chiu Ma, and Hang Zhao. What happened 3 seconds ago? inferring the past with thermal imag-ing. In Proceedings of the IEEE/CVF Conference on Com-puter Vision and Pattern Recognition , pages 17111–17120, 2023. 4 [39] Zachary Teed and Jia Deng. Raft: Recurrent all-pairs field transforms for optical flow. In Computer Vision–ECCV 2020: 16th European Conference, Glasgow, UK, August 23–28, 2020, Proceedings, Part II 16 , pages 402–419. Springer, 2020. 3, 5, 6 [40] Yonglong Tian, Dilip Krishnan, and Phillip Isola. Contrastive multiview coding. In Computer Vision–ECCV 2020: 16th European Conference, Glasgow, UK, August 23–28, 2020, Proceedings, Part XI 16 , 2020. 2 [41] Prune Truong, Martin Danelljan, Fisher Yu, and Luc Van Gool. Warp consistency for unsupervised learning of dense correspondences. In Proceedings of the IEEE/CVF international conference on computer vision , pages 10346– 10356, 2021. 7 [42] Carl Vondrick, Abhinav Shrivastava, Alireza Fathi, Sergio Guadarrama, and Kevin Murphy. Tracking emerges by col-orizing videos. In Proceedings of the European conference on computer vision (ECCV) , pages 391–408, 2018. 3 [43] Haiping Wang, Yuan Liu, Bing Wang, Yujing Sun, Zhen Dong, Wenping Wang, and Bisheng Yang. Freereg: Image-to-point cloud registration leveraging pretrained diffusion models and monocular depth estimators. arXiv preprint arXiv:2310.03420 , 2023. 1, 3 [44] Xiaolong Wang, Allan Jabri, and Alexei A Efros. Learning correspondence from the cycle-consistency of time. In Pro-ceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 2566–2576, 2019. 2 [45] Haofei Xu, Jing Zhang, Jianfei Cai, Hamid Rezatofighi, and Dacheng Tao. Gmflow: Learning optical flow via global matching. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 8121–8130, 2022. 2, 3, 4, 5, 6 [46] Jiarui Xu and Xiaolong Wang. Rethinking self-supervised correspondence learning: A video frame-level similarity per-spective. In Proceedings of the IEEE/CVF International Conference on Computer Vision , pages 10075–10085, 2021. 3[47] Jason J. Yu, Adam W. Harley, and Konstantinos G. Derpanis. Back to basics: Unsupervised learning of optical flow via brightness constancy and motion smoothness. In Computer Vision - ECCV 2016 Workshops, Part 3 , 2016. 2, 3 [48] Junyi Zhang, Charles Herrmann, Junhwa Hur, Luisa Pola-nia Cabrera, Varun Jampani, Deqing Sun, and Ming-Hsuan Yang. A Tale of Two Features: Stable Diffusion Comple-ments DINO for Zero-Shot Semantic Correspondence. arXiv preprint arxiv:2305.15347 , 2023. 5, 6, 7 [49] Junyi Zhang, Charles Herrmann, Junhwa Hur, Eric Chen, Varun Jampani, Deqing Sun, and Ming-Hsuan Yang. Telling 6392 left from right: Identifying geometry-aware semantic cor-respondence. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , pages 3076–3085, 2024. 6, 7 [50] Yang Zheng, Adam W. Harley, Bokui Shen, Gordon Wet-zstein, and Leonidas J. Guibas. Pointodyssey: A large-scale synthetic dataset for long-term point tracking. In ICCV , 2023. 5[51] Tinghui Zhou, Philipp Krahenbuhl, Mathieu Aubry, Qixing Huang, and Alexei A Efros. Learning dense correspondence via 3d-guided cycle consistency. In Proceedings of the IEEE conference on computer vision and pattern recognition , pages 117–126, 2016. 2 [52] Jun-Yan Zhu, Taesung Park, Phillip Isola, and Alexei A Efros. Unpaired image-to-image translation using cycle-consistent adversarial networks. In Computer Vision (ICCV), 2017 IEEE International Conference on , 2017. 6 [53] Yuliang Zou, Zelun Luo, and Jia-Bin Huang. Df-net: Un-supervised joint learning of depth and flow using cross-task consistency. In Proceedings of the European conference on computer vision (ECCV) , pages 36–53, 2018. 2, 3 6393

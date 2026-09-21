@@ -1,0 +1,1550 @@
+Uncertainty-guided Compositional Alignment with Part-to-Whole Semantic
+Representativeness in Hyperbolic Vision-Language Models
+Hayeon Kim1,∗
+Ji Ha Jang1,∗
+Junghun James Kim2
+Se Young Chun1,2,†
+1 Dept. of Electrical and Computer Engineering, 2 INMC & IPAI
+Seoul National University, Republic of Korea
+{khy5630, jeeit17, jonghean12, sychun}@snu.ac.kr
+∗Authors contributed equally.
+†Corresponding author.
+Abstract
+While Vision-Language Models (VLMs) have achieved re-
+markable performance, their Euclidean embeddings remain
+limited in capturing hierarchical relationships such as part-
+to-whole or parent-child structures, and often face chal-
+lenges in multi-object compositional scenarios.
+Hyper-
+bolic VLMs mitigate this issue by better preserving hi-
+erarchical structures and modeling part-whole relations
+(i.e., whole scene and its part images) through entail-
+ment.
+However, existing approaches do not model that
+each part has a different level of semantic representative-
+ness to the whole. We propose UNcertainty-guided Com-
+positional Hyperbolic Alignment (UNCHA) for enhancing
+hyperbolic VLMs. UNCHA models part-to-whole seman-
+tic representativeness with hyperbolic uncertainty, by as-
+signing lower uncertainty to more representative parts and
+higher uncertainty to less representative ones for the whole
+scene. This representativeness is then incorporated into the
+contrastive objective with uncertainty-guided weights. Fi-
+nally, the uncertainty is further calibrated with an entail-
+ment loss regularized by entropy-based term. With the pro-
+posed losses, UNCHA learns hyperbolic embeddings with
+more accurate part-whole ordering, capturing the under-
+lying compositional structure in an image and improving
+its understanding of complex multi-object scenes. UNCHA
+achieves state-of-the-art performance on zero-shot clas-
+sification, retrieval, and multi-label classification bench-
+marks. Our code and models are available at: https:
+//github.com/jeeit17/UNCHA.git.
+1. Introduction
+Understanding hierarchical structures is essential for cap-
+turing complex compositional information efficiently. As
+well established in cognitive science, human perception re-
+lies on part-whole hierarchies [18, 19], enabling general-
+ization by interpreting new inputs through known relational
+structures [19, 22, 51]. Such hierarchical representations
+also improve information compression, classification, and
+inference efficiency [5, 11, 35, 53]. Vision-Language Mod-
+els (VLMs) such as CLIP [40], ALIGN [23], and AL-
+BEF [29] have demonstrated remarkable performance in
+image-text matching and shown strong versatility across
+various downstream tasks.
+However, owing to their re-
+liance on Euclidean geometry, these models often face dis-
+tortion of hierarchical structure and dimensionality trade-
+offs in capturing hierarchical or complex relational struc-
+tures [14, 35, 50]. Moreover, CLIP has been reported to
+exhibit bias and difficulty with compositional relations in
+complex multi-object scenes [1], which is partly due to the
+lack of modeling part-whole relations.
+Hyperbolic space, characterized by constant negative
+curvature and exponential volume growth, provides an ef-
+ficient geometric foundation for embedding hierarchical
+and fine-grained relational structures. Motivated by these
+properties, recent studies [4, 7, 8, 26, 36, 41, 45] have
+explored hyperbolic geometry in vision-language learn-
+ing. MERU [7] extended contrastive vision-language learn-
+ing into hyperbolic space by explicitly modeling entail-
+ment relations between text and image pairs. ATMG [41]
+later demonstrated that proximity-based contrastive losses
+can hinder hierarchical structure learning and proposed an
+angle-based alternative. HyCoCLIP [36] extended entail-
+ment modeling beyond inter-modal image-text relations by
+including intra-modal part-whole relationships.
+Although hyperbolic approaches have demonstrated
+improved performance in hierarchy-aware representation
+learning, they do not model that each part has a differ-
+ent level of semantic representativeness to the whole. In
+other words, they do not account for the varying degree to
+which each part is semantically representative of the whole.
+As illustrated in Fig. 1, part images differ substantially in
+how well they represent the whole scene. When all parts
+This CVPR paper is the Open Access version, provided by the Computer Vision Foundation.
+Except for this watermark, it is identical to the accepted version;
+the final published version of the proceedings is available on IEEE Xplore.
+36861
+
+
+How well do these part images 
+represent the whole scene?  
+More 
+representative
+Less 
+representative
+Traffic sign
+Cars
+Street
+Whole scene
+Not all part images represent the whole scene equally
+→need uncertainty-aware part-whole alignment!
+People
+Figure 1. Varying representativeness of part images to whole
+scene. The relationship between each part image and the whole
+scene varies with its representativeness.
+We model this vary-
+ing representativeness as uncertainty, enabling uncertainty-guided
+part–whole alignment in hyperbolic space.
+are treated equally, the model may not appropriately dis-
+tinguish more representative parts from less representative
+ones for the whole scene, often leading to degraded multi-
+object alignment and inefficient utilization of the embed-
+ding space [36, 41].
+We propose UNcertainty-guided Compositional Hy-
+perbolic Alignment (UNCHA) for enhancing hyperbolic
+VLMs. UNCHA models part-to-whole semantic represen-
+tativeness by assigning lower uncertainty to more repre-
+sentative parts and higher uncertainty to less representa-
+tive ones for the whole scene. This design is grounded in
+prior findings [2, 10, 34, 54] showing that hyperbolic ra-
+dius correlates with factors such as abstractness or uncer-
+tainty. Then, we incorporate uncertainty as part-to-whole
+semantic representativeness into both contrastive and en-
+tailment loss. Specifically, we incorporate uncertainty into
+the contrastive objective by assigning part-dependent tem-
+perature or uncertainty-guided weights, thereby modulating
+the strength of each part’s alignment with the whole. For
+the entailment loss, uncertainty is further calibrated based
+on the degree of part-to-whole entailment, and the entropy-
+based regularizer is also adapted to stabilize uncertainty es-
+timates and promote richer use of the embedding space. By
+continually training with the proposed losses, UNCHA pro-
+gressively strengthens the semantic relationship across parts
+and wholes, leading to more accurate part-whole ordering in
+hyperbolic embeddings, capturing the underlying composi-
+tional structure in an image and improving its understanding
+of complex multi-object scenes.
+We demonstrated that UNCHA outperforms prior hy-
+perbolic VLMs [7, 36, 41] in diverse downstream tasks
+such as zero-shot image classification, retrieval, and a range
+of compositional and multi-object benchmarks, validating
+UNCHA’s modeling of part-to-whole semantic representa-
+tiveness and capability of more faithful compositional un-
+derstanding. Our embedding space analysis further con-
+firms UNCHA’s more discriminative and efficient use of
+part-to-whole modeling. The contributions of this work are
+summarized as:
+• We propose UNCHA, a uncertainty-guided composi-
+tional alignment with part-to-whole semantic represen-
+tativeness, enabling hierarchy-aware and compositional
+representation learning for hyperbolic VLMs.
+• We model part-to-whole semantic representativeness with
+hyperbolic uncertainty,
+designing uncertainty-guided
+contrastive and entailment loss for uncertainty cali-
+bration, regularized by entropy to adaptively reflect
+part–whole relations.
+• We performed diverse benchmarks, demonstrating that
+UNCHA achieves superior performance over prior arts
+in diverse downstream tasks such as zero-shot classifica-
+tion, retrieval, and multi-object classification, validating
+the effectiveness of our uncertainty-guided compositional
+alignment.
+2. Related Works
+2.1. Vision-language models
+Vision-Language
+Models
+(VLMs)
+have
+demonstrated
+strong capability in aligning image and text representations
+within a shared semantic space, achieving remarkable per-
+formance across tasks such as image-text retrieval and zero-
+shot image classification. The foundations of these mod-
+els trace back to early studies on vision-language represen-
+tation learning such as image retrieval, image captioning,
+and visual grounding, where joint embedding spaces are
+learned under task-specific supervision to associate visual
+content with linguistic semantics [17, 20, 27, 32, 42, 52].
+More recently, CLIP [40] introduced a contrastive objec-
+tive for aligning the two modalities using paired image-text
+data, achieving strong zero-shot and cross-modal perfor-
+mance [12, 24, 39, 44, 46]. ALIGN [23] and ALBEF [29]
+further extend CLIP by scaling up weak supervision and in-
+corporating enhanced alignment-fusion strategies to better
+exploit large-scale, noisy datasets.
+However, the inherent limitations of Euclidean space
+make it difficult to represent hierarchical relationships ef-
+fectively [21, 35, 37]. Moreover, CLIP has been shown to
+exhibit biases in complex multi-object scenes [1]. Its text
+encoder tends to emphasize the object mentioned first in
+the caption, while its image encoder focuses on larger ob-
+jects, which hinders performance in multi-object settings.
+In contrast, hyperbolic space naturally provides continu-
+ous tree-like structures that support hierarchical embed-
+ding. However, when hierarchical relationships are han-
+36862
+
+
+dled without distinguishing their varying different part-
+to-whole representativeness, the embeddings tend to lose
+meaningful structural separation and collapse toward a nar-
+row region [36, 41]. To address this, we introduce a part-
+to-whole uncertainty-guided alignment framework and ex-
+plicitly model diverse part-whole entailment relationships
+within and across modalities, thereby enhancing composi-
+tional understanding.
+2.2. Hyperbolic representation learning
+Hyperbolic space has emerged as an intriguing alternative in
+representation learning for embedding hierarchies. Hyper-
+bolic space has exponential volume growth and a tree-like
+geometry, enabling near distortion-free hierarchical embed-
+dings [11, 45]. Therefore, it provides an efficient represen-
+tation for hierarchical structures. Consequently, numerous
+studies have leveraged hyperbolic geometry for represent-
+ing text [8, 28, 48], images [2, 26, 54], and graphs [3, 31,
+47]. Recently, hyperbolic space has been integrated into
+foundation models to better capture hierarchical, composi-
+tional, and multi-modal structures at scale, enabling more
+expressive representations [7, 15, 16, 34, 36, 41]. MERU [7]
+first introduced hyperbolic vision–language models by em-
+ploying an additional entailment loss [11, 28] inspired by
+order embeddings [50] to reflect the informativeness of dif-
+ferent modalities. ATMG [41] addressed hierarchical dis-
+tortion and modality gap caused by spatial proximity–based
+contrastive learning by introducing an angle-based met-
+ric for image-text alignment in hyperbolic space. HyCo-
+CLIP [36] further incorporated intra-modal relationships by
+considering box images and their corresponding texts.
+However, it does not differentiate the varying strengths
+of these relationships, resulting in limited distinction among
+parts. Several studies have explored the use of hyperbolic
+radius, the distance between an embedding and the origin,
+as a proxy for concept abstractness or uncertainty [2, 10, 34,
+54]. The hyperbolic radius naturally provides uncertainty
+estimation and boundary awareness in pixel-level classifica-
+tion [2, 10], image retrieval [54], and multi-modal language
+understanding [34], where it serves as an implicit indicator
+of confidence. Building on this property, we leverage the
+hyperbolic radius to better encode hierarchical structures in
+VLM and utilize entailment relationships for effective un-
+certainty calibration. An entropy-based regularizer further
+stabilizes the calibrated uncertainty, enabling more efficient
+use of the embedding space.
+3. Method
+3.1. Preliminaries
+Hyperbolic space is a non-Euclidean geometry with a con-
+stant negative curvature −κ where κ ∈R+. Among several
+equivalent models, we adopt the Lorentz (or hyperboloid)
+model for embedding.
+A vector p ∈Rn+1 can be ex-
+pressed in the form [ptime, pspace], where pspace ∈Rn and
+ptime ∈R. The Lorentzian inner product between two vec-
+tors p, q ∈Rn+1 is defined as:
+  \ lan g le \mathbf { p}, \mat hbf {q} \rangle _{\mathbb {L}} = -p_{\text {time}} q_{\text {time}} + \langle \mathbf {p}_{\text {space}}, \mathbf {q}_{\text {space}} \rangle , 
+(1)
+where ⟨·, ·⟩denotes the Euclidean inner product. The n-
+dimensional Lorentz manifold Ln is defined as the upper
+sheet of a two-sheeted hyperboloid in (n + 1)-dimensional
+Minkowski space:
+  \
+m
+a t hbb { L}^ n = \ l
+ef t \
+{
+ \mathbf {p} \in \mathbb {R}^{n+1} \; | \; \langle \mathbf {p}, \mathbf {p} \rangle _{\mathbb {L}} = -\frac {1}{\kappa }, \; \kappa > 0 \right \}. 
+(2)
+The geodesic distance between two points p, q on the n-
+dimensional Lorentz manifold Ln is:
+  d_{ \m a
+t
+hbb {L}}( \mathb f {p }, \mathbf {q}) = \sqrt {1/\kappa } \, \cosh ^{-1}\left (-\kappa \langle \mathbf {p}, \mathbf {q} \rangle _{\mathbb {L}}\right ). 
+(3)
+The hyperbolic radius of the embedding p is defined as the
+geodesic distance from the origin of the hyperboloid o, i.e.,
+dL(p, o).
+The tangent space at the point z ∈Ln is defined as:
+  T_ {
+\
+m a thbf {z} }\m a t
+h
+bb {L}^n = \left \{ \mathbf {v} \in \mathbb {R}^{n+1} : \langle \mathbf {z}, \mathbf {v} \rangle _{\mathbb {L}} = 0 \right \}, 
+(4)
+which consists of Euclidean vectors v orthogonal to z under
+the Lorentzian inner product. The exponential map projects
+a tangent vector v ∈TzLn onto the manifold as below:
+  \e
+xp ^ { \kappa }_{\ma t hbf {z} }(\ma
+th bf {
+v}) = \cosh (\sqrt {\kappa } \, \| \mathbf {v} \|_{\mathbb {L}})\mathbf {z} + \frac {\sinh (\sqrt {\kappa } \, \| \mathbf {v} \|_{\mathbb {L}})}{\sqrt {\kappa } \, \| \mathbf {v} \|_{\mathbb {L}}}\mathbf {v}. 
+(5)
+Conversely, the logarithmic map sends a point p ∈Ln back
+to the tangent space at z as below:
+  \l
+og ^ { \kappa }_{\m athb
+f
+ {z}} (\mat h b
+f {p}) = \frac {\cosh ^{-1}(-\kappa \langle \mathbf {z}, \mathbf {p} \rangle _{\mathbb {L}})}{\sqrt {(\kappa \langle \mathbf {z}, \mathbf {p} \rangle _{\mathbb {L}})^2 - 1}} \; \mathrm {proj}_{\mathbf {z}}(\mathbf {p}) 
+(6)
+where projz(p) = p + κ ⟨z, p⟩Lz. Here, we consider the
+case where z corresponds to the origin of the hyperboloid,
+o = [
+p
+1/κ, 0]. In this setting, the time component of vec-
+tors in the tangent Euclidean space can be treated as zero, al-
+lowing us to parameterize the space component only, which
+is consistent with the design of prior works [7, 36, 41].
+3.2. Uncertainty-guided hyperbolic alignment
+Revisiting prior arts in hyperbolic alignment.
+Prior
+hyperbolic VLMs [7, 36, 41] extend contrastive vision-
+language learning by defining entailment relationships. In
+this hyperbolic geometry, abstract concepts tend to lie closer
+to the origin and specific ones farther out, with each spe-
+cific concept constrained to its parent’s entailment cone (see
+Sec 3.2.3 for details). As illustrated in Fig. 2, MERU [7]
+incorporates an image-text entailment objective following
+partial-order embeddings [50], where text is considered
+more abstract than image. HyCoCLIP [36] extends this idea
+by modeling intra-modal alignment, assuming that part im-
+age is more abstract than its corresponding whole scene.
+36863
+
+
+MERU [7]
+HyCoCLIP [36]
+: Inter-modal entailment
+Whole scene
+Multiple part images
+A person 
+snorkeling 
+underwater in 
+an ocean 
+UNCHA (Ours)
+Multiple part texts
+Whole scene
+: Intra-modal text entailment
+: Intra-modal image entailment
+Top down view ↓
+A person snorkeling underwater 
+in an ocean among small fish, 
+wearing flippers.
+Whole text
+A person snorkeling underwater in an ocean
+among small fish, wearing flippers.
+Whole text
+flippers
+Small fish
+Less
+representative
+More 
+representative
+Small fish
+Part text
+Whole text
+Part image
+Whole scene
+A person snorkeling underwater 
+in an ocean among small fish, 
+wearing flippers.
+𝑜
+Figure 2. Comparison of UNcertainty-guided Compositional Hyperbolic Alignment (UNCHA, Ours) with prior works. MERU [7]
+models inter-modal entailment between whole scene image and text representations. HyCoCLIP [36] extends this to include intra-modal
+entailment between part and whole scene representations. UNCHA (Ours) further incorporates uncertainty to quantify the semantic rep-
+resentativeness of each part, enabling uncertainty-guided part–whole alignment via adaptive weighting in the contrastive objectives and
+uncertainty calibration through the entailment loss. In addition, entropy regularization is applied in uncertainty calibration to ensure con-
+sistent and balanced utilization of the hyperbolic embedding space across varying uncertainty levels and modalities.
+Method overview.
+3.2.1. Uncertainty model of semantic representativeness
+We leverage the geodesic distance from the origin (radius)
+in hyperbolic space [2, 10, 34, 54] to quantify the part-to-
+whole semantic representativeness using hyperbolic uncer-
+tainty. Since more abstract concepts are typically located
+near the origin and more specific ones farther away, this
+measure naturally reflects representativeness. Thus, we de-
+sign the hyperbolic uncertainty to assign lower uncertainty
+to parts that are more representative of the whole scene, and
+high uncertainty otherwise (e.g., part images). As shown
+in Fig. 4, our estimated uncertainty well aligns with seman-
+tic representativeness, indicating that the model effectively
+captures the varying part-to-whole relationships.
+Specifically, for a point x ∈Ln, the Euclidean norm
+of x is monotonically related to its hyperbolic radius (see
+the supplementary material Sec. S.2.3.1). Accordingly, we
+define the uncertainty u as follows:
+  u( \ mathb f {x}) = \lo g \!\left (1 + \exp \!\left (-\|\mathbf {x}\|_2\right )\right ). \label {eq:hyperbolicuncertainty} 
+(7)
+Since points near the origin correspond to higher seman-
+tic uncertainty, the hyperbolic radius is inversely monoton-
+ically related to uncertainty. Eq. 7 is a smooth monotonic
+transformation of the hyperbolic radius, which is a differ-
+entiable, well-behaved uncertainty measure for numerical
+stability.
+3.2.2. Uncertainty-guided contrastive loss
+In image–text pretraining, contrastive objectives are com-
+monly employed to align multi-modal representations.
+Following prior works [7, 36], we adopt the negative
+Lorentzian distance as the similarity measure as below:
+  
+L_{\ te xt {
+c
+}
+}^{
+*}( \textbf {i}, \
+t
+extb f { t}; \tau ) = - \sum _i \log \frac { \exp \left ( -d_{\mathbb {L}}(\textbf {i}_i, \textbf {t}_i) / \tau \right ) }{ \sum _{\substack {k \neq i}} \exp \left ( -d_{\mathbb {L}}(\textbf {i}_i, \textbf {t}_k) / \tau \right ) } \label {eq:contrastive_basic} 
+(8)
+where the i-th image embedding ii and its corresponding
+text embedding ti form a positive pair while all other text
+embeddings ti with k̸ = i are treated as negatives in the
+batch of size B and the temperature parameter τ controls
+the scaling of similarities.
+Prior work [36] introduces a global–local contrastive loss
+Lorig
+con that aligns part-level text features tpart with whole im-
+age embeddings, and part-level image features ipart with
+whole text embeddings as below:
+  
+\
+u
+nderbr ac e
+ 
+{ L_
+{
+\
+text { c} }
+^
+{
+*}
+\
+!\left (\mat hbf {i}^{\t ext 
+{ pa
+rt}} , \m a th
+bf { t} ; 
+\
+ta
+u
+ \righ t ) + L_{\t ext 
+{c}}^{*}\!\left (\mathbf {t}^{\text {part}}, \mathbf {i}; \tau \right )}_{\text {global-local contrastive loss}} + \underbrace {L_{\text {c}}^{*}(\mathbf {i}, \mathbf {t}; \tau ) + L_{\text {c}}^{*}(\mathbf {t}, \mathbf {i}; \tau )}_{\text {global contrastive loss}}. \label {eq:prior_contrasitve_loss} 
+(9)
+Our contrastive loss additionally includes a local con-
+trastive loss that explicitly aligns each part image with its
+corresponding text on top of Eq. 9. Since whole and part im-
+ages differ in information levels and occupy distinct regions
+36864
+
+
+in hyperbolic space, we design to assign separate tempera-
+ture parameters, τg, τl, and τgl to global, local and global-
+local contrastive losses, respectively, to better model these
+relationships.
+We propose uncertainty-guided contrastive loss unlike
+the aforementioned prior contrastive losses with fixed tem-
+perature. Our approach incorporates uncertainty into the
+global-local contrastive loss by considering the varying se-
+mantic representativeness of multiple parts.
+We modu-
+late the temperature in an element-wise manner through an
+uncertainty-guided global-local contrastive loss, where the
+temperature is adaptively scaled according to the estimated
+uncertainty of each part image and text. The adaptive tem-
+peratures τ I
+un,i and τ T
+un,i are designed as below:
+  
+\res i zeb
+o
+x {0.9\
+l
+ine
+w
+idth }
+{!}{ $ \b
+o
+ldsymbo
+l
+ {\
+t
+au }^{I}_{\text {un}, i} = \exp \!\left (u(\mathbf {i}^{\text {part}}_{i})/2\right )\,\tau _{gl}, \boldsymbol {\tau }^{T}_{\text {un}, i} = \exp \!\left (u(\mathbf {t}^{\text {part}}_{i})/2\right )\,\tau _{gl} $} \label {eq:uncertainty_scaled_temp} 
+(10)
+where higher uncertainty leads to a larger temperature and a
+smaller contribution to the contrastive loss. The formulation
+of our proposed contrastive loss is shown as below:
+Lun
+con
+=
+L∗
+c
+ ipart, t; τ I
+un
+
++ L∗
+c
+ tpart, i; τ T
+un
+
+|
+{z
+}
+uncertainty-guided global-local contrastive loss
+(11)
++ L∗
+c(i, t; τg) + L∗
+c(t, i; τg)
+|
+{z
+}
+global contrastive loss
++ L∗
+c(ipart, tpart; τl) + L∗
+c(tpart, ipart; τl)
+|
+{z
+}
+local contrastive loss
+.
+Unlike the one-to-one correspondence between matched
+image-text pairs, the relationship between a part image and
+its whole scene or text may not be a perfect correspondence.
+For instance, a single scene text may correspond to multi-
+ple part images. If all embeddings within a whole scene
+are pushed apart with the same temperature, both highly
+representative and less representative regions are equally
+repelled, breaking semantic structure. Our proposed con-
+trastive loss in Eq. 11 is designed to mitigate these undesir-
+able cases.
+3.2.3. Entailment loss for uncertainty calibration
+Piecewise-continuous entailment loss.
+Building upon
+the hyperbolic entailment formulation in [7, 28], prior
+work [36] defines the entailment loss as:
+  \ma t hcal { L}_{ \t e xt {orig}}= \max (0, \phi (\mathbf {p}, \mathbf {q}) - \eta \omega (\mathbf {p})) \label {eq:entailloss} 
+(12)
+where ϕ(p, q) denotes the angular distance between the em-
+beddings p and q, η and K are hyperparameters, and ω(p)
+defines the aperture of the entailment cone centered at p as
+below:
+  \o m ega (\
+math
+b
+f {p})
+ 
+= \sin ^{-1}\!\left ( {2K}/{(\sqrt {-\kappa }\|\mathbf {p}\| )} \right ), 
+(13)
+which is also illustrated in Fig. 3. The Lorig in Eq. 12 en-
+forces entailment by constraining q to lie within the cone of
+𝛰
+𝛰
+Top down view ↓
+Figure 3. Entailment geometry in hyperbolic space. The term
+ω(ipart) denotes the aperture of the entailment cone centered at
+ipart. The angle ϕ(ipart, i) measures the geodesic angle between
+the embeddings ipart and i, which is used to determine whether i
+lies within the entailment region of ipart.
+p. However, once q is fully contained in the cone, the loss
+becomes zero, preventing further fine-grained alignment.
+Here, we propose adding an angular term ϕ(p, q) in
+Eq. 12 to encourage fine-grained alignment while maintain-
+ing smooth optimization continuity as below:
+  
+L^{*}_ {\ t ext {e nt}} (\ m a thbf {p }, \ mathbf {q}) = \max \!\left (0,\, \phi (\mathbf {p}, \mathbf {q}) - \eta \,\omega (\mathbf {p})\right ) + \alpha \,\phi (\mathbf {p}, \mathbf {q}) \label {eq:piecewise_continuous} (14)
+where α is a hyperparameter.
+This formulation can be
+viewed as a Leaky-ReLU-like [33] relaxation of the orig-
+inal hinge-based entailment loss, with the additional term
+preserving a small gradient even when q is inside the cone.
+Uncertainty calibration loss.
+Prior studies have reported
+that hyperbolic embeddings often accumulate around nar-
+row regions, leading to collapse [41]. Moreover, local and
+global image representations exhibit similar radii, making
+their separation less distinct [36]. To clearly distinct global
+and local representations, we propose the uncertainty cali-
+bration loss as follows:
+  L_
+{\text { e nt}
+}^{\te xt {cal}} ( \mat h bf {p}, \mathbf {q}) = \left \lfloor L_{\text {ent}}^{*}(\mathbf {p}, \mathbf {q}) \right \rfloor \, \! e^{-u(\mathbf {p})} + u(\mathbf {p}) + \mathcal {H}(\tilde {u}({\mathbf {p}})) \label {eq:cal2} (15)
+where ⌊.⌋denotes the stop-gradient operator and H repre-
+sents the entropy term as follows:
+  \mathc a l
+ 
+{ H}(\ti lde {u}({\mathbf {p}})) = - \sum \nolimits _i \tilde {u}({\mathbf {p}_i}) \log (\tilde {u}({\mathbf {p}_i})) \label {eq:cal1} 
+(16)
+where \tild e {u}({\mathb
+f {p}_i}) = {\exp (u(\mathbf {p}_i))} / {\sum _j \exp (u(\mathbf {p}_j))} . When the en-
+tailment relation between p and q is weak, the term e−u(p)
+encourages the model to increase uncertainty.
+The term
+u(p) prevents the model from assigning excessively high
+uncertainty just to reduce the loss. Thus, H(˜u(p)) regular-
+izes the uncertainty distribution to remain diverse and in-
+formative, avoiding a collapse toward uniform or constant
+uncertainty, analogous to [13].
+With the entropy regularizer, the proposed formulation
+36865
+
+
+Whole scene
+Low uncertainty
+Semantic similarity
+Corr = -0.739
+Uncertainty
+(a) Part images sorted by UNCHA’s calibrated uncertainty
+(b) Correlation between semantic similarity and uncertainty
+Part images
+High uncertainty
+Figure 4.
+Analysis of uncertainty modeling.
+(a) Randomly
+cropped parts are sorted by uncertainty (low→high). Semanti-
+cally representative parts show low uncertainty, while blurred or
+less representative crops show high uncertainty. (b) On an Ima-
+geNet [43] subset, part-to-whole similarity vs. uncertainty shows
+a strong negative correlation (r = −0.739), indicating that less
+representative parts have higher uncertainty.
+of our entailment loss is as follows:
+Lun
+ent
+=
+L∗
+ent(tpart, ipart) + L∗
+ent(t, i)
+|
+{z
+}
+inter-modal entailment
+(17)
++λ1(L∗
+ent(tpart, t) + L∗
+ent(ipart, i)
+|
+{z
+}
+intra-modal entailment
+)
++λ2(Lcal
+ent (tpart, t) + Lcal
+ent (ipart, i))
+|
+{z
+}
+uncertainty calibration
+where λ1 and λ2 are hyperparameters. This uncertainty cal-
+ibration enables semantic alignment with the representative-
+ness of each part relative to the whole. This is a process that
+naturally fits the geometric properties of hyperbolic space,
+which is particularly beneficial for jointly aligning multi-
+ple objects simultaneously. Moreover, such calibration en-
+hances multi-object alignment, as shown in Fig. 4. Parts
+with higher semantic similarity to the whole exhibit lower
+uncertainty, while less representative parts show higher un-
+certainty, resulting in a strong negative correlation between
+similarity and uncertainty. Further details on Fig. 4 are pro-
+vided in the supplementary material Sec. S.2.3.2.
+Finally, our overall loss with the proposed uncertainty-
+guided contrastive loss in Eq. 11 and the entailment loss
+with uncertainty calibration in Eq. 17 is defined as follows:
+  \be
+gin {aligne
+d} L = \mathcal {L}_{\text {con}}^{\text {un}} + \lambda _{ent} \mathcal {L}_{\text {ent}}^{\text {un}} \end {aligned} 
+(18)
+where λent is a hyperparameter. We detail all hyperparam-
+eters in the supplementary material Sec. S.1.2.
+4. Experiments
+4.1. Training details
+To ensure a fair comparison, baseline models [7, 36, 40, 41]
+are reproduced under identical dataset and training configu-
+rations, while preserving the optimization settings specified
+in their original implementations. The batch size and total
+number of training iterations are fixed at 768 and 500,000,
+respectively.
+All models are trained on the Grounded
+Image-Text Pairs (GRIT) [38] dataset, which contains 20.5
+million grounded vision–language pairs and 35.9 million
+part-level annotations. Detailed descriptions of the settings
+and hyperparameters are provided in Sec. S.1 of the supple-
+mentary material.
+4.2. Downstream tasks
+4.2.1. Zero-shot image classification
+We conduct zero-shot classification experiments on 16
+benchmark datasets as listed in Tab. 1. We report Top-1
+accuracy as the evaluation metric for all results following
+prior works [7, 40]. To evaluate scalability, we experiment
+with different sizes of vision encoders, ViT-S and ViT-B.
+For ATMG [41], we follow the original setup, computing
+similarity via averaged exterior angles instead of Lorentz or
+Euclidean inner products. This configuration is used for all
+downstream tasks. As shown in Tab. 1, our method consis-
+tently outperforms prior approaches across all benchmark
+datasets, demonstrating generalization and robust perfor-
+mance on downstream tasks.
+4.2.2. Zero-shot retrieval
+For the retrieval task, we evaluate the model’s ability to re-
+trieve the most relevant samples across modalities. Specifi-
+cally, given an input image (or text), the model retrieves the
+Top-K text (or image) candidates from the collection, and
+the retrieval accuracy is computed accordingly. All exper-
+iments are conducted under the zero-shot setting using the
+COCO [30] validation set and the Flickr30K [25, 55] test
+set. As shown in Tab. 2, our method shows steady perfor-
+mance, indicating its reliable cross-modal alignment capa-
+bility across both benchmarks.
+4.2.3. Hierarchical Classification
+To evaluate how well the model embeds hierarchical rela-
+tionships in hyperbolic space, we adopt the hierarchy-aware
+metrics introduced in HyCoCLIP [36]. As shown in Tab. 2,
+our model achieves consistently strong performance in hi-
+erarchical metrics, demonstrating its improved ability to
+preserve the structural hierarchy of the class labels within
+the embedding space, partly due to the uncertainty-guided
+alignment. More detailed explanations are in supplemen-
+tary material Sec. S.2.2.3.
+36866
+
+
+Table 1. Zero-shot image classification evaluation. UNCHA (Ours) consistently demonstrates strong zero-shot classification performance
+across both architectures. Bold numbers denote the best performance within each architecture. † denotes ATMG trained on the GRIT [38].
+General datasets
+Fine-grained datasets
+Misc. datasets
+Model
+ImageNet
+CIFAR-10
+CIFAR-100
+SUN397
+Caltech-101
+STL-10
+Food-101
+CUB
+Cars
+Aircraft
+Pets
+Flowers
+DTD
+EuroSAT
+RESISC45
+Country211
+ViT-S/16
+CLIP [40]
+36.7
+70.2
+42.6
+35.8
+57.6
+89.7
+44.7
+9.8
+6.9
+2.0
+44.6
+14.8
+22.3
+40.7
+40.1
+5.1
+MERU [7]
+35.4
+71.2
+40.4
+33.8
+57.3
+89.7
+41.2
+11.3
+5.2
+4.2
+42.7
+17.3
+18.6
+39.1
+38.9
+5.3
+ATMG† [41]
+34.1
+66.9
+42.1
+47.9
+68.5
+90.7
+43.6
+14.1
+5.8
+2.5
+41.8
+14.9
+19.7
+35.8
+40.3
+4.6
+HyCoCLIP [36]
+41.7
+85.0
+53.4
+52.5
+75.7
+92.5
+50.2
+14.7
+8.1
+4.2
+52.0
+20.5
+23.3
+38.3
+45.7
+5.2
+UNCHA (Ours)
+43.9
+85.9
+56.6
+52.6
+80.5
+94.4
+52.1
+12.5
+9.2
+2.7
+52.1
+24.6
+25.4
+36.2
+43.4
+5.2
+ViT-B/16
+CLIP [40]
+40.6
+78.9
+48.3
+43.0
+70.7
+92.4
+48.3
+10.4
+9.3
+3.4
+45.9
+21.3
+23.4
+37.1
+42.7
+5.7
+MERU [7]
+40.1
+78.6
+49.3
+43.0
+73.0
+92.8
+48.5
+11.0
+5.3
+3.7
+48.5
+21.6
+22.1
+31.7
+42.6
+5.4
+ATMG† [41]
+34.3
+68.8
+42.1
+48.2
+68.5
+91.2
+43.2
+14.3
+6.0
+2.4
+42.2
+15.0
+19.4
+35.0
+40.4
+4.6
+HyCoCLIP [36]
+45.8
+88.8
+60.1
+57.2
+81.3
+95.0
+59.2
+16.4
+11.6
+3.7
+56.8
+23.9
+29.4
+35.8
+45.6
+6.5
+UNCHA (Ours)
+48.8
+90.4
+63.2
+57.7
+83.9
+95.7
+60.3
+14.8
+14.0
+3.8
+57.1
+27.0
+30.3
+41.3
+52.7
+6.1
+Table 2. Zero-shot retrieval and hierarchical classification metrics on ImageNet [6]. UNCHA (Ours) consistently achieves superior
+performance across both retrieval and hierarchical metrics, showing the effectiveness of our uncertainty-based hyperbolic alignment.
+Text retrieval
+Image retrieval
+Hierarchical metrics
+Model
+COCO
+Flickr
+COCO
+Flickr
+TIE(↓)
+LCA(↓)
+J(↑)
+PH(↑)
+RH(↑)
+R@1
+R@5
+R@1
+R@5
+R@1
+R@5
+R@1
+R@5
+ViT-S/16
+CLIP [40]
+69.3
+79.1
+90.2
+95.2
+53.7
+65.2
+81.1
+87.9
+4.02
+2.39
+0.76
+0.83
+0.84
+MERU [7]
+68.8
+78.8
+89.4
+94.8
+53.6
+65.3
+80.4
+87.5
+4.08
+2.39
+0.76
+0.83
+0.83
+ATMG† [41]
+62.6
+74.2
+85.5
+91.6
+50.3
+62.1
+76.9
+84.6
+4.26
+2.50
+0.75
+0.82
+0.83
+HyCoCLIP [36]
+69.5
+79.5
+89.1
+93.9
+55.2
+66.6
+81.5
+88.1
+3.55
+2.17
+0.79
+0.86
+0.85
+UNCHA (Ours)
+69.9
+79.7
+90.8
+94.8
+56.2
+67.6
+82.5
+89.3
+3.39
+2.14
+0.80
+0.86
+0.86
+ViT-B/16
+CLIP [40]
+71.4
+81.5
+93.6
+96.9
+57.4
+68.5
+83.5
+89.9
+3.60
+2.21
+0.79
+0.85
+0.85
+MERU [7]
+72.3
+82.0
+93.5
+96.2
+57.4
+68.6
+84.0
+90.0
+3.63
+2.22
+0.78
+0.85
+0.85
+ATMG† [41]
+62.9
+74.0
+85.1
+92.2
+51.2
+62.6
+78.0
+85.3
+4.19
+2.48
+0.75
+0.83
+0.83
+HyCoCLIP [36]
+72.0
+82.0
+92.6
+95.4
+58.4
+69.3
+84.9
+90.3
+3.17
+2.05
+0.81
+0.87
+0.87
+UNCHA (Ours)
+72.7
+82.7
+91.4
+95.9
+60.0
+71.0
+84.9
+91.2
+2.94
+1.96
+0.83
+0.88
+0.88
+Table 3. Comparison on part-level alignment evaluation with
+hard negatives. Ours achieves substantial performance gains un-
+der the most challenging scenario of [49], demonstrating its strong
+ability for fine-grained compositional understanding.
+All Pick5
+All
+Model
+SCM
+Neg
+Hard Negs
+CLIP [40]
+13.10
+22.94
+52.89
+ATMG† [41]
+12.23
+23.08
+53.91
+MERU [7]
+12.59
+20.69
+54.56
+HyCoCLIP [36]
+11.65
+23.52
+53.33
+UNCHA (Ours)
+13.53
+23.81
+56.51
+4.2.4. Zero-shot multi-label classification
+We conduct multi-label classification experiments on the
+MS-COCO [30] and VOC [9] datasets, as shown in Tab. 5.
+The evaluation metric is mean Average Precision (mAP). To
+further assess performance in more complex multi-object
+settings, we employed the ComCo and SimCo datasets [1].
+Table 4. Ablation study on classification and retrieval bench-
+marks. Removing any component leads to consistent performance
+drops, showing that all modules contribute meaningfully. Bold
+numbers indicate the best performance within each task group.
+Classification
+Retrieval
+Model
+General
+Fine
+MISC.
+Text
+Image
+Ours (full)
+68.98
+25.53
+27.55
+83.80
+73.90
+w/o uncertainty
+64.57
+22.98
+26.67
+79.60
+69.68
+w/o contrastive
+65.14
+23.92
+25.58
+80.78
+70.55
+w/o entropy
+65.61
+23.09
+24.78
+80.60
+69.95
+These datasets evaluate compositional understanding with
+images containing N objects.
+ComCo features realistic
+object compositions, whereas SimCo provides synthetic
+scenes with diverse geometric shapes. For evaluation, we
+train a lightweight classifier on the embeddings and re-
+ported test-set classification mAP. As shown in Tab. 5,
+36867
+
+
+Table 5. Comparison across Multi-object Representation and Classification tasks. Left: zero-shot mAP comparison across multi-
+object configurations on ComCo and SimCo datasets. Right: zero-shot multi-label classification (Cls.) on VOC and COCO datasets (mAP
+only). Our method consistently achieves higher mAP across both tasks.
+Multi-object Representation
+Multi-label Cls.
+Model
+ComCo
+SimCo
+VOC
+COCO
+2 obj.
+3 obj.
+4 obj.
+5 obj.
+2 obj.
+3 obj.
+4 obj.
+5 obj.
+ViT-B/16
+CLIP [40]
+77.55
+80.31
+81.41
+80.22
+77.15
+84.58
+87.40
+88.48
+78.56
+53.94
+MERU [7]
+72.90
+77.25
+78.15
+77.34
+77.82
+83.91
+85.79
+86.90
+79.50
+54.39
+ATMG† [41]
+45.91
+45.97
+45.80
+45.82
+65.52
+65.32
+65.28
+65.12
+72.22
+46.81
+HyCoCLIP [36]
+72.90
+73.22
+73.51
+72.90
+75.71
+81.13
+82.41
+82.85
+80.43
+58.12
+UNCHA (Ours)
+77.92
+80.96
+81.83
+81.18
+79.72
+86.93
+89.75
+90.65
+82.14
+59.43
+UNCHA (Ours)
+HyCoCLIP
+Figure 5. Analysis of hyperbolic embedding. Compared to Hy-
+CoCLIP [36], whose hyperbolic embeddings exhibit a narrower
+range, UNCHA yields a more dispersed and structured distribu-
+tion, reflecting richer use of the hyperbolic space.
+UNCHA outperforms all baselines across both multi-label
+classification and multi-object representation benchmarks
+which indicate that our uncertainty-aware modeling pro-
+vides a substantially stronger compositional understanding.
+These results highlight UNCHA’s ability to better disentan-
+gle object-level semantics and maintain robust alignment in
+complex multi-object scenes.
+4.2.5. Part-level alignment with hard negatives
+We evaluate part-level text–image matching using the
+benchmark derived from the densely annotated Densely
+Captioned Images [49].
+The benchmark pairs cropped
+parts with their corresponding texts and introduces region-
+specific hard negatives to test fine-grained alignment. We
+report results on the ‘All Pick5’ and ‘All Hard negs’ in
+Tab. 3, which require the model not only to identify the cor-
+rect pair among hard negative captions but also to produce a
+correct ordering between matching and non-matching pairs.
+UNCHA (Ours) achieves the highest performance among
+baselines, exhibiting substantial improvements in the ‘All
+Pick5’ setting. This shows that our model effectively cap-
+tures fine-grained part-whole distinctions, yielding better
+region-level visual-semantic alignment.
+4.3. Analysis about hyperbolic space
+We visualize the radii of hyperbolic embedding for 10, 000
+ImageNet [43] images and their randomly cropped parts,
+shown in Fig. 5. As noted in HyCoCLIP [36], the embed-
+dings of image and their parts often collapse into a narrowly
+concentrated region, yielding minimal separation between
+part and whole. In contrast, UNCHA produces a more dis-
+tinctive and semantically structured geometry: part embed-
+dings consistently lie closer to the origin than whole-scene
+embeddings, and the two distributions become clearly sep-
+arated. This behavior results from the application of our
+uncertainty calibration and entropy regularizer. A more de-
+tailed analysis of hyperbolic space is provided in Sec. S.2.5
+of the supplementary material.
+4.4. Ablation study
+To assess the contribution of each component in our frame-
+work, we performed ablation experiments, each removing a
+distinct component. In Tab. 4, ‘w/o contrastive’ removes the
+uncertainty-aware scaling from the global-local contrastive
+loss, while ‘w/o uncertainty’ disables the uncertainty cali-
+bration in uncertainty-guided entailment loss. Finally, ‘w/o
+entropy’ removes the entropy regularization from the uncer-
+tainty calibration module. The results demonstrate that all
+components of our method are essential. All experiments
+were conducted with ViT-S/16 architecture.
+5. Conclusion
+We propose UNCHA, a hyperbolic VLM that integrates
+part-to-whole representativeness, quantified as hyperbolic
+uncertainty, into both contrastive and entailment learn-
+ing for hierarchy-aware compositional modeling. By fur-
+ther calibrating uncertainty using part-to-whole entailment
+relationships and an entropy based regularization term,
+our method enables efficient use of hyperbolic space and
+yields well-calibrated part-whole orderings. Extensive ex-
+periments on zero-shot classification, retrieval, and multi-
+label benchmarks, including complex multi-object scenes,
+demonstrate state-of-the-art performance, highlighting the
+importance of uncertainty-guided alignment for composi-
+tional understanding in vision-language learning.
+36868
+
+
+Acknowledgements This work was supported in part by
+Institute of Information & communications Technology
+Planning & Evaluation (IITP) grants funded by the Ko-
+rea government(MSIT) [No.RS-2021-II211343, Artificial
+Intelligence Graduate School Program (Seoul National
+University) / No.RS-2025-02314125, Effective Human-
+Machine Teaming With Multimodal Hazy Oracle Models],
+the National Research Foundation of Korea(NRF) grants
+funded by the Korea government(MSIT) (Nos. RS-2022-
+NR067592, RS-2025-02263628), the AI Computing Infras-
+tructure Enhancement (GPU Rental Support) User Sup-
+port Program funded by the Ministry of Science and ICT
+(MSIT), Republic of Korea (No.
+RQT-25-120066), the
+BK21 FOUR program of the Education and Research Pro-
+gram for Future ICT Pioneers, Seoul National University
+and AI-Bio Research Grant through Seoul National Univer-
+sity.
+References
+[1] Reza Abbasi,
+Ali Nazari,
+Aminreza Sefid,
+Moham-
+madali Banayeeanzade, Mohammad Hossein Rohban, and
+Mahdieh Soleymani Baghshah. Clip under the microscope:
+A fine-grained analysis of multi-object representation.
+In
+CVPR, 2025. 1, 2, 7
+[2] Mina Ghadimi Atigh, Julian Schoep, Erman Acar, Nanne van
+Noord, and Pascal Mettes. Hyperbolic image segmentation.
+In CVPR, 2022. 2, 3, 4
+[3] Ines Chami,
+Zhitao Ying,
+Christopher R´e,
+and Jure
+Leskovec. Hyperbolic graph convolutional neural networks.
+NeurIPS, 32, 2019. 3
+[4] Ines Chami, Albert Gu, Vaggos Chatziafratis, and Christo-
+pher R´e. From trees to continuous embeddings and back:
+Hyperbolic hierarchical clustering. NeurIPS, 2020. 1
+[5] Minshuo Chen, Yu Bai, Jason D Lee, Tuo Zhao, Huan Wang,
+Caiming Xiong, and Richard Socher. Towards understand-
+ing hierarchical learning: Benefits of neural representations.
+NeurIPS, 2020. 1
+[6] Jia Deng, Wei Dong, Richard Socher, Li-Jia Li, Kai Li,
+and Li Fei-Fei. Imagenet: A large-scale hierarchical image
+database. In CVPR, 2009. 7
+[7] Karan Desai, Maximilian Nickel, Tanmay Rajpurohit, Justin
+Johnson, and Shanmukha Ramakrishna Vedantam. Hyper-
+bolic image-text representations. In ICML, 2023. 1, 2, 3, 4,
+5, 6, 7, 8
+[8] Bhuwan
+Dhingra,
+Christopher
+Shallue,
+Mohammad
+Norouzi, Andrew Dai, and George Dahl. Embedding text in
+hyperbolic spaces. In Proceedings of the Twelfth Workshop
+on Graph-Based Methods for Natural Language Processing
+(TextGraphs-12), 2018. 1, 3
+[9] Mark Everingham, Luc Van Gool, Christopher KI Williams,
+John Winn, and Andrew Zisserman. The pascal visual object
+classes (voc) challenge. IJCV, 2010. 7
+[10] Luca Franco, Paolo Mandica, Konstantinos Kallidromitis,
+Devin Guillory, Yu-Teng Li, Trevor Darrell, and Fabio
+Galasso. Hyperbolic active learning for semantic segmen-
+tation under domain shift. ICML, 2023. 2, 3, 4
+[11] Octavian Ganea, Gary B´ecigneul, and Thomas Hofmann.
+Hyperbolic entailment cones for learning hierarchical em-
+beddings. In International conference on machine learning,
+pages 1646–1655. PMLR, 2018. 1, 3
+[12] Yunhao Ge, Jie Ren, Andrew Gallagher, Yuxiao Wang,
+Ming-Hsuan Yang, Hartwig Adam, Laurent Itti, Balaji Lak-
+shminarayanan, and Jiaping Zhao. Improving zero-shot gen-
+eralization and robustness of multi-modal models. In CVPR,
+2023. 2
+[13] Yves Grandvalet and Yoshua Bengio.
+Semi-supervised
+learning by entropy minimization. NeurIPS, 2004. 5
+[14] Neil He, Jiahong Liu, Buze Zhang, Ngoc Bui, Ali Maa-
+touk, Menglin Yang, Irwin King, Melanie Weber, and
+Rex Ying. Position: Beyond euclidean–foundation models
+should embrace non-euclidean geometries. arXiv preprint
+arXiv:2504.08896, 2025. 1
+[15] Neil He, Hiren Madhu, Ngoc Bui, Menglin Yang, and Rex
+Ying. Hyperbolic deep learning for foundation models: A
+survey. In Proceedings of the 31st ACM SIGKDD Confer-
+ence on Knowledge Discovery and Data Mining V. 2, 2025.
+3
+[16] Neil He, Menglin Yang, and Rex Ying. Hypercore: The core
+framework for building hyperbolic foundation models with
+comprehensive modules. arXiv preprint arXiv:2504.08912,
+2025. 3
+[17] Xiangteng He and Yuxin Peng. Fine-grained image classifi-
+cation via combining vision and language. In CVPR, 2017.
+2
+[18] Geoffrey Hinton.
+Some demonstrations of the effects of
+structural descriptions in mental imagery. Cognitive Science,
+1979. 1
+[19] Geoffrey Hinton. How to represent part-whole hierarchies in
+a neural network. Neural Computation, 2023. 1
+[20] Zhicheng Huang, Zhaoyang Zeng, Bei Liu, Dongmei Fu,
+and Jianlong Fu.
+Pixel-bert: Aligning image pixels with
+text by deep multi-modal transformers.
+arXiv preprint
+arXiv:2004.00849, 2020. 2
+[21] Sarah Ibrahimi, Mina Ghadimi Atigh, Nanne Van Noord,
+Pascal Mettes, and Marcel Worring. Intriguing properties of
+hyperbolic embeddings in vision-language models. TMLR,
+2024. 2
+[22] Takuya Ito, Tim Klinger, Doug Schultz, John Murray,
+Michael Cole, and Mattia Rigotti. Compositional generaliza-
+tion through abstract representations in human and artificial
+neural networks. NeurIPS, 2022. 1
+[23] Chao Jia, Yinfei Yang, Ye Xia, Yi-Ting Chen, Zarana Parekh,
+Hieu Pham, Quoc Le, Yun-Hsuan Sung, Zhen Li, and Tom
+Duerig. Scaling up visual and vision-language representation
+learning with noisy text supervision. In ICML, pages 4904–
+4916. PMLR, 2021. 1, 2
+[24] Lei Jin, Gen Luo, Yiyi Zhou, Xiaoshuai Sun, Guannan Jiang,
+Annan Shu, and Rongrong Ji. Refclip: A universal teacher
+for weakly supervised referring expression comprehension.
+In CVPR, 2023. 2
+[25] Andrej Karpathy and Li Fei-Fei. Deep visual-semantic align-
+ments for generating image descriptions. In CVPR, 2015. 6
+36869
+
+
+[26] Valentin Khrulkov, Leyla Mirvakhabova, Evgeniya Usti-
+nova, Ivan Oseledets, and Victor Lempitsky. Hyperbolic im-
+age embeddings. In CVPR, 2020. 1, 3
+[27] Ryan Kiros, Ruslan Salakhutdinov, and Richard S Zemel.
+Unifying visual-semantic embeddings with multimodal neu-
+ral language models. arXiv preprint arXiv:1411.2539, 2014.
+2
+[28] Matthew Le, Stephen Roller, Laetitia Papaxanthos, Douwe
+Kiela, and Maximilian Nickel. Inferring concept hierarchies
+from text corpora via hyperbolic embeddings. In Proceed-
+ings of the 57th annual meeting of the association for com-
+putational linguistics, 2019. 3, 5
+[29] Junnan Li, Ramprasaath Selvaraju, Akhilesh Gotmare,
+Shafiq Joty, Caiming Xiong, and Steven Chu Hong Hoi.
+Align before fuse: Vision and language representation learn-
+ing with momentum distillation. Advances in neural infor-
+mation processing systems, 34:9694–9705, 2021. 1, 2
+[30] Tsung-Yi Lin, Michael Maire, Serge Belongie, James Hays,
+Pietro Perona, Deva Ramanan, Piotr Doll´ar, and C Lawrence
+Zitnick. Microsoft coco: Common objects in context. In
+ECCV, 2014. 6, 7
+[31] Qi Liu, Maximilian Nickel, and Douwe Kiela. Hyperbolic
+graph neural networks. NeurIPS, 32, 2019. 3
+[32] Jiasen Lu, Dhruv Batra, Devi Parikh, and Stefan Lee. Vilbert:
+Pretraining task-agnostic visiolinguistic representations for
+vision-and-language tasks. NeurIPS, 32, 2019. 2
+[33] Andrew L Maas, Awni Y Hannun, Andrew Y Ng, et al. Rec-
+tifier nonlinearities improve neural network acoustic models.
+In ICML, 2013. 5
+[34] Paolo Mandica, Luca Franco, Konstantinos Kallidromitis,
+Suzanne Petryk, and Fabio Galasso.
+Hyperbolic learning
+with multimodal large language models. In ECCV, 2024.
+2, 3, 4
+[35] Maximillian Nickel and Douwe Kiela. Poincar´e embeddings
+for learning hierarchical representations. NeurIPS, 2017. 1,
+2
+[36] Avik Pal, Max van Spengler, Guido Maria D’Amely di Me-
+lendugno, Alessandro Flaborea, Fabio Galasso, and Pascal
+Mettes. Compositional entailment learning for hyperbolic
+vision-language models. ICLR, 2024. 1, 2, 3, 4, 5, 6, 7, 8
+[37] Wei Peng, Tuomas Varanka, Abdelrahman Mostafa, Henglin
+Shi, and Guoying Zhao. Hyperbolic deep neural networks: A
+survey. IEEE Transactions on pattern analysis and machine
+intelligence, 2021. 2
+[38] Zhiliang Peng, Wenhui Wang, Li Dong, Yaru Hao, Shaohan
+Huang, Shuming Ma, and Furu Wei. Kosmos-2: Ground-
+ing multimodal large language models to the world. arXiv
+preprint arXiv:2306.14824, 2023. 6, 7
+[39] Sarah Pratt, Ian Covert, Rosanne Liu, and Ali Farhadi. What
+does a platypus look like? generating customized prompts
+for zero-shot image classification. In CVPR, 2023. 2
+[40] Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya
+Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sastry,
+Amanda Askell, Pamela Mishkin, Jack Clark, et al. Learn-
+ing transferable visual models from natural language super-
+vision. In ICML, 2021. 1, 2, 6, 7, 8
+[41] Sameera Ramasinghe, Violetta Shevchenko, Gil Avraham,
+and Ajanthan Thalaiyasingam. Accept the modality gap: An
+exploration in the hyperbolic space. In CVPR, 2024. 1, 2, 3,
+5, 6, 7, 8
+[42] Zhou Ren, Hailin Jin, Zhe Lin, Chen Fang, and Alan Yuille.
+Joint image-text representation by gaussian visual-semantic
+embedding. In Proceedings of the 24th ACM international
+conference on Multimedia, 2016. 2
+[43] Olga Russakovsky, Jia Deng, Hao Su, Jonathan Krause, San-
+jeev Satheesh, Sean Ma, Zhiheng Huang, Andrej Karpathy,
+Aditya Khosla, Michael Bernstein, et al.
+Imagenet large
+scale visual recognition challenge. IJCV, 2015. 6, 8
+[44] Aneeshan Sain, Ayan Kumar Bhunia, Pinaki Nath Chowd-
+hury, Subhadeep Koley, Tao Xiang, and Yi-Zhe Song. Clip
+for all things zero-shot sketch-based image retrieval, fine-
+grained or not. In CVPR, 2023. 2
+[45] Frederic Sala, Chris De Sa, Albert Gu, and Christopher
+R´e. Representation tradeoffs for hyperbolic embeddings. In
+ICML, 2018. 1, 3
+[46] Sayan Deb Sarkar, Ondrej Miksik, Marc Pollefeys, Daniel
+Barath, and Iro Armeni. Crossover: 3d scene cross-modal
+alignment. In CVPR, 2025. 2
+[47] Aditya Sinha, Siqi Zeng, Makoto Yamada, and Han Zhao.
+Learning structured representations with hyperbolic embed-
+dings. NeurIPS, 2024. 3
+[48] Alexandru Tifrea, Gary B´ecigneul, and Octavian-Eugen
+Ganea.
+Poincar\’e glove: Hyperbolic word embeddings.
+arXiv preprint arXiv:1810.06546, 2018. 3
+[49] Jack Urbanek,
+Florian Bordes,
+Pietro Astolfi,
+Mary
+Williamson, Vasu Sharma, and Adriana Romero-Soriano. A
+picture is worth more than 77 text tokens: Evaluating clip-
+style models on dense captions. In CVPR, 2024. 7, 8
+[50] Ivan Vendrov, Ryan Kiros, Sanja Fidler, and Raquel Urtasun.
+Order-embeddings of images and language. arXiv preprint
+arXiv:1511.06361, 2015. 1, 3
+[51] James Whittington, Timothy Muller, Shirely Mark, Caswell
+Barry, and Tim Behrens. Generalisation of structural knowl-
+edge in the hippocampal-entorhinal system. NeurIPS, 2018.
+1
+[52] Hao Wu, Jiayuan Mao, Yufeng Zhang, Yuning Jiang, Lei
+Li, Weiwei Sun, and Wei-Ying Ma. Unified visual-semantic
+embeddings: Bridging vision and language with structured
+meaning representations. In CVPR, 2019. 2
+[53] Shuchen Wu, No´emi ´Elteto, Ishita Dasgupta, and Eric
+Schulz. Learning structure from the ground up—hierarchical
+representation learning by chunking. NeurIPS, 2022. 1
+[54] Shiyang Yan, Zongxuan Liu, and Lin Xu. Hyp-uml: Hyper-
+bolic image retrieval with uncertainty-aware metric learning.
+arXiv preprint arXiv:2310.08390, 2023. 2, 3, 4
+[55] Peter Young, Alice Lai, Micah Hodosh, and Julia Hocken-
+maier. From image descriptions to visual denotations: New
+similarity metrics for semantic inference over event descrip-
+tions. Transactions of the association for computational lin-
+guistics, 2014. 6
+36870

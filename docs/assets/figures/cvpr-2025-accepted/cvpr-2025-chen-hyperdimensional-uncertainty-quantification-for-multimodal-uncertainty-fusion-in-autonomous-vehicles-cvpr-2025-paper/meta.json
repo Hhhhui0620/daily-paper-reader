@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "extractor": "pymupdf-images",
+  "figures": [
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-chen-hyperdimensional-uncertainty-quantification-for-multimodal-uncertainty-fusion-in-autonomous-vehicles-cvpr-2025-paper/fig-001.webp",
+      "caption": "",
+      "page": 3,
+      "index": 1,
+      "width": 2627,
+      "height": 901
+    },
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-chen-hyperdimensional-uncertainty-quantification-for-multimodal-uncertainty-fusion-in-autonomous-vehicles-cvpr-2025-paper/fig-002.webp",
+      "caption": "",
+      "page": 6,
+      "index": 2,
+      "width": 4400,
+      "height": 1870
+    },
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-chen-hyperdimensional-uncertainty-quantification-for-multimodal-uncertainty-fusion-in-autonomous-vehicles-cvpr-2025-paper/fig-003.webp",
+      "caption": "",
+      "page": 7,
+      "index": 3,
+      "width": 1988,
+      "height": 1190
+    },
+    {
+      "url": "assets/figures/cvpr-2025-accepted/cvpr-2025-chen-hyperdimensional-uncertainty-quantification-for-multimodal-uncertainty-fusion-in-autonomous-vehicles-cvpr-2025-paper/fig-004.webp",
+      "caption": "",
+      "page": 8,
+      "index": 4,
+      "width": 2294,
+      "height": 1162
+    }
+  ]
+}

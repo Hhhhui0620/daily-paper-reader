@@ -1,0 +1,295 @@
+Title: Look Before You Fuse: 2D-Guided Cross-Modal Alignment for Robust 3D Detection
+
+URL Source: https://openaccess.thecvf.com/content/CVPR2026/papers/Li_Look_Before_You_Fuse_2D-Guided_Cross-Modal_Alignment_for_Robust_3D_CVPR_2026_paper.pdf
+
+Published Time: Sat, 16 May 2026 16:47:40 GMT
+
+Number of Pages: 10
+
+Markdown Content:
+# Look Before You Fuse: 2D-Guided Cross-Modal Alignment for Robust 3D Detection 
+
+# Xiang Li 1,2 Zhangchi Hu 2 Xu Xiao 1,2 Bin Kong 1†
+
+> 1
+
+# Institute of Intelligent Machines, Hefei Institutes of Physical Science, Chinese Academy of Sciences 
+
+> 2
+
+# University of Science and Technology of China 
+
+{xiangli, HuZhangchi, xiao xu }@mail.ustc.edu.cn, bkong@iim.ac.cn 
+
+Figure 1. LiDAR points from the distant wall (cyan) are incorrectly projected onto the foreground vehicle (which should appear red) due to a sharp depth change. In contrast, the boundary between background objects like the wall (light cyan) and garage (dark cyan) is correctly projected thanks to a gradual depth transition. This shows that misalignment is most severe at abrupt foreground-background boundaries. And our motivation is to rectify misaligned points while maintaining already aligned points. 
+
+# Abstract 
+
+Integrating LiDAR and camera inputs into a unified Bird’s-Eye-View (BEV) representation is crucial for enhancing 3D perception capabilities of autonomous vehicles. However, existing methods suffer from spatial misalignment between LiDAR and camera features, which causes inaccurate depth supervision in camera branch and erroneous fusion dur-ing cross-modal feature aggregation. The root cause of this misalignment lies in projection errors, stemming from cali-bration inaccuracies and rolling shutter effect. The key in-sight of this work is that locations of these projection er- 
+
+> †Corresponding author.
+
+rors are not random but highly predictable, as they are con-centrated at object-background boundaries which 2D detec-tors can reliably identify. Based on this, our main motiva-tion is to utilize 2D object priors to pre-align cross-modal features before fusion. To address local misalignment, we propose Prior Guided Depth Calibration (PGDC) , which leverages 2D priors to alleviate misalignment and preserve correct cross-modal feature pairs. To resolve global mis-alignment, we introduce Discontinuity Aware Geometric Fusion (DAGF) to suppress residual noise from PGDC and explicitly enhance sharp depth transitions at object-background boundaries, yielding a structurally aware rep-resentation. To effectively utilize these aligned represen-This CVPR paper is the Open Access version, provided by the Computer Vision Foundation. Except for this watermark, it is identical to the accepted version; the final published version of the proceedings is available on IEEE Xplore. 11589 tations, we incorporate Structural Guidance Depth Mod-ulator (SGDM) , using a gated attention mechanism to efficiently fuse aligned depth and image features. Our method achieves SOTA performance on nuScenes valida-tion dataset, with its mAP and NDS reaching 71.5% and 73.6% respectively. Additionally, on the Argoverse 2 vali-dation set, we achieve a competitive mAP of 41.7%. 
+
+# 1. Introduction 
+
+Robust 3D perception is fundamental to autonomous driv-ing, where effective sensor fusion is essential as different modalities offer complementary strengths. Images provide rich semantic information but lack accurate depth, while point clouds offer precise geometry and depth but are sparse and lack semantic context. Harnessing these complemen-tary strengths while mitigating their limitations is key to building reliable perception systems. To fully leverage complementary information from cam-era and LiDAR, current architectures either use LiDAR for explicit supervision of the 2D-to-3D transformation process [13], or integrate two complementary information sources by fusing LiDAR and camera BEV representations [15, 20]. While effective, these methods are fundamentally chal-lenged by the inherent spatial misalignment between sen-sors [40]. Although the performance of these methods has a relatively high theoretical upper bound, reaching this bound requires perfect sensor alignment, which is frequently vi-olated by projection errors. This discrepancy leads to two critical issues. First, it corrupts depth supervision signal, providing noisy or incorrect depth labels to image branch. Second, during cross-modal aggregation, spatial misalign-ment causes the fusion module to associate semantically mismatched image and geometric features, thereby degrad-ing quality and reliability of the final fused representation. Existing approaches have attempted to mitigate cross-modal misalignment, yet each suffers from significant drawbacks. To ensure feature consistency, methods like transfusion [1] incorporate attention mechanism to query features of a specific modality, avoiding direct projection errors. While this effectively sidesteps the main cause of misalignment, it comes at the cost of sacrificing crucial con-textual information. Other approaches like MetaBEV [8] and RobBEV [35] attempt to mitigate misalignment effects by designing more robust and adaptive fusion modules. Al-though these modules are more resilient to inconsistent in-puts, they cannot correct the initial geometric errors from the 2D-3D view transformation. In essence, they are skill-fully fusing features that have already been misplaced. Fi-nally, global alignment techniques like GraphBEV [31] di-rectly address the geometric problem, effectively eliminat-ing misalignment in areas with steep depth gradients. How-ever, they tend to unnecessarily smooth geometrically stable regions where misalignment is negligible or even entirely absent, thereby incorrectly modifying already-correct depth values, as illustrated in Fig. 1(B). Prevailing methods often overlook that misalignment is not randomly distributed, but originates from two pri-mary sources: extrinsic calibration errors and motion-induced distortions. The resulting geometric projection er-rors are depth-dependent, being negligible for nearby ob-jects but significantly exacerbated at greater depths. This depth-dependent distortion creates the most severe feature misalignment at boundaries between foreground objects and their backgrounds. Our approach is built upon the core insight that critical misalignments are concentrated at foreground-background boundaries where sharp disconti-nuities in depth occur, as illustrated in Fig. 1(A), and we can leverage robust 2D object priors to identify these specific re-gions, locating real misalignment and accurately solving it while maintaining already aligned regions, as illustrated in Fig. 1(C). In this paper, we introduce three synergistic modules. First, to address the misalignment problem at its root, we propose (a) Prior Guided Depth Calibration (PGDC) .Guided by the principle of “Look Before You Fuse”, our ap-proach posits that rather than mitigating the effects of fused, misaligned data, it is more effective to proactively correct geometric inconsistencies using high-level semantic guid-ance before the fusion stage. PGDC actively uses 2D detec-tion proposals as explicit geometric priors to locate and cor-rect misaligned point cloud data, providing a significantly more accurate depth map. However, a corrected sparse map alone is not enough. To enable the network to fully under-stand the scene’s geometric structure, we introduce (b) Dis-continuity Aware Geometric Fusion (DAGF) . DAGF re-fines the PGDC-calibrated depth by masking points that ex-hibit large deviations from the raw depth map, subsequently replacing them with more reliable estimates, fitting the re-gions of sharp depth transition to the object-background boundaries. This self-correction mechanism corrects re-maining misalignments when 2D priors are accurate, and reverts PGDC-induced over-smoothing when 2D priors are flawed. Eventually, DAGF produces a representation of the global depth structure. To effectively utilize these calibrated signals for view transformation, we introduce the (c) Struc-tural Guidance Depth Modulator (SGDM) . This module intelligently fuses image features and dense geometric rep-resentation from DAGF using a gated attention mechanism. Its purpose is to predict a highly accurate depth distribu-tion for each pixel, enabling a more precise projection of features into the final BEV space. The most significant contributions stemming from our work are summarized below: • We reveal that feature misalignment predominantly oc-curs at object-background boundaries and propose Prior 11590 Figure 2. Overview of our proposed framework. (a) Prior Guided Depth Calibration (PGDC) and (b) Discontinuity Aware Geometric Fusion (DAGF), proactively mitigate multi-sensor feature misalignment before view transformation. And (c) Structural Guidance Depth Modulator (SGDM) intelligently fuses image features and dense geometric representation, predicting an accurate depth distribution. Fi-nally, fusing rectified camera BEV features with LiDAR BEV features leads to robust 3D detection. 
+
+Guided Depth Calibration (PGDC) , a novel module that actively uses 2D priors to locate and resolve such misalignment, thereby providing more accurate depth in-formation. To the best of our knowledge, we are among the first to explicitly use 2D object detection priors to lo-cally calibrate LiDAR-camera alignment errors before fu-sion, with a focus on preserving depth discontinuities. • Capitalizing on the intrinsic correlation between depth discontinuities and object-background boundaries, we introduce the Discontinuity Aware Geometric Fusion (DAGF) module that explicitly optimizes cross-modal feature alignment through discontinuity-aware mecha-nisms, significantly improving geometric consistency in multi-sensor perception. • We introduce the Structural Guidance Depth Modu-lator (SGDM) , an efficient attention-based module that fuses calibrated visual and geometric cues to generate an accurate depth distribution for view transformation. • Extensive experiments are conducted on nuScenes Dataset, and our method achieves state-of-the-art per-formance on nuScenes validation dataset with mAP and NDS of 71.5% and 73.6%. Additionally, we validate the robustness and generalization of our framework on the Argoverse 2 validation set, achieving a competitive mAP of 41.7%. 
+
+# 2. Related Work 
+
+LiDAR-Only 3D Object Detection. LiDAR-based 3D de-tection methods are categorized by their data representation. Point-based methods [14, 26, 27] process raw point clouds with MLPs. Voxel-based methods [5, 16, 43] use sparse 3D convolutions on discretized grids, with efficient pillar-based variants [12] using 2D backbones. Point-voxel hybrid meth-ods [23, 30] combine both for higher accuracy at the cost of greater computational overhead. 
+
+Camera-Only 3D Object Detection. Camera-based 3D detection has shifted toward multi-view systems [36, 42], which outperform monocular methods [22, 25] but increase computational complexity. The Lift-Splat-Shoot (LSS) [24] paradigm, which projects image features into 3D using depth estimation, is a key development. This has inspired frameworks that use LiDAR for depth supervision [28], such as BEVDet [10], and other techniques that distill Li-DAR information [9]. 11591 Figure 3. The Prior Guided Depth Calibration (PGDC) module leverages 2D detection boxes as priors to precisely target and correct the most severe feature misalignments, which are caused by calibration errors and motion distortion. By applying localized smoothing to the point cloud within these detected regions, the module corrects the erroneous depth information. Simultaneously, it enhances the features of these critical image areas. 
+
+LiDAR-Camera Fusion 3D Object Detection. Multi-modal fusion is now the standard for 3D object detection. Fusion strategies have evolved from early point-level meth-ods that augment raw LiDAR points with image features [19, 33, 39], to more advanced feature-level approaches that use attention mechanisms to integrate 3D proposals with image features [7, 29, 32]. The current state-of-the-art pri-marily uses BEV-based fusion [3, 8, 15, 31], which unifies both modalities in a shared bird’s-eye-view space for more efficient and robust cross-modal interaction. 
+
+# 3. Method 
+
+3.1. Framework Overview 
+
+As shown in Fig. 2, our proposed framework is a multi-sensor fusion pipeline built upon the strong BEVFusion [15] baseline, designed to explicitly mitigate feature mis-alignment in Bird’s Eye View (BEV) perception. The framework processes inputs from a set of N surround-view cameras and a 360-degree LiDAR sensor. Our contribution is a combination of three synergistic modules. First, Prior Guided Depth Calibration (PGDC) uses 2D bounding boxes to correct misaligned LiDAR points at object bound-aries, outputting a refined sparse depth map and enhanced image features. Second, Discontinuity Aware Geomet-ric Fusion (DAGF) uses the corrected depth to generate a dense representation that captures reliable geometric struc-ture. Finally, the Structural Guidance Depth Modulator (SGDM) fuses the enhanced image features (from PGDC) and the dense geometric representation (from DAGF) to predict a depth distribution for each camera view. Follow-ing the Lift-Splat-Shoot [24] paradigm, these are projected into a unified BEV feature map, which is then fused with Li-DAR BEV features to produce robust 3D detection results. 
+
+3.2. Prior Guided Depth Calibration (PGDC) 
+
+As shown in Fig. 3, the Prior Guided Depth Calibration (PGDC) module operates independently on each of the N
+
+camera views to correct the initial sparse depth supervision derived from LiDAR. For each view i ∈ { 1, ..., N }, the in-puts are the image features F (i) 
+
+> img
+
+∈ RH×W ×C and the cor-responding sparse depth map D(i) 
+
+> raw
+
+∈ RH×W , which is gen-erated by projecting the LiDAR point cloud into that cam-era’s image plane. To better explain this module, we have divided it into the 2D Guided Depth Align Module and the 
+
+2D Camera Features Enhance Module .First, a 2D detection head provides a set of bounding boxes {B(i) 
+
+> j
+
+} for each image. In 2D Guided Depth Align Module , based on our observation that misalignment is con-centrated at object boundaries, we use these boxes to iso-late critical regions. For each box B(i) 
+
+> j
+
+, we filter the Li-DAR points whose projections fall within it. To mitigate misalignment, we introduce a novel smoothing operation. Instead of simple averaging, our method captures the lo-cal depth structure more effectively. For each LiDAR point projected to a pixel p with depth dp, we first use a KD-Tree to find its 10 nearest neighbors, Np. We then se-lect the 2 neighbors with the smallest depth and the 2 with the largest depth, forming a set of four critical neighbors, 
+
+Ncritical ⊂ N p. This selection strategy is designed to si-multaneously capture the object’s own depth consistency (via the nearest points) and the sharp depth discontinuity at the boundary between the object and the background (via the farthest points), thereby preserving critical information while smoothing noise. The depth of the original point is 11592 concatenated with the depths of these four selected neigh-bors, creating a 5-channel feature map, fp, for that pixel: 
+
+fp = concat (dp, {dq }q∈N critical ) (1) This feature map is then processed through a lightweight convolutional block to produce the final single-channel, smoothed depth value: 
+
+d′
+
+> aligned
+
+(p) = ReLU (BN (Conv (fp))) (2) This process corrects erroneous depth values, resulting in a refined sparse depth map, D(i)
+
+> aligned
+
+.Simultaneously, in 2D Camera Features Enhance Module , we enhance the image features within these crit-ical regions. For each bounding box B(i) 
+
+> j
+
+with a predicted class label k, the corresponding image features are ampli-fied by a class-specific hyperparameter αk. This enhance-ment is applied to all pixels p within the bounding box B(i)
+
+> j
+
+and across all C feature channels. The operation is defined as: 
+
+Fenhanced (p, c ) = αk · Fimg (p, c ) (3) where the value of αk is a class-specific hyperparameter, set based on the object’s typical size. The underlying princi-ple is that smaller objects require a stronger feature boost to ensure their representation is not neglected during fu-sion. Consequently, small classes like pedestrians and traf-fic cones are assigned a higher αk, whereas larger classes such as buses and trucks receive a more moderate value. This allows for a more targeted enhancement, tailoring the amplification intensity to the specific characteristics of each object category. These enhanced features are then processed through a Squeeze-and-Excitation (SE) block to adaptively recalibrate channel-wise feature responses, producing the final en-hanced image features F (i)
+
+> enhanced
+
+. This ensures that the net-work can learn to dynamically emphasize more informative channels for each class-specific enhancement. 
+
+3.3. Discontinuity Aware Geometric Fusion (DAGF) 
+
+The Discontinuity Aware Geometric Fusion (DAGF) mod-ule is engineered to generate a dense and structurally aware depth representation, which serves as a guide for the final depth estimation. For each camera view i, it utilizes two inputs: the original sparse depth map, denoted as D(i)
+
+> raw
+
+, and a refined sparse depth map, D(i)
+
+> aligned
+
+, which is produced by the Prior Guided Depth Calibration (PGDC) module. The module’s operation is structured as a sequential pipeline. First, to mitigate noise via Discrepancy Masking , a dis-crepancy map ∆(i) is computed. This map is defined as the absolute difference between the raw and aligned depth maps: 
+
+∆(i) = |D(i) 
+
+> raw
+
+− D(i)
+
+> aligned
+
+| (4) Pixels where this discrepancy surpasses a threshold τ ,defined as 10% of the pixel’s value in D(i)
+
+> raw
+
+, are consid-ered unreliable and subsequently masked out. This process yields a cleaner, but still sparse, depth map, M (i), where the value of a pixel at coordinates (u, v ) is given by: 
+
+M (i)(u, v ) = 
+
+(
+
+D(i)
+
+> aligned
+
+(u, v ) if ∆(i)(u, v ) ≤ τ
+
+0 if ∆(i)(u, v ) > τ (5) Next, we perform Block-based Densification and Gra-dient Extraction . The sparse map M (i) is divided into non-overlapping 20 × 20 blocks. For each block, we compute two key statistics from the valid (non-zero) points within it: 1. Average Depth ( davg ): The mean of all valid depth val-ues in the block. This captures the block’s general dis-tance and is used for densification. 2. Maximum Gradient ( gmax ): The maximum local depth discontinuity within the block. This is found by first cal-culating an individual gradient for each point in the block (as the max depth difference to its neighbors), and then taking the maximum of these individual gradients. These two statistics are then broadcast to all pixels within their respective blocks, creating a densified depth map D(i) 
+
+> dense
+
+and a densified gradient map G(i)
+
+> dense
+
+. The vi-sualization of these maps is shown in Fig. 4, in which we also show the visualization of comparison between our method and others. Our method effectively addresses the misalignment between LiDAR and camera images. Further-more, in regions with gradual depth changes, it successfully preserves correct depth information while GraphBEV [31] falsely modifies already-correct depth values. The ultimate output of the Discontinuity Aware Geo-metric Fusion (DAGF) module for each view is a multi-channel feature map, F (i) 
+
+> FA
+
+∈ RH×W ×2. This feature map is formed by concatenating the two dense maps: 
+
+F (i) 
+
+> FA
+
+= [ D(i) 
+
+> dense
+
+⊕ G(i)
+
+> dense
+
+] (6) where ⊕ denotes concatenation along the channel dimen-sion. This combined representation provides both smoothed depth information and explicit boundary-aware structural cues to the subsequent Structural Guidance Depth Mod-ulator (SGDM) .The features generated by Discontinuity Aware Geomet-ric Fusion (DAGF) guide final depth prediction, ˆD(i), from SGDM. The training is supervised by a composite loss func-tion that leverages both the dense map and the gradient map. 
+
+Focal Loss. We use the densified map D(i) 
+
+> dense
+
+as direct supervision for the predicted depth ˆD(i). The Focal Loss, 
+
+Lfocal , is the average of a per-pixel loss term, lfocal (u, v ),over all valid pixels: 
+
+Lfocal = 1
+
+|V| 
+
+X
+
+> (u,v )∈V
+
+lfocal (u, v ) (7) 11593 Figure 4. (a) Represents the original projected depth. (b) Represents the projected depth after applying Discrepancy Masking. (c) Shows the block-wise depth map after Block-based Densification; (d), (e), and (f) are the final depth change magnitude maps of different methods after Block-based Gradient Extraction. (g), (h) and (i) are visualization of detection results, in which green boxes are True Positives (TP), solid red boxes are False Positives (FP), and dashed red boxes are False Negatives (FN). It is obvious that our method (f) outperforms GraphBEV (e) and BEVFusion (d) because we accurately delineated regions with drastic depth variations and avoided over-smoothing. 
+
+The per-pixel term is defined as lfocal (u, v ) =
+
+FL ( ˆD(i)(u, v ), D (i)
+
+> dense
+
+(u, v )) . Here, V is the set of all pixel coordinates with a valid (non-zero) depth, and FL (·, ·) de-notes the Focal Loss function. The hyperparameters for the Focal Loss function are set to γ = 2 .0 and α = 0 .25 .
+
+Edge-Critical Loss. To enforce sharp structural bound-aries, the Edge-Critical Loss , Ledge , reuses the per-pixel term lfocal (u, v ) from the Focal Loss. It introduces a weight from the gradient map, G(i)(u, v ), to amplify the penalty at depth discontinuities: 
+
+Ledge = 1
+
+|V| 
+
+X
+
+> (u,v )∈V
+
+G(i)(u, v ) · lfocal (u, v ) (8) This formulation compels the network to prioritize ac-curacy in regions critical to structural integrity. The final training objective is a composite loss, combining these two depth-specific losses with the standard classification and bounding box regression losses: 
+
+Ltotal = Lfocal + Ledge + Lcls + Lbox (9) 
+
+3.4. Structural Guidance Depth Modulator(SGDM) 
+
+As shown in Fig. 2(c), our Structural Guidance Depth Mod-ulator (SGDM) is designed for multi-modal depth estima-tion, intelligently integrating visual features from the cam-era with geometric data from our processed depth represen-tation. The architecture first processes camera and depth features through parallel convolutional layers in order to extract and normalize modality-specific features. These en-coded features are then concatenated and fed into a process-ing block where a gated attention mechanism generates a spatial attention map. This map modulates the initial depth prediction, effectively learning a confidence score for each pixel’s placement in 3D space. Recognizing that the fusion process can dilute the rich semantic information inherent in the camera features, we 11594 Table 1. Performance comparison of 3D object detection methods on the nuScenes validation set across 10 classes: Car (C), Truck (T), Construction Vehicle (CV), Bus (B), Trailer (Tr), Barrier (Ba), Motorcycle (M), Bicycle (Bi), Pedestrian (P), and Traffic Cone (TC). 
+
+Method Present at mAP NDS C T CV B Tr Ba M Bi P TC TransFusion-L [1] CVPR 22 65.5 70.2 86.2 54.8 26.5 70.1 42.3 72.1 69.8 53.9 86.4 70.3 SAFDNet [41] CVPR 24 66.3 71.0 87.6 60.8 26.6 78.0 43.5 69.7 75.5 58.0 87.8 75.0 BEVFusion-PKU [15] NeurIPS 22 67.9 71.0 87.3 59.8 28.9 73.5 41.2 73.8 74.6 59.8 85.4 68.2 LION-Mamba [21] NeurIPS 24 68.0 72.1 87.9 64.9 28.5 77.6 44.4 71.6 75.6 59.4 89.6 80.8 FSHNet [17] CVPR 25 68.1 71.7 88.7 61.4 26.3 79.3 47.8 72.3 76.7 60.5 89.3 78.6 BEVFusion-MIT [20] ICRA 23 68.5 71.4 88.2 61.7 30.2 75.1 41.5 72.5 76.3 64.2 87.5 81.0 UniMamba [11] CVPR 25 68.5 72.6 88.7 64.7 28.7 79.7 47.9 72.3 74.6 59.1 89.7 79.5 M3Net [4] AAAI 25 69.0 72.4 89.0 64.5 30.3 77.9 47.5 73.2 76.5 61.4 89.2 80.4 BEVDiffuser [38] CVPR 25 69.2 71.9 88.5 63.5 31.0 75.3 46.2 73.2 77.5 62.8 87.9 80.5 GraphBEV [31] ECCV 24 70.1 72.9 89.8 64.2 31.2 75.8 43.5 75.6 79.3 66.3 88.6 80.9 Ours - 71.5 73.6 89.8 68.5 35.1 77.2 45.5 78.0 80.5 68.3 90.1 82.0 
+
+Table 2. Performance comparison of 3D object detection methods on the Argoverse 2 validation set. The best result in each column is highlighted in bold .                                                                                                                                                                                        
+
+> Method mAP Vehicle Bus Pedestrian StopSign BoxTruck Bollard C-Barrel Motorcyclist MPC-Sign Motorcycle Bicycle A-Bus SchoolBus TruckCab C-Cone V-Trailer Sign LargeVehicle Stroller Bicyclist Truck Dog VoxelNeXt [6] 30.7 65.2 40.1 42.5 64.9 46.8 40.1 52.3 22.5 38.0 24.1 21.3 56.2 56.0 39.9 38.1 54.8 20.2 38.0 18.2 27.1 36.3 11.5 BEVFusion [15] 38.1 72.1 45.3 48.0 73.5 51.2 43.5 58.9 25.8 42.1 27.3 23.9 61.1 61.3 45.2 42.0 58.2 23.5 41.9 21.0 30.2 40.1 14.8 SAFDNet [41] 39.7 74.3 46.8 49.5 75.1 53.0 45.1 60.3 27.8 43.5 28.5 25.0 63.2 62.9 47.8 43.1 60.1 24.9 43.2 22.5 31.8 41.9 16.2 FSHNet [17] 40.2 75.1 47.1 50.3 76.2 54.9 46.0 62.1 28.5 45.8 29.1 25.4 64.8 64.1 48.9 44.5 61.3 26.0 44.1 23.6 32.5 43.0 17.1 LION [21] 40.7 74.7 47.5 57.1 77.0 55.1 48.3 63.7 29.7 47.3 27.0 25.2 66.9 63.7 44.2 42.5 57.9 22.0 39.3 19.9 28.8 37.7 12.8 M3Net [4] 40.9 74.9 47.8 57.4 77.1 55.3 48.5 63.9 29.9 47.5 28.2 25.4 67.0 64.2 46.8 43.8 59.5 24.0 41.5 21.8 30.5 40.2 15.2 GraphBEV [31] 41.1 75.2 48.0 57.6 77.3 55.7 48.8 64.2 30.1 47.7 29.5 25.8 68.5 64.7 48.2 44.5 62.7 26.2 44.2 23.8 32.6 44.2 17.2
+> Ours 41.7 76.2 49.0 58.5 78.1 56.8 49.8 65.1 31.2 48.5 31.0 26.9 68.1 65.8 50.3 46.0 62.5 27.5 45.8 25.0 33.8 43.7 18.8
+
+introduce a crucial residual connection to preserve the orig-inal camera feature stream. This connection acts as a direct information pathway, carrying the pristine visual features forward and bypassing the fusion block. This architecture thus creates a powerful synergy: the residual path guaran-tees the preservation of critical visual context, while the at-tention gate intelligently modulates the feature map, allow-ing the network to selectively emphasize reliable informa-tion. The final output of this module is a discrete probabil-ity distribution over a set of predefined depth bins for each pixel, framing depth estimation as a more stable, per-pixel classification task. 
+
+# 4. Experiments 
+
+4.1. Dataset and Metrics 
+
+Our experiments utilize two large-scale, multimodal au-tonomous driving datasets. The first is nuScenes [2], which contains 1,000 diverse urban scenes ( 20 seconds each) from Boston and Singapore. It includes 1.4M camera images, 390K LiDAR sweeps, 1.4M RADAR sweeps, and 1.4M annotated 3D bounding boxes spanning 23 object classes, along with rich attributes and HD maps. For this bench-mark, we evaluate using its main metrics: mean Average Precision (mAP) and nuScenes Detection Score (NDS). We also conduct experiments on Argoverse 2 [37], a perception-focused dataset featuring 1,000 scenarios from six distinct U.S. cities. It provides data from seven cameras and two Li-DAR sensors, totaling 700K front-camera images and 20M annotated 3D bounding boxes across 30 object classes. For evaluation on this dataset, we follow its official protocol, primarily using the mAP metric. 
+
+4.2. Implementation Details 
+
+The LiDAR branch utilizes TransFusion-L [1] for feature encoding to generate Bird’s Eye View (BEV) features. Si-multaneously, the camera branch processes input images re-sized and cropped to 448×800 resolution through a Swin Transformer backbone [18] with head counts of 3, 6, 12, and 24, followed by multi-scale feature fusion using FPN. For 2D object detection, a YOLOv9 [34] head is implemented. This combination provides a highly efficient and accurate detector, making it suitable for generating robust 2D priors. The LSS [24] configuration defines frustum ranges with X: [-54m, 54m, 0.3m], Y: [-54m, 54m, 0.3m], Z: [-10m, 10m, 20m], and depth: [1m, 60m, 0.5m]. We implement our net-work in PyTorch, training it on 8 RTX 4090 GPUs. Latency is measured on RTX 4090 GPU. Detailed hyperparameter configurations can be found in Appendix B. 11595 Table 3. Ablation study of our three proposed modules on nuscenes dataset. LT is an abbreviation for latency. 
+
+PGDC DAGF SGDM mAP (%) NDS (%) LT (ms) 
+
+× × × 67.9 71.0 +0.0 
+
+✓ × ✓ 69.8 72.5 +13.0 
+
+× ✓ ✓ 69.0 71.6 +7.0 
+
+✓ ✓ ✓ 71.5 73.6 +15.0 
+
+> Table 4. Granular ablation study. We separate PGDC into DAM: Depth Align Module and FEM: Feature Enhance Module.
+
+DAM FEM Ddense Gdense mAP (%) NDS (%) 
+
+× × × × 67.9 71.0 
+
+✓ × × × 69.4 72.1 
+
+✓ ✓ × × 69.8 72.5 
+
+✓ ✓ ✓ × 70.8 73.1 
+
+✓ ✓ ✓ ✓ 71.5 73.6 
+
+> Table 5. Ablation study on the impact of 2D detectors.
+
+2D Prior Source mAP (%) NDS (%) 
+
+Random Priors 68.5 71.2 No 2D Priors 69.0 71.6 Full-Image Prior 69.4 71.8 YOLO-X Priors 70.3 72.5 
+
+Realistic 2D Priors (YOLOv9) 71.5 73.6 Ground Truth 2D Priors 73.5 74.2 
+
+> Table 6. Impact of different 2D prior qualities on PGDC module configurations.
+
+Module 2D Prior Source mAP (%) NDS (%) 
+
+DAM No Priors 69.0 71.6 Random Priors 69.1 71.8 Full-Image Prior 69.9 72.0 Full Model No Priors 69.0 71.6 Random Priors 68.5 71.2 Full-Image Prior 69.4 71.8 FEM No Priors 69.0 71.6 Random Priors 67.4 70.1 Full-Image Prior 68.6 71.3 
+
+4.3. Comparison Results 
+
+We evaluate our proposed framework against a comprehen-sive set of recent state-of-the-art (SOTA) 3D object detec-tion methods on two challenging, large-scale benchmarks: nuScenes and argoverse2, as detailed in Tab. 1 and Tab. 2. Our method achieves a new state-of-the-art performance on the nuScenes validation set, reaching 71.5% mAP and 
+
+73.6% NDS with negligible increment of inference time. This result surpasses previous leading methods, including GraphBEV [31] (70.1% mAP, 72.9% NDS), BEVDiffuser [38] (69.2% mAP, 71.9% NDS), and the strong BEVFusion-PKU [15] baseline (67.9% mAP, 71.0% NDS). 
+
+4.4. Ablation Study 
+
+We adopt BEVFusion-PKU [15] as baseline to evaluate our proposed modules on nuscenes dataset. As shown in Tab. 3, each module individually improves performance. Our DAGF module relies on PGDC; for the DAGF-only ab-lation, we modified it to use the original depth map directly. The results reveal a strong synergistic effect between PGDC and DAGF, where their combined gain exceeds the sum of their individual contributions. For more specific lantency analysis, please refer to Appendix C. To further analyze component contributions, Tab. 4 presents a granular ablation. We incrementally test PGDC’s functions, the Depth Align Module (DAM) and the Fea-ture Enhance Module (FEM), and DAGF’s representations (Ddense and Gdense ). The results show DAM provides the most significant initial boost. FEM offers a further gain, followed by the dense depth representation. Finally, the gradient representation pushes the model to its peak per-formance. Finally, to isolate the impact of 2D detector accuracy, Tab. 5 shows an ablation study on 2D prior quality and Tab. 6 gives a deeper insight on how 2D priors affect spe-cific PGDC modules. The results demonstrate that while performance generally scales with the quality of the 2D pri-ors, our method is notably robust. Even with completely random priors, the model’s performance is not significantly harmed. Furthermore, using a coarse prior that covers the full image still brings an improvement over using no prior at all. The system maintains structural accuracy even when faulty 2D priors cause the PGDC to falsely over-smooth the correct depth. This is because after the DAGF module re-moves the incorrectly smoothed points, refilling the bound-ary regions accurately preserves the point cloud’s structure. 
+
+# 5. Conclusion 
+
+In this work, we address the critical issue of LiDAR-camera feature misalignment, most severe at object-background boundaries due to depth-dependent projection errors. To proactively correct these errors stemming from calibration and motion, our framework introduces three novel compo-nents. PGDC leverages 2D detection priors to correct depth information in critical regions. DAGF then creates a dense, structurally aware representation. Finally, the SGDM intel-ligently fuses visual and geometric cues to predict a highly accurate depth distribution for view transformation, effec-tively mitigating artifacts in the final BEV space. 11596 Acknowledgements 
+
+This work was supported in part by the Anhui En-gineering Research Center for Intelligent Driving Technology and Application, the Jianghuai Ad-vance Technology Center, and the Key Science &Technology Project of Anhui Province under Grant Nos. 202523f12050009 and 202523j08050018. 
+
+# References 
+
+[1] Xuyang Bai, Zeyu Hu, Xinge Zhu, Qingqiu Huang, Yilun Chen, Hongbo Fu, and Chiew-Lan Tai. Transfusion: Ro-bust lidar-camera fusion for 3d object detection with trans-formers. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 1090–1099, 2022. 2, 7 [2] Holger Caesar, Varun Bankiti, Alex H Lang, Sourabh Vora, Venice Erin Liong, Qiang Xu, Anush Krishnan, Yu Pan, Gi-ancarlo Baldan, and Oscar Beijbom. nuscenes: A multi-modal dataset for autonomous driving. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 11621–11631, 2020. 7 [3] Qi Cai, Yingwei Pan, Ting Yao, Chong-Wah Ngo, and Tao Mei. Objectfusion: Multi-modal 3d object detection with object-centric fusion. In Proceedings of the IEEE/CVF In-ternational Conference on Computer Vision , pages 18067– 18076, 2023. 4 [4] Xuesong Chen, Shaoshuai Shi, Tao Ma, Jingqiu Zhou, Si-mon See, Ka Chun Cheung, and Hongsheng Li. M3net: Mul-timodal multi-task learning for 3d detection, segmentation, and occupancy prediction in autonomous driving. In Pro-ceedings of the AAAI Conference on Artificial Intelligence ,pages 2275–2283, 2025. 7 [5] Yukang Chen, Jianhui Liu, Xiangyu Zhang, Xiaojuan Qi, and Jiaya Jia. Largekernel3d: Scaling up kernels in 3d sparse cnns. In Proceedings of the IEEE/CVF conference on com-puter vision and pattern recognition , pages 13488–13498, 2023. 3 [6] Yukang Chen, Jianhui Liu, Xiangyu Zhang, Xiaojuan Qi, and Jiaya Jia. Voxelnext: Fully sparse voxelnet for 3d object de-tection and tracking. In Proceedings of the IEEE/CVF Con-ference on Computer Vision and Pattern Recognition , pages 21674–21683, 2023. 7 [7] Zehui Chen, Zhenyu Li, Shiquan Zhang, Liangji Fang, Qin-hong Jiang, and Feng Zhao. Deformable feature aggregation for dynamic multi-modal 3d object detection. In European conference on computer vision , pages 628–644. Springer, 2022. 4 [8] Chongjian Ge, Junsong Chen, Enze Xie, Zhongdao Wang, Lanqing Hong, Huchuan Lu, Zhenguo Li, and Ping Luo. Metabev: Solving sensor failures for 3d detection and map segmentation. In Proceedings of the IEEE/CVF Interna-tional Conference on Computer Vision , pages 8721–8731, 2023. 2, 4 [9] Kun Guo and Qiang Ling. Promptdet: A lightweight 3d ob-ject detection framework with lidar prompts. In Proceed-ings of the AAAI Conference on Artificial Intelligence , pages 3266–3274, 2025. 3 [10] Junjie Huang and Guan Huang. Bevdet4d: Exploit tempo-ral cues in multi-camera 3d object detection. arXiv preprint arXiv:2203.17054 , 2022. 3 [11] Xin Jin, Haisheng Su, Kai Liu, Cong Ma, Wei Wu, Fei Hui, and Junchi Yan. Unimamba: Unified spatial-channel rep-resentation learning with group-efficient mamba for lidar-based 3d object detection. In Proceedings of the Computer Vision and Pattern Recognition Conference , pages 1407– 1417, 2025. 7 [12] Alex H Lang, Sourabh Vora, Holger Caesar, Lubing Zhou, Jiong Yang, and Oscar Beijbom. Pointpillars: Fast encoders for object detection from point clouds. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 12697–12705, 2019. 3 [13] Yinhao Li, Zheng Ge, Guanyi Yu, Jinrong Yang, Zengran Wang, Yukang Shi, Jianjian Sun, and Zeming Li. Bevdepth: Acquisition of reliable depth for multi-view 3d object detec-tion. In Proceedings of the AAAI conference on artificial intelligence , pages 1477–1485, 2023. 2 [14] Zhichao Li, Feng Wang, and Naiyan Wang. Lidar r-cnn: An efficient and universal 3d object detector. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 7546–7555, 2021. 3 [15] Tingting Liang, Hongwei Xie, Kaicheng Yu, Zhongyu Xia, Zhiwei Lin, Yongtao Wang, Tao Tang, Bing Wang, and Zhi Tang. Bevfusion: A simple and robust lidar-camera fusion framework. Advances in Neural Information Processing Sys-tems , 35:10421–10434, 2022. 2, 4, 7, 8 [16] Lin Liu, Ziying Song, Qiming Xia, Feiyang Jia, Caiyan Jia, Lei Yang, Yan Gong, and Hongyu Pan. Sparsedet: a sim-ple and effective framework for fully sparse lidar-based 3d object detection. IEEE Transactions on Geoscience and Re-mote Sensing , 2024. 3 [17] Shuai Liu, Mingyue Cui, Boyang Li, Quanmin Liang, Tinghe Hong, Kai Huang, and Yunxiao Shan. Fshnet: Fully sparse hybrid network for 3d object detection. In Proceed-ings of the Computer Vision and Pattern Recognition Con-ference , pages 8900–8909, 2025. 7 [18] Ze Liu, Yutong Lin, Yue Cao, Han Hu, Yixuan Wei, Zheng Zhang, Stephen Lin, and Baining Guo. Swin transformer: Hierarchical vision transformer using shifted windows. In 
+
+2021 IEEE/CVF International Conference on Computer Vi-sion (ICCV) , 2021. 7 [19] Zhe Liu, Tengteng Huang, Bingling Li, Xiwu Chen, Xi Wang, and Xiang Bai. Epnet++: Cascade bi-directional fu-sion for multi-modal 3d object detection. IEEE transactions on pattern analysis and machine intelligence , 45(7):8324– 8341, 2022. 4 [20] Zhijian Liu, Haotian Tang, Alexander Amini, Xinyu Yang, Huizi Mao, Daniela L Rus, and Song Han. Bevfusion: Multi-task multi-sensor fusion with unified bird’s-eye view repre-sentation. In 2023 IEEE international conference on robotics and automation (ICRA) , pages 2774–2781. IEEE, 2023. 2, 7 [21] Zhe Liu, Jinghua Hou, Xinyu Wang, Xiaoqing Ye, Jingdong Wang, Hengshuang Zhao, and Xiang Bai. Lion: Linear 11597 group rnn for 3d object detection in point clouds. Advances in Neural Information Processing Systems , 37:13601–13626, 2024. 7 [22] Yan Lu, Xinzhu Ma, Lei Yang, Tianzhu Zhang, Yating Liu, Qi Chu, Junjie Yan, and Wanli Ouyang. Geometry uncer-tainty projection network for monocular 3d object detection. In Proceedings of the IEEE/CVF International Conference on Computer Vision , pages 3111–3121, 2021. 3 [23] Zhenwei Miao, Jikai Chen, Hongyu Pan, Ruiwen Zhang, Kaixuan Liu, Peihan Hao, Jun Zhu, Yang Wang, and Xin Zhan. Pvgnet: A bottom-up one-stage 3d object detec-tor with integrated multi-level features. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 3279–3288, 2021. 3 [24] Jonah Philion and Sanja Fidler. Lift, splat, shoot: Encod-ing images from arbitrary camera rigs by implicitly unpro-jecting to 3d. In Computer Vision–ECCV 2020: 16th Euro-pean Conference, Glasgow, UK, August 23–28, 2020, Pro-ceedings, Part XIV 16 , pages 194–210. Springer, 2020. 3, 4, 7[25] Fanqi Pu, Yifan Wang, Jiru Deng, and Wenming Yang. Mon-odgp: Monocular 3d object detection with decoupled-query and geometry-error priors. In Proceedings of the Computer Vision and Pattern Recognition Conference , pages 6520– 6530, 2025. 3 [26] Charles Ruizhongtai Qi, Li Yi, Hao Su, and Leonidas J Guibas. Pointnet++: Deep hierarchical feature learning on point sets in a metric space. Advances in neural information processing systems , 30, 2017. 3 [27] Charles R Qi, Wei Liu, Chenxia Wu, Hao Su, and Leonidas J Guibas. Frustum pointnets for 3d object detection from rgb-d data. In Proceedings of the IEEE conference on computer vision and pattern recognition , pages 918–927, 2018. 3 [28] Cody Reading, Ali Harakeh, Julia Chae, and Steven L Waslander. Categorical depth distribution network for monocular 3d object detection. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 8555–8564, 2021. 3 [29] Ziying Song, Haiyue Wei, Lin Bai, Lei Yang, and Caiyan Jia. Graphalign: Enhancing accurate feature alignment by graph matching for multi-modal 3d object detection. In Proceed-ings of the IEEE/CVF international conference on computer vision , pages 3358–3369, 2023. 4 [30] Ziying Song, Haiyue Wei, Caiyan Jia, Yongchao Xia, Xi-aokun Li, and Chao Zhang. Vp-net: Voxels as points for 3-d object detection. IEEE Transactions on Geoscience and Remote Sensing , 61:1–12, 2023. 3 [31] Ziying Song, Lei Yang, Shaoqing Xu, Lin Liu, Dongyang Xu, Caiyan Jia, Feiyang Jia, and Li Wang. Graphbev: To-wards robust bev feature alignment for multi-modal 3d ob-ject detection. In European Conference on Computer Vision ,pages 347–366. Springer, 2024. 2, 4, 5, 7, 8 [32] Ziying Song, Guoxing Zhang, Lin Liu, Lei Yang, Shaoqing Xu, Caiyan Jia, Feiyang Jia, and Li Wang. Robofusion: To-wards robust multi-modal 3d object detection via sam. arXiv preprint arXiv:2401.03907 , 2024. 4 [33] Chunwei Wang, Chao Ma, Ming Zhu, and Xiaokang Yang. Pointaugmenting: Cross-modal augmentation for 3d object detection. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition , pages 11794– 11803, 2021. 4 [34] Chien-Yao Wang, I-Hau Yeh, and Hong-Yuan Mark Liao. Yolov9: Learning what you want to learn using pro-grammable gradient information. In European conference on computer vision , pages 1–21. Springer, 2024. 7 [35] Jian Wang, Fan Li, Yi An, Xuchong Zhang, and Hong-bin Sun. Towards robust lidar-camera fusion in bev space via mutual deformable attention and temporal aggregation. 
+
+IEEE Transactions on Circuits and Systems for Video Tech-nology , 2024. 2 [36] Yue Wang, Vitor Campagnolo Guizilini, Tianyuan Zhang, Yilun Wang, Hang Zhao, and Justin Solomon. Detr3d: 3d object detection from multi-view images via 3d-to-2d queries. In Conference on Robot Learning , pages 180–191. PMLR, 2022. 3 [37] Benjamin Wilson, William Qi, Tanmay Agarwal, John Lambert, Jagjeet Singh, Siddhesh Khandelwal, Bowen Pan, Ratnesh Kumar, Andrew Hartnett, Jhony Kaesemodel Pontes, et al. Argoverse 2: Next generation datasets for self-driving perception and forecasting. arXiv preprint arXiv:2301.00493 , 2023. 7 [38] Xin Ye, Burhaneddin Yaman, Sheng Cheng, Feng Tao, Ab-hirup Mallik, and Liu Ren. Bevdiffuser: Plug-and-play diffu-sion model for bev denoising with ground-truth guidance. In 
+
+Proceedings of the Computer Vision and Pattern Recognition Conference , pages 1495–1504, 2025. 7, 8 [39] Tianwei Yin, Xingyi Zhou, and Philipp Kr¨ ahenb¨ uhl. Multi-modal virtual point 3d detection. Advances in Neural Infor-mation Processing Systems , 34:16494–16507, 2021. 4 [40] Kaicheng Yu, Tang Tao, Hongwei Xie, Zhiwei Lin, Tingt-ing Liang, Bing Wang, Peng Chen, Dayang Hao, Yongtao Wang, and Xiaodan Liang. Benchmarking the robustness of lidar-camera fusion for 3d object detection. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pat-tern Recognition , pages 3188–3198, 2023. 2 [41] Gang Zhang, Junnan Chen, Guohuan Gao, Jianmin Li, Si Liu, and Xiaolin Hu. Safdnet: A simple and effective net-work for fully sparse 3d object detection. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition , pages 14477–14486, 2024. 7 [42] Jinqing Zhang, Yanan Zhang, Yunlong Qi, Zehua Fu, Qingjie Liu, and Yunhong Wang. Geobev: Learning geometric bev representation for multi-view 3d object detection. In Pro-ceedings of the AAAI Conference on Artificial Intelligence ,pages 9960–9968, 2025. 3 [43] Yin Zhou and Oncel Tuzel. Voxelnet: End-to-end learning for point cloud based 3d object detection. In Proceedings of the IEEE conference on computer vision and pattern recog-nition , pages 4490–4499, 2018. 3 11598
