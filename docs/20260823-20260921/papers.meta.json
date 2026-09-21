@@ -1,0 +1,54 @@
+{
+  "label": "2026-08-23 ~ 2026-09-21",
+  "date": "2026-08-23 ~ 2026-09-21",
+  "generated_at": "2026-09-21T09:05:54",
+  "count": 3,
+  "papers": [
+    {
+      "paper_id": "20260823-20260921/2608.27971v2-gaat-geometry-aware-alignment-transformer-for-multimodal-uav-perception",
+      "section": "quick",
+      "title_en": "GAAT: Geometry-Aware Alignment Transformer for Multimodal UAV Perception",
+      "authors": "Jingpu Yang, Debin Tang, Yilin Sun, Fengxian Ji, Jiahua Zhu, Wenrui Ding, Yufeng Wang",
+      "date": "2026-08-28",
+      "pdf": "https://arxiv.org/pdf/2608.27971v2",
+      "score": "9.0",
+      "evidence": "面向UAV多模态RGB/红外/SAR感知、先对齐后交互并估计局部对应可靠性的Transformer",
+      "tldr": "无人机多模态感知受视差、平台运动和镜头畸变影响，跨模态对应patch中心偏移，破坏密集对比与融合。GAAT是“先对齐后交互”的预训练模型，syncPATC无标注学习patch中心一致性并输出几何先验，MG-Sparse-MMA据此在top-K可靠区域做查询介导稀疏融合，RA-QCGCL用稀疏查询瓶颈对齐监督。六个下游任务迁移性能领先，并借UAVMeta/StateBench诊断真实采集条件。",
+      "tags": "query:uav-rgbt-sod",
+      "abstract_en": "Unmanned aerial vehicle (UAV) multimodal perception integrates visible (RGB), infrared (IR), synthetic aperture radar (SAR), and depth sensors for scene understanding under diverse conditions. However, differences in optics, resolution, and mounting often limit practical systems to global or image-center alignment. After tokenization, parallax, platform motion, and lens distortion can shift corresponding patch centers across modalities, weakening the spatial correspondence assumed by dense contrastive learning and cross-modal fusion. We propose GAAT (Geometry-Aware Alignment Transformer), an alignment-first pretrained model that estimates local correspondence reliability before cross-modal interaction. GAAT introduces syncPATC, which learns patch-center consistency under synchronized view transformations without correspondence annotations. It emits geometric priors, including token and query confidence, query centers, and sub-token offsets, that identify reliable local anchors across residual misalignment. Guided by these priors, MG-Sparse-MMA performs query-mediated sparse fusion over top-K_s reliable regions, replacing dense all-patch interaction with geometry-calibrated local updates. RA-QCGCL aligns pretraining supervision with this sparse query bottleneck through reliable patch-to-patch, patch-to-query, and query-to-query contrastive branches. We introduce UAVMeta and StateBench, which provide four acquisition-state scores derived from platform telemetry and image statistics: camera reliability, observation scale, viewpoint stability, and flight maneuver complexity. Extensive experiments across six downstream tasks demonstrate consistently superior transfer performance, establishing GAAT as a state-of-the-art multimodal foundation model for UAV perception. StateBench further enables a systematic diagnosis of real-world acquisition conditions.",
+      "source": "arxiv",
+      "selection_source": "fresh_fetch"
+    },
+    {
+      "paper_id": "20260823-20260921/2609.12622v1-ra-sod-reliability-aware-rgb-t-salient-object-detection-under-modality-degradation",
+      "section": "quick",
+      "title_en": "RA-SOD: Reliability-Aware RGB-T Salient Object Detection under Modality Degradation",
+      "authors": "Hongbo Gao, Zhengyu Li, Xueru Nie, Dihao Zhu, Lijun Zhao, Yunke Wang, Chang Xu",
+      "date": "2026-09-11",
+      "pdf": "https://arxiv.org/pdf/2609.12622v1",
+      "score": "9.0",
+      "evidence": "建模模态可靠性的可靠性感知RGB-T显著目标检测融合",
+      "tldr": "RGB-T显著性检测利用可见光与热红外的互补信息提升复杂环境鲁棒性，但真实场景中模态可靠性不稳定：RGB易受低照度、模糊和噪声影响，热红外常有对比度压缩与传感器伪影，退化证据会误导跨模态融合。RA-SOD提出可靠性感知框架，显式建模模态可靠性并融入特征学习与融合。方法包含可靠性条件表示、不确定性引导双流细化与像素级模态竞争。在四个基准上达到SOTA，并在严重模态退化下保持强鲁棒性。",
+      "tags": "query:uav-rgbt-sod",
+      "abstract_en": "RGB-Thermal (RGB-T) salient object detection leverages complementary cues from visible and thermal modalities to improve robustness in challenging environments. However, in real-world scenarios, the reliability of each modality is inherently unstable: RGB images degrade under low illumination, motion blur, and noise, while thermal imagery often suffers from contrast compression and sensor artifacts. Such degradation introduces unreliable perceptual evidence that can mislead cross-modal fusion and significantly deteriorate detection performance. To address this challenge, we propose RA-SOD, a reliability-aware RGB-T salient object detection framework that explicitly models modality reliability and integrates it into feature learning and cross-modal fusion. First, we introduce a reliability-conditioned representation that adaptively compensates degraded modality features while preserving structural cues. Second, an uncertainty-guided dual-stream refinement strategy progressively corrects cross-modal representations while suppressing unreliable evidence. Finally, we propose a pixel-wise modality competition mechanism that dynamically selects modality cues according to spatial reliability for fine-grained fusion. Extensive experiments on four benchmarks (VT821, VT1000, VT5000, and VT-IMAG) demonstrate that RA-SOD achieves state-of-the-art performance and exhibits strong robustness under severe modality degradation. Code and models are available at https://github.com/zaoxienian/RA-SOD.",
+      "source": "arxiv",
+      "selection_source": "fresh_fetch"
+    },
+    {
+      "paper_id": "20260823-20260921/2608.29235v1-uncertainty-aware-multimodal-anti-uav-detection-via-evidential-fusion-and-conflict-discounted-belief-aggregation",
+      "section": "quick",
+      "title_en": "Uncertainty-Aware Multimodal Anti-UAV Detection via Evidential Fusion and Conflict-Discounted Belief Aggregation",
+      "authors": "Sharanda Suttorp, Seyed Sahand Mohammadi Ziabari, Ali Mohammed Mansour Alsahag",
+      "date": "2026-08-29",
+      "pdf": "https://arxiv.org/pdf/2608.29235v1",
+      "score": "8.0",
+      "evidence": "不确定性感知的RGB-热红外证据融合与冲突折扣信念聚合",
+      "tldr": "反无人机感知需在遮挡、快动或传感器退化时可靠，但现有多模态RGB-热融合确定性融合，无法建模预测不确定性，模态冲突时无法表达怀疑。本文扩展EDTC提出DBF，将跨模态冲突转为不确定性质量，聚合各流意见，并用低不确定性模态定框。在Anti-UAV上融合Acc 0.670，优于IR 0.604和RGB 0.598，速度≥38 FPS；但DBF与未折扣平均几乎无差异。该负结果揭示基准近乎全存在与缺失编码空洞抑制冲突，界定冲突感知融合的有效边界。",
+      "tags": "query:uav-rgbt-sod",
+      "abstract_en": "Anti-UAV perception systems must remain reliable when sensor streams degrade under occlusion, fast motion, or modality-specific failure. Existing multimodal anti-UAV systems fuse RGB and thermal streams deterministically, without modeling predictive uncertainty, and cannot express doubt when streams disagree. Evidential Deep Learning (EDL) produces calibrated per-class uncertainty in a single forward pass. EDTC already exploits this for thermal-only perception, yet cross-modal evidential fusion remains unaddressed.   This paper extends EDTC to multimodal RGB-Thermal perception via Discounted Belief Fusion (DBF), which converts inter-modal conflict into uncertainty mass before aggregating stream opinions. Bounding boxes are resolved by selecting the lower-uncertainty modality. On the Anti-UAV benchmark, multimodal fusion consistently outperforms either single stream (test Acc 0.670 vs. 0.604 IR, 0.598 RGB) at real-time speed (at least 38 FPS). However, DBF is empirically indistinguishable from undiscounted averaging: near-zero inter-modal conflict on this presence-dominated benchmark leaves the discounting step inert. The fused uncertainty is well-calibrated (ECE 0.057) yet expectedly a weaker localization failure detector than spatial variance (AUROC 0.626 vs. 0.739). The null result is structural: the benchmark's near-universal presence and vacuous miss-encoding jointly suppress inter-modal conflict, a diagnosis that delimits where conflict-aware fusion provides measurable benefit.",
+      "source": "arxiv",
+      "selection_source": "fresh_fetch"
+    }
+  ],
+  "errors": []
+}

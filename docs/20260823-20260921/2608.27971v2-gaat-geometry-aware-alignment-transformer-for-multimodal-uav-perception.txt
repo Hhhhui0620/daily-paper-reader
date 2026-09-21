@@ -1,0 +1,4815 @@
+1
+GAAT: Geometry-Aware Alignment Transformer
+for Multimodal UAV Perception
+Jingpu Yang1,2, Student Member, IEEE, Debin Tang3, Yilin Sun1, Fengxian Ji2, Jiahua Zhu1, Wenrui Ding1, and
+Yufeng Wang1, Member, IEEE
+Abstract—Unmanned aerial vehicle (UAV) multimodal percep-
+tion integrates heterogeneous sensors—visible (RGB), infrared
+(IR), synthetic aperture radar (SAR), or depth—to support scene
+understanding under diverse conditions. However, UAV-mounted
+sensors differ in optics, resolution, and mounting, so practical sys-
+tems often provide only global or image-center alignment. Once
+such pairs are tokenized into patches, parallax, platform motion,
+and lens distortion can shift corresponding patch centers across
+modalities, weakening the spatial correspondence assumption
+underlying dense contrastive learning and cross-modal fusion. We
+propose GAAT (Geometry-Aware Alignment Transformer), an
+alignment-first multimodal pretraining framework that estimates
+local reliability before the modalities interact. GAAT introduces
+syncPATC, which learns transformation-consistent patch-center
+reliability under synchronized view transformations without
+manually annotated correspondences. It uses token and query
+confidence to rank trustworthy local anchors, together with
+query centers and sub-token offsets to guide local sampling in
+the presence of residual misalignment. Guided by these priors,
+MG-Sparse-MMA performs query-mediated sparse fusion over
+top-Ks reliable regions, replacing dense all-patch interaction
+with geometry-calibrated local updates. RA-QCGCL aligns the
+pretraining supervision with this sparse query bottleneck through
+reliable patch-to-patch, patch-to-query, and query-to-query con-
+trastive branches. We also introduce UAVMeta for paired RGB–
+IR pretraining and in-domain multi-task evaluation, together
+with StateBench for paired-input prediction of acquisition-state
+proxy scores derived from platform telemetry and image statis-
+tics. Across six primary downstream tasks and multiple UAV
+datasets, GAAT demonstrates strong multi-task transfer, attains
+state-of-the-art results on multiple benchmarks, and remains
+competitive in task-specific settings. It also achieves the highest
+reported aggregate MSPA-4D score on StateBench.
+Index Terms—UAV Perception, Multimodal Pretrained Model,
+Patch-Center Alignment, Geometry-Aware Alignment, UAVMeta
+Dataset, StateBench.
+I. INTRODUCTION
+U
+NMANNED aerial vehicle (UAV) multimodal percep-
+tion, in which heterogeneous on-board sensors observe
+the same scene from a moving aerial platform, supports ap-
+plications ranging from urban scene understanding to disaster
+response, search-and-rescue, and night-time surveillance. UAV
+payloads often combine RGB cameras with thermal infrared
+Jingpu Yang, Debin Tang, and Yilin Sun are co-first authors.
+1Beihang University, Beijing, China.
+2Zhongguancun Academy, Beijing, China.
+3Northeastern University, Shenyang, China.
+E-mail: Jingpu Yang: jingpuyang@buaa.edu.cn; Debin Tang: lihuai-
+jiao@gmail.com; Yilin Sun: simon.sun@buaa.edu.cn; Fengxian Ji: jifengx-
+ian1224@gmail.com; Jiahua Zhu: zhujiahua23@mails.ucas.ac.cn; Wenrui
+Ding: ding@buaa.edu.cn; Yufeng Wang: wyfeng@buaa.edu.cn.
+Yufeng Wang is the corresponding author.
+(IR) cameras, multispectral sensors, SAR, depth sensors, or
+LiDAR, whose signals are complementary: optical channels
+carry fine texture and color, whereas non-optical channels
+remain informative when visible information is degraded by
+illumination, weather, or occlusion [1]–[3]. This motivates
+multimodal pretraining that accounts for the geometry of aerial
+capture. Here, we develop and evaluate the Geometry-Aware
+Alignment Transformer (GAAT) and UAVMeta in the paired
+RGB–IR setting.
+Unlike satellite or stationary multi-sensor systems, UAV-
+mounted heterogeneous cameras typically differ in optics,
+resolution, field of view, exposure, mounting, and acquisition
+time [4]–[6]. Pixel-level alignment of the modality streams
+is therefore often infeasible at scale; in our setting, the data
+pipeline typically provides coarse global alignment, usually
+around the image center, after on-board cropping, resizing,
+or coarse warping. The cost of this practical compromise
+becomes evident in transformer-style pretraining [7]–[9]. Af-
+ter paired images are split into patches, same-index tokens
+can still cover different physical regions across modalities.
+Parallax, oblique viewpoints, lens distortion, and platform
+motion coupled with acquisition-time offsets can make this
+residual misregistration large enough to invalidate same-index
+correspondence in some scenes.
+This residual patch-center misalignment creates three cou-
+pled challenges. First, without dense correspondence annota-
+tions, the model must estimate which local regions remain
+reliable enough to interact: same-index tokens may depict
+different physical regions, and using them as positives can
+corrupt contrastive learning [10]–[12]. Second, cross-modal fu-
+sion must concentrate on reliable, informative neighborhoods.
+Dense all-patch interaction otherwise mixes mismatched con-
+tent and allocates computation to the many low-information
+patches common in UAV frames. Third, pretraining supervi-
+sion must match the granularity of the resulting sparse interac-
+tion: global objectives overlook the selected patch and query
+relations, whereas indiscriminate same-index supervision can
+reinforce unreliable positives. Fig. 1(a) and (b) illustrate the
+geometric variation and local displacement underlying the first
+challenge, while Fig. 1(c) motivates reliability-aware fusion;
+together, these failure modes motivate supervision targeted at
+the relations actually used for interaction.
+GAAT addresses these challenges through a shared relia-
+bility pathway rather than three independent additions. First,
+Synchronized Patch-Center Alignment (syncPATC) learns
+transformation-consistent reliability priors from synchronized
+synthetic view transformations, without dense correspon-
+arXiv:2608.27971v2  [cs.CV]  8 Sep 2026
+
+
+2
+(a) Large Viewpoint Discrepancy
+(b) Cross-Modal Misregistration
+(c) Reliability-Agnostic Fusion
+View 1
+View 2
+View 3
+View 4
+(i) Resolution mismatch
+RGB
+1920 × 1080
+IR
+640 × 512
+(ii) Patch-level misalignment
+RGB
+IR
+RGB
+IR
+Reliable / informative
+Unreliable / irrelevant
+Same patch index
+different content
+Fig. 1. Geometry and reliability challenges in multimodal UAV perception: (a) viewpoint variation; (b) cross-modal misregistration from resolution mismatch
+and patch displacement; and (c) reliability-agnostic fusion of reliable or informative (green) and unreliable or irrelevant (white) regions.
+Center Alignment
+Deep Learning
+Machine Learning
+GAAT（SyncPATC）
+Fig. 2. Qualitative illustration of local-region localization under coarsely aligned RGB–IR inputs. Red boxes indicate candidate regions produced by the four
+strategies shown; this figure is illustrative and is not a quantitative registration benchmark.
+dence labels or explicit regression of an RGB–IR regis-
+tration warp. It produces token and query confidence for
+ranking reliable anchors, together with query centers and
+sub-token offsets for locating and refining local sampling.
+Second, Modality-Guided Sparse Multimodal Attention (MG-
+Sparse-MMA) uses these priors to route bidirectional fusion
+through reliability-ranked queries and geometry-calibrated lo-
+cal neighborhoods. Third, Reliability-Aware Query-Guided
+Cross-Granularity Contrastive Learning (RA-QCGCL) uses
+the same priors and queries to supervise patch-to-patch, patch-
+to-query, and query-to-query relations. The alignment assump-
+tion, fusion mechanism, and learning objective are therefore
+coupled through one reliability signal. Fig. 2 qualitatively
+illustrates local-region localization before fusion; it is not a
+quantitative registration evaluation.
+Table I situates GAAT by sensing platform, modality set-
+ting, and reported task coverage; it is a scope comparison
+rather than an alignment-performance ranking. Representative
+Earth-observation foundation models establish broad transfer
+across satellite imagery and heterogeneous observations [13]–
+[26], while RingMo-Aerial extends foundation-model transfer
+to single-modal aerial imagery [27]. GAAT has a comple-
+mentary focus: residual multimodal misalignment in coarsely
+aligned paired UAV streams. Registration-first pipelines esti-
+mate an explicit image-space transform; GAAT instead es-
+timates transformation-consistent interaction reliability and
+reuses it to control both sparse fusion and cross-granularity
+supervision.
+To support model development and evaluation in the same
+acquisition domain, we introduce UAVMeta and StateBench
+with distinct roles. UAV operation also depends on com-
+munication integrity and resistance to adversarial spoof-
+ing, complementary concerns studied by recent risk-sensitive
+reinforcement-learning defenses for UAV communications
+citezhang2026idtdrl. UAVMeta supplies paired RGB–IR im-
+agery, multi-task annotations, and acquisition metadata for
+pretraining and in-domain task evaluation; its schema can addi-
+tionally accommodate SAR, depth, and multispectral streams.
+StateBench converts platform telemetry and image statistics
+into four acquisition-state proxy scores—Camera Acquisition
+Reliability Score (CARS), Observation Scale and Ground
+Sampling Score (OSGS), Viewpoint Stability Score (VSS), and
+Flight Maneuver Complexity Score (FMCS)—and evaluates
+paired-input state prediction through the MSPA-4D protocol.
+Across six primary downstream tasks and multiple UAV
+datasets, GAAT shows strong multi-task transfer, reaches state-
+of-the-art performance on multiple benchmarks, and remains
+competitive in other task-specific settings. On StateBench, it
+obtains the highest reported aggregate MSPA-4D score.
+
+
+3
+TABLE I
+SCOPE COMPARISON OF REPRESENTATIVE REMOTE-SENSING FOUNDATION MODELS BY SENSING PLATFORM, MULTIMODAL SETTING, AND REPORTED
+TASK COVERAGE. THE TABLE REPORTS EVALUATION BREADTH; ALIGNMENT ASSUMPTIONS, SUPERVISION SIGNALS, AND FUSION MECHANISMS ARE
+DISTINGUISHED IN SEC. II. ✓AND × DENOTE THE CAPABILITIES REPORTED FOR THE CORRESPONDING MODEL AND COLUMN, RESPECTIVELY.
+RS Type
+Model
+Multi-
+modal
+Semantic
+Segmentation
+Object
+Detection
+Multi-Object
+Tracking
+Scene
+Classification
+Change
+Detection
+3D
+Reconstruction
+Satellite / EO
+Prithvi-EO
+×
+✓
+×
+×
+✓
+×
+×
+SatMAE / SatMAE++
+×
+✓
+×
+×
+✓
+×
+×
+Scale-MAE
+×
+✓
+×
+×
+✓
+×
+×
+RingMo
+×
+✓
+✓
+×
+✓
+×
+×
+SatlasPretrain
+✓
+✓
+✓
+×
+✓
+✓
+×
+CROMA
+✓
+✓
+×
+×
+✓
+×
+×
+DOFA
+✓
+✓
+✓
+×
+✓
+×
+×
+OmniSat
+✓
+✓
+×
+×
+✓
+×
+×
+AnySat
+✓
+✓
+×
+×
+✓
+✓
+×
+SkySense / SkySense V2
+✓
+✓
+✓
+×
+✓
+✓
+×
+MTP
+×
+✓
+✓
+×
+✓
+✓
+×
+Aerial / UAV
+RingMo-Aerial
+×
+✓
+✓
+✓
+✓
+✓
+✓
+GAAT (Ours)
+✓
+✓
+✓
+✓
+✓
+✓
+✓
+The main contributions of this work are summarized as
+follows.
+• We formulate residual patch-center misalignment after
+coarse RGB–IR registration as a reliability problem
+and introduce syncPATC, which learns transformation-
+consistent token and query priors from synchronized
+synthetic views without dense correspondence labels.
+• We introduce MG-Sparse-MMA, which converts these
+priors into bidirectional, query-mediated fusion over
+reliability-ranked, geometry-calibrated local neighbor-
+hoods instead of dense all-patch interaction.
+• We introduce RA-QCGCL, which matches pretraining
+supervision to the sparse interaction structure through re-
+liable patch-to-patch, patch-to-query, and query-to-query
+contrastive relations.
+• We construct UAVMeta for paired RGB–IR pretraining
+and multi-task evaluation and StateBench for paired-
+input prediction of acquisition-state proxy scores. To-
+gether, these resources support pretraining, in-domain
+task evaluation, and acquisition-state evaluation in a com-
+mon paired UAV setting.
+II. RELATED WORK
+A. UAV-Oriented Aerial Perception and Foundation Models
+UAV imagery has become an important source for fine-
+grained aerial perception due to its flexible deployment, high
+spatial resolution, and real-time acquisition capability. Unlike
+satellite imagery, UAV imagery is usually captured from lower
+altitudes and more variable trajectories, leading to distinctive
+visual characteristics such as oblique viewpoints, large-scale
+variations, dense small objects, platform motion, and frequent
+occlusion. These properties make UAV perception more chal-
+lenging than conventional nadir-view remote sensing interpre-
+tation, especially for object detection, semantic segmentation,
+tracking, scene classification, and 3D reconstruction [28]–[32].
+Recent aerial and remote-sensing foundation models adapt
+masked modeling and contrastive learning to viewpoint, scale,
+and modality variation [10], [16], [27], [33]–[40]. RingMo-
+Aerial introduces affine-transformation contrastive learning for
+single-modal aerial transfer, whereas MaRS develops cross-
+granularity meta-modality learning for multimodal very-high-
+resolution imagery [27], [33]. Multimodal satellite-oriented
+models such as CROMA and SkySense emphasize transfer-
+able representations across heterogeneous observations [18],
+[22]–[24]. These studies establish view-aware augmentation,
+multimodal pretraining, and cross-granularity supervision as
+effective components. GAAT addresses a distinct coupling:
+residual local misregistration can simultaneously corrupt posi-
+tive construction and fusion in paired UAV cameras. Its novelty
+lies in estimating reliability before interaction and using the
+same signal to control both fusion neighborhoods and patch-
+and query-level supervision.
+UAV platforms often carry multiple sensors, including RGB
+cameras, IR cameras, multispectral sensors, SAR, depth sen-
+sors, and LiDAR. These sensors observe the same scene
+through different imaging mechanisms and provide comple-
+mentary cues. However, sensor baselines, view changes, field-
+of-view mismatch, and acquisition-time offsets under plat-
+form motion can cause local spatial displacement. Recent
+multimodal aerial models and benchmarks illustrate both the
+value of fusion and the persistence of this alignment problem
+[2], [18], [22], [24], [33], [41]. Therefore, UAV multimodal
+pretraining should model local interaction reliability rather
+than assume that paired images or same-index tokens are
+already aligned.
+B. Multimodal Fusion for UAV Perception
+Multimodal fusion is widely used in UAV perception to inte-
+grate complementary information from heterogeneous sensors.
+Existing fusion methods can be roughly divided into input-
+level fusion, feature-level fusion, and decision-level fusion.
+Input-level methods directly concatenate or transform raw
+modality signals; these methods are simple but highly sensitive
+to calibration errors, resolution differences, and field-of-view
+mismatch. Decision-level methods combine predictions from
+separate modality-specific models; this improves robustness
+to modality degradation but limits early cross-modal interac-
+tion. Feature-level fusion has therefore become the dominant
+
+
+4
+strategy, where modality-specific encoders extract features and
+cross-modal modules exchange information through concate-
+nation, gating, attention, or transformer-based interaction [2],
+[22], [24], [41]–[44].
+Recent UAV multimodal fusion methods usually adopt dual-
+branch networks, cross-attention modules, modality-aware
+weighting, uncertainty estimation, or missing-modality train-
+ing. These designs improve perception robustness under illu-
+mination changes, night-time scenes, weather variation, and
+sensor degradation. However, most of them fuse features
+according to the same spatial index or through dense global
+attention. This design implicitly assumes that tokens at the
+same location across modalities correspond to the same phys-
+ical region. In UAV imagery, this assumption is fragile be-
+cause parallax, sensor displacement, view-angle changes, and
+platform motion coupled with timing offsets can shift locally
+corresponding regions away from each other.
+Under local misalignment, dense fusion may introduce
+semantically inconsistent interactions. For example, a vehicle
+token in one modality may be fused with a road or background
+token in another modality. Attention-based fusion can further
+propagate this problem, since visually salient but geometrically
+mismatched tokens may receive high attention weights. More-
+over, global dense interaction is computationally expensive
+for high-resolution UAV imagery and does not explicitly
+distinguish reliable and unreliable cross-modal regions. These
+limitations motivate alignment-aware fusion strategies that use
+local correspondence, confidence estimation, and sparse region
+selection [45], [46]. GAAT differs from saliency weight-
+ing or sparse attention alone by ranking interaction regions
+with transformation-consistent reliability priors and confining
+bidirectional updates to geometry-calibrated neighborhoods
+around a sparse query set.
+C. Cross-Modal Registration and Representation Alignment
+Cross-modal
+registration
+and
+representation
+alignment
+address different levels of multimodal UAV perception.
+Calibration-based projection and image registration estimate
+explicit geometric correspondences or spatial transforms,
+whereas representation alignment constrains latent features
+without necessarily warping either input. Existing geometric
+approaches commonly use sensor calibration, time synchro-
+nization, global positioning system/inertial measurement unit
+(GPS/IMU) metadata, or learning-based correspondence esti-
+mation. Calibration-based methods use intrinsic and extrinsic
+sensor parameters to project modalities into a common co-
+ordinate system. Registration-based methods estimate affine,
+homography, or deformable transformations using handcrafted
+features, structural descriptors, mutual information, optical
+flow, or deep matching networks [47]–[54]. In many UAV
+datasets, paired images are instead cropped or resized around
+a common image center and then treated as aligned samples.
+These methods have several limitations in UAV scenarios.
+First, hardware calibration and metadata-based projection re-
+quire accurate sensor parameters and time synchronization,
+which are often unavailable or unstable in large-scale UAV
+data collection. Second, global affine or homography trans-
+forms cannot fully handle height-dependent parallax, oblique-
+view deformation, lens distortion, and local displacement
+from timing offsets under platform motion. Third, classical
+registration methods rely on repeatable textures or structural
+keypoints, while heterogeneous modalities may have very
+different appearances. For example, RGB imagery emphasizes
+texture and color, whereas IR or other physical modalities
+respond to temperature, material, or geometry. This appearance
+gap makes robust local matching difficult.
+Self-supervised and contrastive methods instead align
+image- or token-level representations, often defining positives
+from paired images or identical patch indices [10]–[12], [14],
+[34]. Their supervision therefore inherits the assumption that
+coarse image pairing remains valid after tokenization. sync-
+PATC does not estimate an RGB–IR registration warp; it
+learns transformation-consistent confidence and local query-
+offset priors from known synchronized transformations. MG-
+Sparse-MMA uses these priors to select local fusion neigh-
+borhoods, while RA-QCGCL uses them to select patch- and
+query-level contrastive relations. The resulting novelty is a
+shared reliability signal that links the alignment assumption,
+supervision signal, and fusion mechanism.
+III. UAVMETA DATASET AND STATEBENCH
+A. Dataset Construction
+UAVMeta is a metadata-enriched multimodal UAV corpus
+built around paired RGB and IR cameras, the sensing setting
+studied here. Its schema and benchmark protocol also accom-
+modate SAR, depth, multispectral, and other sensing streams
+without changing the task definitions or state-evaluation logic.
+The data were collected using UAV platforms equipped with
+paired sensors, covering diverse scenes and flight conditions.
+UAVMeta consists of 2,575 synchronized image pairs span-
+ning daytime and nighttime, with 1,715/572/288 pairs in
+the train/validation/test splits. The benchmark is partitioned
+by acquisition rather than by frame, so temporally adjacent
+samples cannot straddle the train/validation/test boundary. The
+RGB and IR streams are time-synchronized but retain residual
+displacement from viewpoint, optics, and platform motion, a
+setting reflected in existing paired visible–infrared benchmarks
+[1], [3]–[6], [55], [56].
+Compared with existing UAV perception datasets (Ta-
+ble II), UAVMeta offers paired RGB–IR streams that are
+coarsely image-center aligned while retaining realistic local
+displacement, creating a setting where patch-level correspon-
+dence remains uncertain. It also provides several task anno-
+tations within the same acquisition domain. VisDrone and
+UAVDT provide multi-task annotations but are RGB-only
+[28], [29], whereas KUST4K and other visible–IR bench-
+marks generally focus on one task [3]. UAVMeta 1.0.0-
+rc1 provides paired RGB–IR semantic-segmentation, object-
+detection, and scene-classification annotations. UAVMeta also
+includes acquisition-state CARS, OSGS, VSS, and FMCS
+scores, allowing StateBench to evaluate visual predictions
+alongside acquisition-state scores.
+Raw RGB–IR pairs are aligned using local matches and
+a global affine transform: (i) LoFTR estimates cross-modal
+
+
+5
+Fig. 3. Representative UAVMeta samples. Columns span daytime and nighttime scene classes; rows show synchronized RGB and IR images, segmentation
+masks, detection annotations, and acquisition metadata.
+dense correspondences on structure-rich regions for daytime
+scenarios, while a combination of SuperPoint and LightGlue
+delivers sparse correspondences under weak visual conditions
+[51], [52], [54]; (ii) a global affine transform is fitted to
+the matches with RANSAC, with homography disabled to
+avoid overfitting [47], [49]; (iii) the RGB frame is warped
+to the IR coordinate system without local deformation; (iv)
+patch-level quality scores filter low-confidence regions and
+output diagnostic maps for manual inspection. The pair-level
+registration-quality score is normalized to a pair-level quality
+prior qb ∈(0, 1] for contrastive weighting. This preprocessing
+yields coarse image-center alignment while retaining the local
+displacement that motivates GAAT.
+B. Multi-Task Annotation
+As shown in Fig. 3, UAVMeta 1.0.0-rc1 supports object
+detection (bounding boxes), semantic segmentation (pixel-wise
+labels), and scene classification (per-frame categories) across
+synchronized RGB–IR streams. Detailed protocols for the
+released tasks are provided in Appendix A. Existing UAV
+benchmarks usually evaluate one or two related tasks. They are
+useful for focused evaluation, but do not provide a consistent
+view of a pretrained model across task abilities. They also
+rely on task-specific metrics (mIoU for segmentation, mAP
+for detection, and overall accuracy for classification) that
+measure what the model predicts rather than under what
+TABLE II
+COMPARISON OF REPRESENTATIVE UAV PERCEPTION DATASETS BY
+PAIRED MODALITY, ANNOTATION COVERAGE, MULTI-TASK SUPPORT, AND
+ACQUISITION-STATE SCORES.
+Dataset
+Size
+Paired
+Multimodal
+Fully Annotated
+Samples
+Multi-Task
+Labels
+Acquisition-State
+Scores
+UAVid
+300 images
+×
+✓
+×
+×
+VisDrone
+10K images
+×
+✓
+✓
+×
+UAVDT
+80K frames
+×
+✓
+✓
+×
+AU-AIR
+32K frames
+×
+✓
+×
+×
+HIT-UAV
+2.9K images
+×
+✓
+×
+×
+DroneRGBT
+3.6K pairs
+✓
+✓
+×
+×
+DroneVehicle
+28K pairs
+✓
+✓
+×
+×
+KUST4K
+4.0K pairs
+✓
+✓
+×
+×
+VTUAV
+1.7M pairs
+✓
+×
+×
+×
+UAVScenes
+120K samples
+✓
+×
+×
+×
+UAVMeta (Ours)
+2.5K pairs
+✓
+✓
+✓
+✓
+acquisition conditions each prediction is made. Altitude, view-
+point angle, camera settings, sensor exposure, illumination,
+and flight maneuver intensity all affect task difficulty, yet
+existing protocols rarely quantify them. StateBench addresses
+this gap through acquisition-state metrics (Sec. III-C) and the
+MSPA-4D protocol (Sec. III-D).
+C. UAV Acquisition-State Metrics
+We extract latitude/longitude (lati, loni), height hi, focal
+length fi, zoom zi, gimbal pitch/roll (θi, ϕi), and yaw ψi from
+platform metadata. Speed vi, acceleration ai, height rate ˙hi,
+and yaw rate ωi are derived via finite differences with a 3-to-
+5-frame rolling median to suppress GPS jitter. All quantities
+
+
+6
+are normalized via N(x; Q5, Q95) = clip((x −Q5)/(Q95 −
+Q5 + ϵ), 0, 1) using training-set percentiles.
+CARS: Camera Acquisition Reliability Score. CARS
+quantifies the reliability with which the RGB–IR pair is
+acquired. Because both streams are acquired on the same
+platform, CARS combines RGB photometric components —
+luminance balance qhist, clipping ratio qclip, and sharpness
+qsharp — with IR thermal components — dynamic range qdyn,
+hot/cold saturation qsat, and local thermal contrast qcon — as
+well as a motion-blur risk qmot derived from the shutter time,
+speed, and yaw rate when available:
+CARSi = 100 ·
+X
+k
+wc
+k q(k)
+i
+,
+P
+k wc
+k = 1.
+(1)
+Sub-components without valid inputs are masked out and the
+remaining weights are re-normalized.
+OSGS: Observation Scale and Ground Sampling Score.
+OSGS quantifies the spatial scale of the ground footprint
+observed by the UAV. When camera calibration is available,
+the field-of-view (FOV)-based footprint dimensions W g
+i
+=
+2hi tan(FOV x/2) and Hg
+i
+= 2hi tan(FOV y/2) are com-
+bined with the image width and height to compute the mean
+per-pixel ground sampling distance (GSD) GSDi, and we set
+gi = log(GSDi + ϵ). Otherwise, the calibration-free proxy
+gi = log(hi/(fizi + ϵ)) is used.
+OSGSi = 100 · N(gi; Q5, Q95).
+(2)
+VSS: Viewpoint Stability Score. VSS captures both the
+gimbal’s proximity to a nominal nadir viewpoint and the
+stability of the heading. With nominal pitch θ0 = −90◦and
+roll ϕ0 = 0◦,
+VSSi = 100 · exp
+
+−|θi−θ0|
+σθ
+−|ϕi−ϕ0|
+σϕ
+−|ωi|
+σω
+
+,
+(3)
+with default tolerances (σθ, σϕ, σω) = (8◦, 8◦, 25◦/s).
+FMCS: Flight Maneuver Complexity Score. FMCS en-
+codes a state intensity rather than a quality score: a higher
+value indicates a more aggressive maneuver, not a better
+image. The score combines the normalized speed, acceleration,
+yaw rate, and height rate as
+FMCSi = 100·
+ wvN(vi) + waN(ai) + wωN(|ωi|) + whN(|˙hi|)
+
+(4)
+where wv, wa, wω, wh are hyperparameters that balance the
+contribution of each motion component (see Tab. III).
+When training-set statistics are unavailable, the upper per-
+centiles of the normalizer fall back to the physical limits
+(15 m/s, 4 m/s2, 45◦/s, 1 m/s).
+The four target scores Si (namely CARSi, OSGSi, VSSi,
+and FMCSi) are stored as a per-pair vector together with
+a component-validity mask mij ∈{0, 1} that flags missing
+inputs.
+D. StateBench: Unified Multimodal State Evaluation
+To benchmark a model’s ability to predict the four
+state scores from a single multimodal pair, we propose
+StateBench, a unified state prediction benchmark evaluated
+via the Multi-State Prediction Accuracy (MSPA-4D) proto-
+col. StateBench evaluates prediction of metadata- and image-
+derived acquisition-state proxy scores as a complement to
+downstream task metrics. Let ˆsij be the prediction and sij
+the ground truth for frame i and metric j. With a per-metric
+tolerance τj, the unit-bounded error is
+eij = clip
+
+|ˆsij−sij|
+τj
+, 0, 1
+
+.
+(5)
+The dataset-level MSPA-4D score is then the validity-masked
+and activity-weighted accuracy
+MSPA-4D = 100 ·
+P
+i,j wjrjmij(1 −eij)
+P
+i,j wjrjmij + ϵ
+,
+(6)
+where
+the
+activity
+weight
+rj
+=
+clip((Q95(Sj) −
+Q5(Sj))/30, 0.25, 1.0)
+down-weights
+near-constant
+com-
+ponents,
+reducing
+the
+influence
+of
+quasi-static
+dimen-
+sions. The component weights wj and tolerances τj for
+(CARS, OSGS, VSS, FMCS) are hyperparameters listed in
+Tab. III.
+Because every multimodal pair in UAVMeta is coarsely
+image-center aligned and time-synchronized but may retain
+residual local misalignment, the four state scores are de-
+rived from shared platform metadata and, where applicable,
+modality-specific image statistics (Sec. III-C). StateBench uses
+the paired input; the main table reports the scalar MSPA-4D
+score and per-metric mean absolute error MAEj.
+IV. METHODOLOGY
+A. Framework Overview
+The GAAT framework implements three linked design
+choices introduced in Sec. I; the resulting information flow
+is summarized in Fig. 4. First, estimate local correspondence
+reliability before fusion: the model estimates patch-center
+reliability in a dedicated self-supervised module and uses
+it to define positives and attention anchors. Second, fuse
+only reliable regions: reliable UAV cross-modal anchors are
+sparse, so fusion is routed through a small set of semantically
+salient, reliability-ranked queries. Third, supervise at the same
+granularity as the interaction: the contrastive objective follows
+the reliable patches and query bottleneck used by the fusion
+module. syncPATC implements the first choice, MG-Sparse-
+MMA implements sparse query-mediated fusion, and RA-
+QCGCL provides the matched cross-granularity supervision.
+The remainder of this subsection introduces the input formu-
+lation, the dual encoders, the information flow between the
+three modules, and the overall pretraining objective.
+Let (IR, IT ) be a coarsely center-aligned UAV image pair
+with IR ∈R3×H0×W0 (RGB) and IT ∈R1×H0×W0 (IR). For
+each pair, the synchronized-view pipeline samples an affine
+parameter set θ and applies the resulting warp Wθ jointly
+to RGB and IR, producing a synchronized counterpart view
+(I′
+R, I′
+T ) together with the affine transform matrix Hθ ∈R3×3,
+an out-of-bounds validity mask Mv, and a normalized view
+gap g ∈[0, 1]. The view gap g quantifies the magnitude of
+the transformation as a weighted combination of rotation,
+translation, scale, and shear components, each normalized by
+its respective maximum range and combined as g =ηrot grot+
+ηtrans gtrans +ηscale gscale +ηshear gshear. Because Wθ acts jointly
+on the two modalities, the relation between each base view
+and its synthetically warped counterpart is exactly known for
+
+
+7
+INPUT STAGE
+BACKBONE ENCODERS
+syncPATC (Core Alignment)
+MG-Sparse-MMA (Fusion)
+RGB Image
+IR Image
+Center-aligned
+Before alignment (patch-center drift)
+RGB patches
+IR patches
+Image center (same)
+Patch-center drift (offset)
+LEGEND
+RGB pathway
+IR pathway
+Multimodal interaction
+Optional
+Confidence
+Transformer block
+Top-K selected
+queries
+Local 
+neighborhood
+RGB Encoder
+HFE-RGB
+IR Encoder
+HFE-IR
+1
+...
+2
+3
+base centers
+syncPATC
+learns patch
+correspondence
+WITHOUT
+manual labels.
+RA-QCGCL (learning)
+Query
+features
+Geometric priors
+Weight
+Geometric
+priors from
+syncPATC
+...
+Geometry-aware aligned representations
+Segmentation
+Detection
+Tracking
+Classification
+✓ Patch centers aligned
+patch centers
+drift due to
+parallax
+ViT-based dual encoders
+3x3 conv
+7x7 conv
+Edge detection
+(Sobel + Laplacian)
+[-1   0  1]
+[-2  0  2]
+[-1   0  1]
+[ 0 -1  0]
+[-1  4 -1]
+[ 0 -1  0]
+SA
+syncPATC geometric priors
+ViT-based dual encoders
+3x3 conv
+7x7 conv
+RGB ViT
+Local contrast
+Laplacian
+Sobel
+Gradient magnitude
+LayerNorm
+Multi-Head
+Self-Attention
++
+RGB tokens
+LayerNorm
+MLP
++
+encoder
+RGB tokens
+LayerNorm
+Multi-Head
+Self-Attention
++
+RGB tokens
+LayerNorm
+MLP
++
+encoder
+RGB tokens
+IR ViT
+RGB
+tokens
+IR
+tokens
+Homography
+Query Extraction
+...
+Local Correspondence
+base centers
+expected
+center
+warp by
+Cycle Consistency
+matched feature
+confidence
+offset
+expected
+center
+matched feature
+confidence
+offset
+warp back
+with
+3
+recovered
+center
+Reliability-Aware Query-Centric
+Geometric Contrastive Learning
+confidence offsets
+Filter Top 25% reliable
+queries based on confidence
+Apply confidence weights
+to contrastive loss
+Keep Top 25%
+...
+Intra-modal CLIP
+loss (a)
+Cross-modal
+contrastive loss (b)
+Coarse-to-fine geometric
+consistency loss (   )
+Aligned multimodal representations
+RGB
+tokens
+IR
+tokens
+Select Top-K queries
+...
+...
+Hard Top-K routing
+Attend query to local neighborhood
+Sparse cross-modal attention
+Fused multimodal tokens
+Top-K fused tokens
+...
+...
+Fused multimodal tokens
+Top-K fused tokens
+...
+OUTPUT STAGE
+Top-K
+queries
++priors
+syncPATC priors refine
+center & offset
+IR local
+neighborhoods
+Attention
+(only local)
+IR local window
+RGB local window
+Reconstruction
+Reconstruction
+head (RGB)
+Reconstruction
+head (IR)
+Change Detection
+Before alignment
+After alignment
+RGB
+IR
+Patch-center 
+drift
+RGB
+IR
+Image center
+Fig. 4.
+GAAT architecture. Modality-specific HFE blocks augment the RGB and IR encoders; syncPATC, MG-Sparse-MMA, and RA-QCGCL provide
+geometric priors, sparse fusion, and cross-granularity contrastive supervision, respectively.
+this synthetic pair and provides the self-supervision signal that
+drives syncPATC.
+The two modalities are encoded by a pair of architecturally
+identical but independently parameterized Swin Transformer
+V2 encoders fR, fT , following the hierarchical transformer
+designs of ViT, Swin, and Swin V2 [7]–[9], [57]. After patch
+embedding and stages 1 and 2 of each encoder, we insert a
+modality-specific high-frequency/contrast enhancement (HFE)
+block that injects modality-specific image cues into the token
+representation. Both modalities first apply depthwise 3×3 and
+7 × 7 convolutions for multi-scale context, after which the
+hand-crafted branch differs across modalities: the RGB side
+appends a single high-frequency branch that fuses Sobel and
+Laplacian responses on the channel-averaged map and captures
+the texture and edge structure characteristic of visible imagery,
+while the IR side appends two contrast branches — a Sobel
+magnitude and a 5×5 local-contrast map — which respond
+respectively to thermal boundaries and homogeneous-region
+heat differentials. The concatenated branches are projected
+by a 1×1 convolution Pm, modulated by a parallel sigmoid
+gate σ(Gm(·)), and added back to the token map as a gated
+residual:
+Ym = Xm + σ(Gm(Bm)) ⊙Pm(Bm),
+(7)
+where Bm denotes the concatenated multi-scale and hand-
+crafted branches. We refer to this convention as HF for RGB,
+contrast for IR: each modality receives the image cue to which
+its imaging mechanism is most sensitive. Each encoder thus
+emits a multi-scale token set {X(s)
+m } with m∈{R, T}.
+Two distinct but coupled streams flow through the encoders.
+The clean (unmasked, no-dropout) mid-stage tokens X(sp)
+m
+enter syncPATC (Sec. IV-B), which estimates transformation-
+consistent patch-center reliability under the synchronized view
+pair. It emits four geometric priors—token-level confidence
+πtok
+m , query-level confidence πq
+m,k, query centers ¯ck
+m, and
+sub-token offsets ¯ok
+m—all rescaled to the fusion grid before
+downstream use.
+The masked top-stage tokens X(4)
+m , obtained under random
+patch masking M and stochastic modality dropout, enter
+MG-Sparse-MMA1 (Sec. IV-C). Guided by the same priors,
+MG-Sparse-MMA performs sparse bidirectional cross-modal
+fusion. It emits fused tokens ˜XR, ˜XT , cross-modal queries
+Qm, attention maps Aq
+m, and per-query saliencies ˜sm. RA-
+QCGCL (Sec. IV-D) combines these priors, image-domain
+reliability maps ρm, and the MG-Sparse-MMA queries into
+a reliability-weighted three-granularity contrastive objective.
+Lightweight 1 × 1 Conv + PixelShuffle decoders Dm then
+reconstruct ˆIm = Dm( ˜Xm) for the masked image modeling
+target.
+The full pretraining objective couples five terms. The
+asymmetric masked image modeling loss Lmim
+m
+augments
+the standard pixel + Sobel-gradient base with a Haar high-
+frequency term on the RGB side and a 5×5 local-contrast
+term on the IR side, matching the modality-specific image
+cues injected by HFE. This follows masked-image-modeling
+objectives used in general vision and remote-sensing foun-
+dation models [14]–[16], [34]. A visibility-weighted cosine
+distillation Lkd matches the masked student tokens from the
+default teacher modality (RGB) to the output of a frozen,
+architecturally identical teacher, following the teacher–student
+formulation of knowledge distillation [58], with the per-sample
+loss defined as the mean cosine distance across student and
+1The prefix MG- denotes the modality-guided sparse interaction imple-
+mented through query-selected local cross-modal updates.
+
+
+8
+Base View 
+Synchronized
+Transformation
+Swin
+Transformer
+Query Tokens
+...
+Transformed View
+Swin
+Transformer
+...
+Local matching score
+Sub-token offset 
+High
+Synchronized
+global affine 
+, 
+Base RGB 
+Transformed  Pair 
+Synchronized Transformation 
+Base IR 
+Low
+ increases
+Early epochs
+Late epochs
+Query center 
+Query confidence 
+Token confidence 
+Geometric Priors
+Fig. 5.
+Overview of syncPATC. A shared affine transform Hθ generates
+synchronized counterpart views under a view-gap curriculum. Transform-
+guided matching and cycle consistency estimate local reliability, producing
+token and query confidence, query centers, and sub-token offsets.
+teacher tokens. The RA-QCGCL term Lra-qcgcl enforces cross-
+modal contrastive alignment on the top-K reliability-ranked
+patch subset using symmetric InfoNCE-style objectives [10]–
+[12]; a modality-completion term Lmod reuses Lmim
+m
+on the
+modality-dropout mask so that fully or partially erased modal-
+ities can still be reconstructed; and the syncPATC term Lpatc
+m
+supervises the geometric learning itself. Combining the five
+terms gives
+L = λr
+X
+m
+Lmim
+m
++ λtLkd + λcLra-qcgcl + λdLmod + λp
+X
+m
+Lpatc
+m
+(8)
+where the five weights {λr, λt, λc, λd, λp} balance the corre-
+sponding terms; their default values are listed in Tab. III. The
+HFE blocks, distillation, and modality-completion loss support
+pretraining, whereas syncPATC, MG-Sparse-MMA, and RA-
+QCGCL carry the alignment design.
+B. syncPATC: Synchronized Patch-Center Alignment
+Fig. 6 expands the synchronized-transformation block in
+Fig. 5: the same known Hθ is applied to the RGB and
+IR streams, while base-to-counterpart matching and inverse-
+warp cycle consistency are computed separately within each
+modality. The resulting token and query confidence priors
+prioritize the top-Ks regions for fusion, while residual sub-
+token offsets refine the local sampling locations of MG-Sparse-
+MMA; these offsets are query offsets rather than RGB–IR
+registration offsets.
+Query centers. Let Zm, Z′
+m ∈RB×HW ×D denote the clean
+base- and counterpart-view tokens at stage sp. We learn Nq
+query tokens Φm per modality, run multi-head cross-attention
+MHCA(Φm, Zm, Zm) with head-averaged outputs (Qm, Am),
+and similarly obtain (Q′
+m, A′
+m) from Z′
+m. With pn ∈R2
+the grid coordinate of token n, the k-th query center is the
+attention-weighted average ˆck
+m =P
+n Am,k,n pn/P
+jAm,k,j.
+Affine-transform-guided local correspondence. Mapping
+ˆck
+m through Hθ in the pixel domain and back to the token grid
+(accounting for the stride-induced half-pixel offset) yields the
+expected counterpart-view center
+˜ck
+m = Πsp
+ Hθ Π−1
+sp (ˆck
+m)
+
+.
+(9)
+RGB and IR undergo the same
+horizontal and vertical rotation
+Fig. 6.
+Expanded synchronized transformation in syncPATC. The same
+sampled Hθ is applied to RGB and IR; its known geometry guides within-
+modality query-offset estimation. Boxes and arrows indicate corresponding
+regions, not RGB–IR registration offsets.
+Because the same warp is applied to both modalities, the
+synthetic pair shares a known geometric perturbation; this
+supplies the self-supervision signal for transformation consis-
+tency. syncPATC learns transformation-consistent, modality-
+specific reliability priors, which are then used by the paired
+fusion and contrastive branches. We bilinearly sample Z′
+m
+on a discrete neighborhood {∆l}L
+l=1 of radius r around ˜ck
+m,
+with a per-sample validity indicator νm,k,l ∈{0, 1} derived by
+warping Mv to the same grid. With ℓ2-normalized projections
+ˆq=N(WqQk
+m) and ˆkl =N(Wkum,k,l) and a Gaussian neigh-
+borhood prior of bandwidth σ, the masked correspondence
+distribution is
+αm,k,l =
+νm,k,l esm,k,l
+P
+l′ νm,k,l′ esm,k,l′ + ϵ,
+sm,k,l = ⟨ˆq, ˆkl⟩
+√
+D
+−∥∆l∥2
+2
+2σ2
+(10)
+where ϵ > 0 is a small numerical constant. If a query has
+no valid neighbor (N k
+v = 0), we set αm,k,l = 0 for every
+l, ˜uk
+m = 0, and ˆok
+m = 0, and exclude that query from the
+normalized correspondence and cycle losses. The matched
+token, sub-token offset, and entropy-normalized confidence for
+valid neighborhoods are
+˜uk
+m =LN
+X
+l
+αm,k,lWvum,k,l
+
+, ˆok
+m =
+X
+l
+αm,k,l∆l,
+(11)
+κk
+m = 1[N k
+v >0]·
+
+1 −
+Hk
+log max(Nk
+v ,2)
+
+[0,1],
+(12)
+where N k
+v = P
+l νm,k,l and Hk = −P
+l αm,k,l log αm,k,l, so
+that a more peaked distribution receives a higher confidence.
+Loss with view-gap curriculum. Let d(a, b)=1−cos(a, b).
+Both view-side queries are anchored to the matched token, and
+a cycle term re-enters the base view through H−1
+θ
+to give a
+recovered feature ˇuk
+m with confidence ˇκk
+m. The correspondence
+loss pulls both base-view and counterpart-view queries toward
+the matched token:
+Lcorr
+m = Ew
+ 1
+2(d(Qk
+m, ˜uk
+m)+d(Q′k
+m, ˜uk
+m))
+
+,
+(13)
+and the cycle-consistency loss enforces that the base-view
+query remains consistent after a round-trip transformation:
+Lcycle
+m
+= Ewˇκ
+
+d(Qk
+m, ˇuk
+m)
+
+.
+(14)
+The total syncPATC loss combines both terms as Lpatc
+m =Lcorr
+m +
+λcycLcycle
+m
+, with λcyc balancing the two objectives, and Ew[·]
+
+
+9
+Inputs
+Cross-Modal Query
+Bank
+Sparse Query
+Selection
+Bidirectional Sparse Fusion
+Scatter-Back
+Residual Update
+1
+0
+query centers
+0
+1
+Optional UAV
+metadata prompts
+saliency score
+0.91
+0.74
+0.63
+0.54
+0.43
+0.28
+0.16
+0.09
+Top-Ks salient queries
+(Ks=4)
+selected
+Ks=4
+center ci
+(attn. center)
++priors
+gated
+aggregation
+Scatter-back to RGB tokens
+Scatter-back to Thermal
+tokens
+RGB stream
+Thermal stream
+Meta / queries
+Selected (sparse)
+Inactive / dense
+attention center
+sampled point
+learned offset
+residual add
+gated product
+Optional syncPATC
+geometric priors
+Cross-modal query bank
+(learnable queries)
+offsets
+token priors
+query confidence
+cross-attention
+(to RGB tokens)
+Cross-attention
+(to Thermal tokens)
+Local Geometry
+-Guided Sampling
+Inactive
+Active
+For each selected query k ∈ J
+local 3 x 3 sampling window
+learned
+offset
+sampled
+points (3 X 3)
+Hard Top-K routing
+𝟙
+m = [1  0  1  0  0  1  1  0]
+Active
+Inactive
+Thermal-to-RGB update (T -> R)
+local attention
+Sampled local
+contexts
+syncPATC priors refine
+center & offset
+fused query
+update
+local attention
+gated
+aggregation
+fused query
+update
+clamped offset
+Modulates 
+Gates
+Modulates
+ Gates
+shared gate conditioning
+repeat 
+L = 2 layers;
+recompute
+queries &
+saliency
+skip fusion
+Fig. 7. MG-Sparse-MMA architecture. syncPATC reliability reweights candidate RGB and IR queries before top-Ks selection. Query centers and sub-token
+offsets guide deformable local sampling, followed by bidirectional gated fusion and residual scatter-back.
+denoting the weight-normalized mean over (b, k) with wk
+m,b =
+κk
+m,b γb. The view-gap curriculum coefficient
+γb = (1 −pb)(γ0 −γ1 gb) + pb(γ2 + gb)
+(15)
+emphasizes reliable small-gap samples when training progress
+pb →0 and increases the loss weight for large-gap samples
+when pb →1, defining an easy-to-hard weighting schedule.
+Geometric
+priors. syncPATC outputs four quantities,
+rescaled to the fusion grid before downstream consumption:
+πtok
+m (n)∝
+X
+k
+Am,k,nκk
+m,
+πq
+m,k = 1
+2(κk
+m+ˇκk
+m),
+¯ck
+m =Rescale(ˆck
+m),
+¯ok
+m =Rescale(ˆok
+m).
+(16)
+Here Rescale(·) denotes the deterministic coordinate conver-
+sion from the syncPATC stage grid to the fusion grid. To
+prevent contrastive shortcuts from reshaping the geometry
+module, the confidence priors used by RA-QCGCL are de-
+tached by default. The priors used by MG-Sparse-MMA can
+retain a lightweight gradient path for fusion calibration.
+C. MG-Sparse-MMA: Modality-Guided Sparse Multimodal
+Attention
+Module organization. Fig. 7 expands MG-Sparse-MMA
+as the sparse fusion stage of GAAT. Rather than letting
+every token attend to every cross-modal token, this module
+is inserted into the forward path and updates the two modality
+streams only through a small set of reliable query slots,
+drawing on deformable convolution, deformable attention, and
+cross-modal transformer fusion [41], [45], [46]. The query
+bank first exposes candidate regions in each modality, the
+reliability-weighted saliency score selects the top-Ks slots, and
+the selected queries drive geometry-calibrated local attention
+before their updates are scattered back to the RGB and IR
+token grids.
+Cross-modal query bank. MG-Sparse-MMA stacks L
+identical layers. Each layer first applies per-modality token
+self-attention on Xm ∈RB×HW ×D. A learnable query bank
+ΦMMA ∈RNq×D, optionally concatenated with a UAV meta-
+data prompt ϕv = MLP(vmeta), extracts modality-specific
+queries Qm and head-averaged cross-attention maps Aq
+m via
+MHCA(ΦMMA ∪ϕv, Xm, Xm), with only the first Nq slots
+retained. Because the bank is shared across modalities, slot
+k retains a shared learned identity while its output remains
+modality-conditioned. When syncPATC is on, the token prior
+modulates and re-normalizes the attention so that geometric
+consistency and semantic importance are coupled:
+Aq
+m ←Renorm
+ Aq
+m ⊙πtok
+m
+
+.
+(17)
+The per-query saliency is the reliability-weighted attention
+mass, further weighted by the query prior:
+˜sk
+m =
+X
+n
+Aq
+m,k,nρm(n)
+ λ1 + λ2πq
+m,k
+
+,
+˜sk
+joint = 1
+2
+ ˜sk
+R + ˜sk
+T
+ (18)
+where λ1 and λ2 balance the base attention score and the prior
+term (see Tab. III).
+Sparse selection. The top Ks queries by ˜sjoint form the
+ordered selected-query list J = (J1, . . . , JKs), where Jk
+is the original query index of selected slot k. Cross-modal
+interaction is then confined to a Ks×Ls neighborhood with
+Ls =(2rs+1)2, reducing the cross-modal interaction cost from
+O((HW)2) to O(KsLs).
+Geometry-calibrated local sampling. For each selected
+slot k = 1, . . . , Ks, the local sampling center is the mean of
+
+
+10
+the two-modality attention centers, refined by the syncPATC
+center prior:
+ˆck = 1
+2
+ µ(Aq,Jk
+R
+)+µ(Aq,Jk
+T
+)
+
+, ˆck ←1
+2
+ ˆck+ 1
+2(¯cJk
+R +¯cJk
+T )
+
+.
+(19)
+For each direction m→m′ (target m′, source m), a learnable
+offset is predicted from the query pair and metadata prompt,
+then summed with the syncPATC offset prior and hard-clipped:
+δk
+m→m′ = δmax tanh
+ MLPo([QJk
+m′; QJk
+m ; ¯ϕv])
+
+,
+(20)
+∆k
+m→m′ = clipδmax
+
+δk
+m→m′ + 1
+2(¯oJk
+R +¯oJk
+T )
+
+,
+(21)
+where ¯ϕv is the query-axis mean of ϕv (omitted when no
+prompt is used).
+Gated fusion and scatter. Bilinearly sampling the source
+feature map Xm at {ˆck + ∆k
+m→m′ + ∆l}l produces the lo-
+cal context U k. With the direction-specific query projection
+˜Qk
+m→m′ =W q
+m→m′[QJk
+m′; QJk
+m ] and a saliency-aware modality
+gate gk =σ(MLPg([QJk
+m′; QJk
+m ; ¯ϕv; ˜sJk
+m′; ˜sJk
+m ; ˜sJk
+joint])) that takes
+its inputs in (target, source, joint) order to match the directional
+update, the per-query update is
+ˆyk = W m→m′
+p
+
+gk X
+l
+softmaxl
+ ⟨˜
+Qk
+m→m′,U k
+l ⟩
+√
+D
+
+U k
+l
+
+,
+(22)
+and the residual write-back is
+X(ℓ+1)
+m′
+= X(ℓ)
+m′ + DropPath
+ Ks
+X
+k=1
+rk
+nˆyk
+,
+(23)
+where rk
+n =Aq,Jk
+R,n Aq,Jk
+T,n /P
+n′Aq,Jk
+R,n′Aq,Jk
+T,n′ is the joint attention
+assignment that scatters the sparse update across the target-
+modality token grid. The two directions IR→RGB and RGB→
+IR are executed in parallel within each layer; we refer to this
+symmetric scheme as modality-guided.
+Role of syncPATC priors. The token prior couples geo-
+metric reliability into the query attention and hence into the
+top-Ks selection (Eq. (17)); the centers and offsets calibrate
+the local sampling positions (Eqs. (19)–(21)); the query prior
+promotes reliable queries in the saliency ranking (Eq. (18)).
+Together with the symmetric bidirectional update, these priors
+help reduce the failure mode in which a salient but spatially
+mismatched region receives heavy cross-modal attention.
+D. RA-QCGCL:
+Reliability-Aware
+Query-Guided
+Cross-
+Granularity Contrastive Learning
+Let Zm ∈RB×HW ×D denote the masked top-stage tokens
+refined by MG-Sparse-MMA, with ℓ2-normalized form ˆZm,
+and let ˆQm, Aq
+m, ˜sm be the normalized queries, attention
+maps, and per-query saliencies emitted by MG-Sparse-MMA
+(Sec. IV-C). The query notation is module-local: syncPATC
+queries are computed from clean mid-stage tokens, whereas
+these queries are computed from masked top-stage tokens.
+Module organization. As detailed in Fig. 8, RA-QCGCL
+avoids returning to the dense patch-index assumption after the
+model has adopted sparse query-mediated fusion. The first
+stage constructs a joint reliability score from syncPATC priors
+and modality-specific image evidence, so that token-index
+positives are used only where local correspondence is credible.
+Inputs and Reliability
+gathered Reliability-Aware
+Token Selection gathered
+gathered Three Cross-Granularity
+Contrastive Branches gathered
+RGB
+Reliability
+Sobel
+Laplacian
+Thermal
+Reliability
+Sobel
+Local
+Contrast
+1
+0
+syncPATC prior 
+Joint Reliability
+Token Ranking
+high
+reliability score
+low
+Top-25% Reliable Token Selection
+selected
+suppressed
+RGB Selected Tokens
+Thermal Selected Tokens
+Reliable Patch-to-Patch (P2P)
+RGB
+Thermal 
+InfoNCE
+RGB
+Thermal
+same index
+off-diagonal
+Patch-to-Query (P2Q)
+RGB
+Thermal
+Query-to-Query (Q2Q)
+RGB Queries
+Thermal Queries
+InfoNCE
+same query
+off-diagonal
+Q2Q
+P2Q
+P2P
+cross-modal
+query
+token conf.
+query conf.
+RGB
+Thermal
+1
+0
+Fig. 8.
+RA-QCGCL architecture. Joint geometric and modality-specific
+reliability selects the top-25% tokens. P2P aligns spatially anchored patches,
+P2Q assigns selected patches to semantic queries, and Q2Q aligns cross-modal
+query slots.
+The second stage applies complementary contrastive branches
+with different spatial assumptions: P2P retains strict patch-
+index supervision on reliable tokens, P2Q transfers selected
+patches to cross-modal semantic queries, and Q2Q aligns
+query slots across the batch when patch-level geometry is
+weak.
+Joint reliability. On the fusion grid, the per-modality
+reliability map is derived from the RGB luminance proxy
+IY
+R = 1
+3
+P
+cI(c)
+R
+as a combined Sobel/Laplacian response, and
+from IT using a combination of a Sobel magnitude and a 5×5
+local-contrast response. Each map undergoes per-sample min–
+max normalization, point-wise attenuation by 1−M drop
+m
+(the
+modality-dropout mask), and adaptive average pooling. When
+syncPATC is on, the geometric token confidence modulates
+the maps point-wise and the joint reliability is
+¯ρ = 1
+2
+ ρR⊙πtok
+R + ρT ⊙πtok
+T
+
+.
+(24)
+A top-K subset with K = round(τKHW) is selected by
+¯ρ, yielding the per-sample index set Ib and weights wk
+b =
+¯ρb(Ik
+b ) qb; qb ∈(0, 1] is a normalized pair-level registration-
+quality prior retained from alignment preprocessing, so lower-
+quality registrations contribute less to the patch-level con-
+trastive terms.
+Reliable patch-to-patch (P2P). Here and below, Ew de-
+notes the weight-normalized mean over selected sample-index
+pairs (b, k) using wk
+b . Using the selected token indices as
+positive labels in a temperature-τp cross-modal InfoNCE,
+Lp2p = 1
+2
+
+Ew
+
+CE(
+ˆ
+ZI
+R ˆ
+Z⊤
+T
+τp
+, I)
+
++ Ew
+
+CE(
+ˆ
+ZI
+T ˆ
+Z⊤
+R
+τp
+, I)
+
+,
+(25)
+which simultaneously enforces semantic consistency and spa-
+tial uniqueness on the selected subset.
+Patch-to-query (P2Q). Each selected token is assigned to
+a query slot in the same modality by ˆkn
+m = arg maxk Aq
+m,k,n
+and pulled towards the cross-modal counterpart query,
+Lp2q = 1
+2
+
+Ew
+
+d( ˆZI
+R, ˆQ
+ˆkR(I)
+T
+)
+
++ Ew
+
+d( ˆZI
+T , ˆQ
+ˆkT (I)
+R
+)
+
+. (26)
+Query-to-query (Q2Q). For each query slot k we form an
+in-batch similarity matrix Sk
+b,b′ = ⟨ˆQb,k
+R , ˆQb′,k
+T
+⟩/τq and run a
+
+
+11
+symmetric InfoNCE with the diagonal labels y=(0, 1, . . . , B−
+1):
+Lq2q = 1
+2
+
+Ewq
+CE(Sk, y)
+
++ Ewq
+CE((Sk)⊤, y)
+
+,
+(27)
+where Ewq[·] averages over both b and k with weight wq
+b,k =
+1
+2(˜sk
+R,bπq
+R,b,k + ˜sk
+T,bπq
+T,b,k) qb, and the per-query saliency ˜sk
+m
+is given in Eq. (18). When B = 1, Lq2q degenerates to
+Ewq[d( ˆQR, ˆQT )].
+The training objective balances three contrastive granulari-
+ties:
+Lra-qcgcl = αLp2p + βLp2q + γLq2q,
+(28)
+with α, β, γ balancing the three granularities. The reliability
+factor concentrates the contrastive signal on tokens and queries
+whose cross-modal correspondence is supported by image
+evidence and syncPATC geometry. When patch-level reliability
+is low, the Q2Q branch provides an additional alignment signal
+because it operates on semantic query slots rather than token
+indices.
+V. EXPERIMENTS
+A. Experimental Settings
+All GAAT task variants are initialized, where applicable,
+from the same UAVMeta-pretrained dual Swin-V2-Base RGB–
+IR encoder; each benchmark activates the branch or branches
+matching its input modality [9]. GAAT(U) attaches UPerNet,
+whereas GAAT(C) uses a CMX/SegFormer-style multimodal
+decoder for semantic segmentation; GAAT(D) uses DDQ-
+DETR for object detection; and GAAT(G) applies a Global
+MLP head to mean-pooled top-stage tokens for scene classifi-
+cation [41], [59]–[61]. ChangeFormer and ChangerEx provide
+the change-detection heads (GAAT(CF/CX)), a ByteTrack-
+style tracker is attached to the GAAT detector (GAAT(B)), and
+GAAT+ThermalGS couples the IR branch to a gsplat-based
+renderer for 3D reconstruction [62]–[64]. Default training
+and module settings are summarized in Tab. III; task-specific
+input modalities and augmentations follow the corresponding
+benchmark protocols.
+B. Semantic Segmentation
+The main text presents KUST4K, an established visible–
+IR benchmark, and UAVMeta, our in-domain RGB–IR bench-
+mark [3]. KUST4K evaluates transfer under an external
+annotation protocol, whereas UAVMeta evaluates the same
+pretrained representation on the official acquisition-disjoint
+split. We report mIoU and the accuracy measures defined
+by each benchmark. GAAT(C) uses the geometry-aware
+encoder with a CMX/SegFormer-style multimodal decoder
+[41], [60]. The comparison spans convolutional, multispectral-
+fusion, lightweight, foundation-model, and state-space seg-
+mentation families, including U-Net, MFNet, RTFNet, ICA-
+Fusion, SGFNet, MobileNetV3, DOFA, and Sigma [19],
+[42], [44], [66]–[70]. Additional segmentation comparisons
+on UAVid, UDD5, UDD6, and UAVM are reported in Ap-
+pendix A-B.
+On KUST4K (Tab. IV), GAAT(C) obtains 82.14 mIoU and
+92.41 mean class accuracy (mAcc), the highest values in the
+TABLE III
+DEFAULT TRAINING, MODULE, AND STATEBENCH CONFIGURATION.
+TASK-SPECIFIC INPUT MODALITIES AND AUGMENTATIONS FOLLOW THE
+CORRESPONDING BENCHMARK PROTOCOLS.
+Group
+Symbol
+Value
+Pretraining
+Backbone
+Dual Swin-V2-Base
+Data / crop / epochs
+UAVMeta / 256×256 / 12
+Optimizer / (β1, β2)
+AdamW [65] / (0.9, 0.95)
+Learning rate / schedule
+1×10−4 / cosine decay
+Mask ratio
+0.6
+Sync. affine: rotation / translation
+±20◦/ ±24 px
+Sync. affine: scale / shear
+[0.85, 1.15] / ±8◦
+Fine-tuning
+Optimizer / lr / weight decay
+AdamW / 1×10−4 / 0.05
+Loss weights
+λr, λt, λc
+1.0
+λd
+0.25
+λp
+0.2
+λcyc
+0.1
+syncPATC
+sp (encoder stage)
+2
+Nq (queries)
+8
+r (neighborhood radius)
+2
+σ (Gaussian bandwidth)
+1.25
+γ0, γ1, γ2 (curriculum)
+1.25, 0.75, 0.5
+MG-Sparse-MMA
+L (layers)
+2
+Ks (sparse Top-K)
+4
+rs (neighborhood radius)
+1
+δmax (offset cap)
+1.5
+λ1, λ2 (saliency weights)
+0.5, 0.5
+RA-QCGCL
+α, β, γ
+0.5, 0.3, 0.2
+τK (Top-K ratio)
+0.25
+τp, τq (temperatures)
+0.1, 0.07
+View gap weights
+ηrot, ηtrans, ηscale, ηshear
+0.35, 0.35, 0.2, 0.1
+FMCS weights
+wv, wa, wω, wh
+0.35, 0.25, 0.25, 0.15
+MSPA-4D
+w1, w2, w3, w4
+0.25, 0.20, 0.25, 0.30
+τ1, τ2, τ3, τ4 (tolerances)
+12, 10, 12, 15
+TABLE IV
+SEMANTIC-SEGMENTATION RESULTS ON KUST4K UNDER THE OFFICIAL
+EVALUATION PROTOCOL. HIGHER VALUES ARE BETTER.
+Method
+Backbone
+Input
+mIoU mAcc
+UNet
+ResNet-50 RGB–IR 52.70 22.02
+UPerNet
+ResNet-50 RGB–IR 55.40 54.06
+RTFNet
+ResNet-50 RGB–IR 60.00 78.82
+FEANet
+ResNet-50 RGB–IR 67.60 78.80
+EAEFNet
+ResNet-50 RGB–IR 70.10 83.13
+CMNeXt-B2
+CMNeXt
+RGB–IR 70.00 68.68
+CMNeXt-B4
+CMNeXt
+RGB–IR 72.37 79.53
+CMX-B2
+MiT-B2
+RGB–IR 72.00 76.45
+CMX-B4
+MiT-B4
+RGB–IR 71.71 78.90
+Sigma
+Mamba
+RGB–IR 75.30 82.82
+SegFormer-RGB
+MiT-B5
+RGB
+59.84 75.80
+DeepLabV3+-RGB ResNet-50
+RGB
+67.40 74.20
+SegFormer-RGB
+MiT-B5
+RGB
+60.26 65.85
+PIDNet-RGB
+PIDNet-L
+RGB
+55.95 62.43
+SegFormer-IR
+MiT-B5
+IR
+63.20 77.45
+ICAFusion
+ICAFusion RGB–IR 66.17 78.89
+SHIFNet (SAM2) SAM2
+RGB–IR 65.30 74.61
+SGFNet
+ResNet-50 RGB–IR 81.07 88.02
+FGFNet
+ResNet-50 RGB–IR 72.12 84.51
+DOFA
+ViT-L
+RGB
+80.83 89.48
+SatMAE++
+ViT-L
+RGB
+67.89 75.67
+Prithvi-EO-2.0
+Prithvi-EO
+RGB
+66.10 76.18
+GAAT(C) (Ours) GAAT
+RGB–IR 82.14 92.41
+table. The mIoU exceeds SGFNet by 1.07 points and the
+mAcc exceeds DOFA by 2.93 points, showing transfer of the
+geometry-aware representation to visible–IR prediction.
+UAVMeta protocol and results. UAVMeta uses the official
+acquisition-disjoint split of 1,715/572/288 synchronized RGB–
+IR pairs for training/validation/test. All seven stored mask
+
+
+12
+TABLE V
+SEMANTIC-SEGMENTATION RESULTS ON UAVMETA ACROSS RGB-ONLY,
+IR-ONLY, AND RGB–IR CONFIGURATIONS; INPUT MODALITY IS LISTED
+IN THE TABLE.
+Method
+Backbone/Decoder Input
+mIoU ↑
+FWIoU ↑
+Pixel Acc. ↑
+DeepLabV3
+ResNet-50
+RGB
+57.54±2.39 68.02±1.71 80.35±1.35
+DeepLabV3
+ResNet-50
+IR
+58.91±0.65 70.63±0.67 81.88±0.59
+LR-ASPP
+MobileNetV3-L
+RGB
+49.24±1.08 60.46±0.63 74.55±0.56
+Global-IR FiLM
+ResNet-50
+RGB–IR 54.88±1.50 64.81±1.42 77.92±1.10
+DeepLabV3
+ResNet-101
+RGB
+57.16±1.40 68.00±0.98 80.05±0.78
+SegFormer-B5
+MiT-B5
+RGB
+63.52±0.98 74.53±1.17 84.86±0.82
+GAAT(C) (Ours) GAAT
+RGB–IR 67.79±1.18 78.58±1.32 87.44±0.93
+classes, including background, are included in the evaluation.
+Results are the mean and standard deviation over seeds 42–
+44; checkpoints are selected by validation mIoU and evaluated
+once on the test set. The reported GAAT configuration uses
+the common pretrained encoder with multiscale RGB–IR
+augmentation and a SegFormer-style decoder.
+As shown in Tab. V, GAAT reaches 67.79 ± 1.18 mIoU,
+78.58 ± 1.32 frequency-weighted intersection over union
+(FWIoU), and 87.44 ± 0.93 pixel accuracy. Relative to
+SegFormer-B5, the strongest listed baseline on all three ag-
+gregate metrics, the corresponding mean improvements are
+4.27, 4.05, and 2.58 points. GAAT uses paired RGB–IR
+input, whereas SegFormer-B5 is RGB-only; the ablation study
+further examines the contribution of the alignment modules.
+C. Object Detection
+The main text presents DroneVehicle and UAVMeta. Dron-
+eVehicle provides an established cross-modal vehicle-detection
+benchmark [55], while UAVMeta measures in-domain transfer
+on synchronized RGB–IR pairs under an acquisition-disjoint
+split. We report COCO-style mAP, mAP50, and mAP75 [71]
+and use DDQ-DETR as the principal detection head for
+GAAT(D). The listed baselines cover two-stage, one-stage,
+oriented, and real-time transformer detectors [72]–[82]. Ad-
+ditional detection comparisons on HIT-UAV, LLVIP, UAVDT,
+VisDrone-DET, and IndraEye are reported in Appendix A-C.
+On DroneVehicle (Tab. VI), GAAT(D) achieves 56.59 mAP,
+80.12 mAP50, and 67.16 mAP75. Relative to the strongest
+listed baseline, DDQ-DETR, these values improve by 6.49,
+7.72, and 7.66 points, respectively, with gains across all three
+reported metrics.
+UAVMeta protocol and results. The UAVMeta detector is
+trained and evaluated on the official acquisition-disjoint split,
+with model selection performed on the validation set. Tab. VII
+reports the mean and standard deviation over three fine-
+tuning seeds. The reported GAAT(D) configuration combines
+the common GAAT encoder with a DDQ-DETR multimodal
+detection head.
+GAAT(D) obtains 44.86 ± 3.76 mAP, 62.64 ± 4.40 mAP50,
+and 52.00 ± 5.13 mAP75. The corresponding DDQ-DETR
+baseline means are 43.33, 61.93, and 50.37, yielding absolute
+improvements of 1.53, 0.71, and 1.63 points. The DDQ-DETR
+baseline is RGB-only, whereas GAAT(D) uses RGB–IR input.
+TABLE VI
+OBJECT-DETECTION RESULTS ON DRONEVEHICLE ACROSS RGB, IR, AND
+PAIRED RGB–IR CONFIGURATIONS; THE INPUT MODALITY IS INDICATED
+BY THE MODALITY GROUP IN THE TABLE.
+Method
+Backbone
+mAP
+mAP50
+mAP75
+RGB modality
+Faster R-CNN
+ResNet-101
+45.00
+70.10
+50.50
+RoITransformer
+ResNet-50
+38.59
+65.04
+40.37
+YOLOv7
+EfficientNet-B0
+47.24
+71.56
+53.57
+S2ANet
+ResNet-50
+34.35
+62.04
+34.51
+Oriented R-CNN
+ResNet-50
+38.20
+64.00
+41.25
+Cascade R-CNN
+ResNet-101
+47.10
+71.00
+53.60
+IR modality
+Faster R-CNN
+ResNet-101
+41.70
+68.30
+46.00
+RoITransformer
+ResNet-50
+41.26
+65.94
+47.00
+S2ANet
+ResNet-50
+38.91
+65.76
+42.16
+Oriented R-CNN
+ResNet-50
+40.89
+66.13
+46.62
+Cascade R-CNN
+ResNet-101
+43.80
+69.40
+48.90
+RGB–IR modality
+Cascade R-CNN
+ResNet-50
+45.60
+69.40
+51.70
+DDQ-DETR
+Swin-Base
+50.10
+72.40
+59.50
+Faster R-CNN
+ResNet-50 FPN-v2
+46.12
+70.46
+52.97
+GAAT(D) (Ours)
+GAAT
+56.59
+80.12
+67.16
+D. Scene Classification
+We evaluate scene classification on AID and RESISC45
+using the RGB branch and on UAVMeta using paired RGB–
+IR inputs. A Global MLP classification head is applied to
+mean-pooled top-stage tokens. For AID and RESISC45, the
+backbone is fully fine-tuned under the standard training-
+ratio protocols; AID, RESISC45, Million-AID, and EuroSAT
+are established aerial or remote-sensing scene-classification
+benchmarks [31], [32], [83], [84]. The comparison includes
+remote-sensing pretraining approaches such as SeCo, Sat-
+MAE, CMID, and RVSA [14], [36], [85], [86]. UAVMeta uses
+the official acquisition-disjoint RGB–IR split and its per-frame
+scene labels.
+On AID (TR=20%/50%), the GAAT classification con-
+figuration
+records
+95.90/97.38
+accuracy;
+on
+RESISC45
+(TR=10%/20%), it records 92.84/94.49. These results show
+that
+the
+pretrained
+encoder
+transfers
+to
+both
+scene-
+classification benchmarks. SkySense is stronger on AID at
+the 20% ratio and on both RESISC45 ratios, while RVSA
+is strongest on AID at the 50% ratio [22], [86].
+UAVMeta protocol and results. For UAVMeta scene clas-
+sification, label 0 (Void) is excluded and classes 1–8 are
+evaluated. Results are the mean and standard deviation over
+seeds 42–44; checkpoints are selected by validation macro-F1
+and evaluated once on the test split. The reported GAAT(G)
+configuration is initialized from the common pretrained check-
+point and uses the Global MLP head with the IR branch
+enabled.
+Tab. IX shows that GAAT(G) achieves the highest re-
+ported mean accuracy (63.66 ± 1.78) and balanced accuracy
+(51.97 ± 0.56), improving over EfficientNetV2-S by 0.23
+and 0.72 points, respectively. Its macro-F1 is 48.12 ± 1.23,
+while the IR-only ResNet-50 baseline reaches 48.72 ± 5.85.
+The comparison uses the established ResNet, ConvNeXt, and
+EfficientNetV2 architecture families [87]–[89]. GAAT uses
+
+
+13
+TABLE VII
+OBJECT-DETECTION RESULTS ON UAVMETA ACROSS RGB, IR, AND RGB–IR CONFIGURATIONS UNDER THE OFFICIAL ACQUISITION-DISJOINT SPLIT;
+INPUT MODALITY IS LISTED IN THE TABLE.
+Method
+Backbone
+Input
+mAP
+mAP50
+mAP75
+Faster R-CNN
+ResNet-50
+RGB
+37.88 ± 2.39
+56.58 ± 1.71
+44.76 ± 3.63
+Cascade R-CNN
+ResNet-50
+RGB
+37.84 ± 3.61
+55.23 ± 2.78
+43.53 ± 5.34
+YOLOX
+YOLOX-X
+RGB
+39.56 ± 6.53
+60.21 ± 3.22
+44.23 ± 9.73
+DDQ-DETR
+Swin-Base
+RGB
+43.33 ± 3.67
+61.93 ± 3.91
+50.37 ± 5.52
+DINO
+ResNet-50
+RGB
+42.37 ± 1.99
+57.90 ± 2.33
+48.53 ± 2.25
+Swin-V2 Faster R-CNN
+Swin-V2-B
+RGB
+22.71 ± 6.34
+44.21 ± 6.58
+20.24 ± 9.66
+Faster R-CNN
+ResNet-50
+IR
+18.95 ± 0.43
+34.68 ± 1.29
+19.33 ± 1.62
+GAAT(D) (Ours)
+GAAT
+RGB–IR
+44.86 ± 3.76
+62.64 ± 4.40
+52.00 ± 5.13
+TABLE VIII
+SCENE-CLASSIFICATION OVERALL ACCURACY (OA, %) ON AID AND
+RESISC45; OA DENOTES OVERALL ACCURACY. GAAT(G) DENOTES
+GAAT WITH THE GLOBAL MLP CLASSIFICATION HEAD APPLIED TO
+MEAN-POOLED TOP-STAGE TOKENS.
+Method
+Backbone
+AID (OA)
+RESISC45 (OA)
+TR=20%/50%
+TR=10%/20%
+GASSL
+ResNet-50
+93.55/95.92
+90.86/93.06
+SeCo
+ResNet-50
+93.47/95.99
+89.64/92.91
+SatMAE
+ViT-L
+95.02/94.98
+91.72/91.84
+RingMo
+Swin-B
+96.90/98.34
+94.25/95.67
+RVSA
+ViT-B
+97.03/98.50
+93.93/95.69
+TOV
+ViT-B
+95.16/97.09
+90.97/93.79
+SSL4EO
+ResNet-50
+91.06/94.74
+87.60/91.27
+CMID
+ResNet-50
+96.11/97.79
+91.84/94.07
+CACo
+ResNet-50
+90.88/95.05
+88.28/91.94
+CROMA
+ViT-B
+96.44/97.58
+92.63/95.04
+SatLas
+Swin-B
+94.96/97.38
+92.16/94.70
+Scale-MAE
+ViT-L
+96.44/97.58
+92.63/95.04
+SkySense
+Swin-H
+97.56/98.42
+94.96/96.20
+RingMo-Aerial
+RingMo-Aerial
+95.81/96.46
+92.28/95.65
+GAAT(G) (Ours) GAAT
+95.90/97.38
+92.84/94.49
+TABLE IX
+SCENE-CLASSIFICATION RESULTS ON UAVMETA ACROSS RGB, IR, AND
+RGB–IR CONFIGURATIONS; INPUT MODALITY IS LISTED IN THE TABLE.
+Method
+Input
+Acc. ↑
+Bal. Acc. ↑
+Macro-F1 ↑
+ResNet-50
+RGB
+49.65±2.50
+39.25±0.99
+37.39±0.28
+ResNet-50
+IR
+62.73±4.14
+50.51±4.97
+48.72±5.85
+Swin-T
+RGB
+47.80±0.72
+37.76±1.67
+35.29±0.77
+Late-Fusion ResNet-50
+RGB–IR
+54.40±1.60
+44.11±1.88
+42.25±3.47
+ConvNeXt-B
+IR
+59.95±4.02
+50.23±4.15
+47.08±6.19
+EfficientNetV2-S
+IR
+63.43±1.91
+51.25±0.75
+47.86±1.67
+GAAT(G) (Ours)
+RGB–IR
+63.66±1.78
+51.97±0.56
+48.12±1.23
+both modalities, whereas the strongest baseline entries use a
+single modality.
+E. Change Detection
+We next examine bi-temporal transfer on CDD (Change De-
+tection Dataset) and LEVIR-CD (Large-scale building change
+detection) [90], [91]. The table reports F1 and IoU scores.
+We use ChangeFormer and ChangerEx as the change-detection
+heads, denoted GAAT(CF) and GAAT(CX), respectively; the
+comparison spans fully convolutional Siamese, densely con-
+TABLE X
+CHANGE-DETECTION RESULTS ON THE BI-TEMPORAL CDD AND
+LEVIR-CD BENCHMARKS. HIGHER VALUES ARE BETTER.
+Method
+Backbone
+CDD
+LEVIR-CD
+F1
+IoU
+F1
+IoU
+ChangeFormer
+Transformer
+97.29
+94.72
+90.40
+88.80
+BIT
+ResNet-18
+88.90
+80.01
+89.31
+89.37
+RingMo
+RingMo
+90.90
+84.09
+89.53
+82.38
+ScratchFormer
+Transformer
+97.88
+95.85
+91.68
+84.63
+Changer
+ResNet-18
+67.81
+57.72
+90.70
+82.99
+TinyCD
+CNN
+62.50
+52.37
+91.05
+83.57
+Change3D
+ResNet-18
+96.25
+92.77
+91.82
+84.87
+GeSANet
+ResNet-18
+95.14
+90.73
+90.05
+83.67
+TransUNetCD
+ResNet-50
+97.17
+94.50
+91.11
+83.67
+GAAT(CF) (Ours)
+GAAT
+97.85
+95.79
+86.24
+75.81
+GAAT(CX) (Ours)
+GAAT
+97.77
+95.64
+95.96
+92.47
+nected Siamese, and transformer-based change detectors [62],
+[92]–[95].
+Tab. X reports the two change-detection datasets in one
+compact table. On CDD, GAAT(CF) obtains 97.85 F1 and
+95.79 IoU, within 0.03 and 0.06 points of ScratchFormer,
+respectively. On LEVIR-CD, GAAT(CX) achieves the high-
+est listed F1 (95.96) and IoU (92.47), showing that GAAT
+transfers across both change-detection benchmarks.
+F. Multi-Object Tracking
+We then assess temporal association on the official M3OT
+validation sequences, which contain paired RGB–IR UAV
+videos [6]. The metrics are Higher Order Tracking Accuracy
+(HOTA), Multiple Object Tracking Accuracy (MOTA), and
+ID F1 Score (IDF1), following the HOTA and CLEAR MOT
+evaluation frameworks [96], [97]. We adopt a ByteTrack-
+style tracking framework on top of the GAAT detector,
+denoted GAAT(B). The comparison covers the SORT/Deep
+SORT association lineage and representative joint detection-
+and-tracking methods, including CenterTrack, FairMOT, OC-
+SORT, and Deep OC-SORT [63], [98]–[103].
+Tab. XI reports RGB, IR, and pooled M3OT results on the
+official validation sequences. Drone 1 corresponds to sequence
+1-08 and Drone 2 to sequence 2-08. The baseline entries use
+the backbones listed in the table: CenterTrack and FairMOT
+use DLA-34 [104], whereas the other baselines use YOLOv8-
+n; GAAT(B) uses the GAAT-B backbone. GAAT(B) has the
+highest pooled HOTA, IDF1, and MOTA on Drone 1. On
+
+
+14
+TABLE XI
+MULTI-OBJECT TRACKING RESULTS ON THE OFFICIAL M3OT VALIDATION SEQUENCES. OVERALL VALUES ARE POOLED RGB–IR SUMMARIES
+COMPUTED BY THE BENCHMARK PROTOCOL (REPORTED VALUES ARE ROUNDED); HIGHER VALUES ARE BETTER.
+UAV
+Tracker
+Backbone
+RGB
+IR
+Overall
+HOTA↑
+IDF1↑
+MOTA↑
+HOTA↑
+IDF1↑
+MOTA↑
+HOTA↑
+IDF1↑
+MOTA↑
+Drone 1
+CenterTrack
+DLA-34
+39.28
+56.84
+25.39
+42.55
+60.80
+24.72
+40.89
+58.89
+25.06
+FairMOT
+DLA-34
+35.46
+47.78
+14.66
+43.23
+56.51
+31.22
+39.30
+52.10
+22.84
+ByteTrack
+YOLOv8-n
+37.70
+59.00
+38.90
+34.90
+62.10
+43.60
+36.30
+60.60
+41.30
+OC-SORT
+YOLOv8-n
+36.80
+54.30
+34.80
+31.80
+55.30
+35.30
+34.30
+54.80
+35.10
+Deep OC-SORT
+YOLOv8-n
+31.10
+47.70
+27.80
+31.70
+55.80
+36.20
+31.40
+51.80
+32.00
+ImprAsso
+YOLOv8-n
+29.60
+40.10
+28.80
+28.20
+43.00
+40.00
+28.90
+41.60
+34.40
+GAAT(B) (Ours)
+GAAT-B
+43.09
+62.07
+40.50
+59.01
+73.86
+55.11
+51.05
+67.96
+47.80
+Drone 2
+CenterTrack
+DLA-34
+39.18
+59.86
+29.35
+48.73
+71.84
+49.80
+43.91
+65.78
+39.47
+FairMOT
+DLA-34
+36.95
+41.39
+14.82
+37.68
+39.67
+26.27
+37.31
+40.55
+20.48
+ByteTrack
+YOLOv8-n
+36.00
+54.80
+36.40
+43.50
+62.80
+51.20
+39.80
+58.80
+43.80
+OC-SORT
+YOLOv8-n
+33.90
+49.70
+31.80
+37.70
+50.10
+41.90
+35.80
+49.90
+36.90
+Deep OC-SORT
+YOLOv8-n
+32.10
+47.10
+28.50
+38.30
+54.20
+44.70
+35.20
+50.70
+36.60
+ImprAsso
+YOLOv8-n
+28.90
+37.10
+29.60
+40.10
+48.30
+48.70
+34.50
+42.70
+39.20
+GAAT(B) (Ours)
+GAAT-B
+43.75
+55.71
+40.26
+55.83
+65.97
+58.83
+49.79
+60.84
+49.54
+TABLE XII
+NOVEL-VIEW SYNTHESIS RESULTS ON TSDN UNDER THE
+SINGLETIME-AM00 PROTOCOL. HIGHER PSNR AND SSIM, AND LOWER
+LPIPS, ARE BETTER.
+Method
+Backbone
+PSNR ↑SSIM ↑LPIPS ↓
+TensoRF
+Tensorial RF
+10.10
+0.64
+0.62
+SfM-Based
+SfM/MVS
+23.97
+0.77
+0.19
+3DGS
+3DGS
+27.16
+0.83
+0.18
+GaussianShader
+3DGS
+23.43
+0.77
+0.25
+Thermal3D-GS
+3DGS
+27.21
+0.84
+0.17
+ThermalGS
+3DGS
+27.21
+0.82
+0.13
+GAAT+ThermalGS GAAT
+26.92
+0.89
+0.11
+Drone 2 it has the highest pooled HOTA and MOTA, while
+CenterTrack retains the highest pooled IDF1 (65.78 versus
+60.84).
+G. 3D Reconstruction
+Finally, we assess geometry-sensitive transfer on the IR
+stream of TSDN (Thermal Scene Dataset for novel-view syn-
+thesis) using the SingleTime-AM00 protocol. It measures per-
+scene reconstruction quality through Peak Signal-to-Noise Ra-
+tio (PSNR), Structural Similarity Index (SSIM), and Learned
+Perceptual Image Patch Similarity (LPIPS) [105]. We integrate
+GAAT features with a gsplat-based 3D Gaussian Splatting ren-
+derer, denoted GAAT+ThermalGS. The comparison is situated
+among neural radiance fields, multiresolution hash-encoded
+neural graphics primitives, tensorial radiance fields, and 3D
+Gaussian Splatting [64], [106]–[108].
+Tab. XII presents results on the TSDN SingleTime-AM00
+setting. GAAT+ThermalGS achieves 26.92 PSNR, 0.89 SSIM,
+and 0.11 LPIPS. GAAT+ThermalGS delivers the best SSIM
+and LPIPS, while Thermal3D-GS [109] and ThermalGS tie
+for the highest PSNR.
+H. StateBench Evaluation on UAVMeta
+StateBench complements the supervised UAVMeta tasks by
+evaluating acquisition-state prediction from visual input.
+We benchmark single-frame state prediction from synchro-
+nized RGB–IR pairs against generic visual backbones and
+the public SkySense foundation baselines. The four prediction
+targets are the acquisition-state scores defined in Sec. III-C;
+models receive the paired images, while telemetry fields and
+precomputed image statistics are used to construct the targets.
+The reported GAAT configuration uses a frozen GAAT pre-
+dictor; the optional metadata prompt ϕv is disabled. Tab. XIII
+reports the mean over optimization seeds 42–44 on a fixed
+clip split shared by all methods. Temporal neighbours are not
+used.
+GAAT obtains an aggregate MSPA-4D score of 52.69, close
+to SkySense-S2 (52.26), and the lowest FMCS MAE (12.66).
+SkySense-S2 is best on CARS MAE, SkySense-HR on OSGS
+MAE, and ViT-Large on VSS MAE.
+I. Ablation Study
+We isolate the contribution of each component on down-
+stream benchmarks spanning segmentation, detection, classi-
+fication, change detection, and tracking. The default config-
+uration corresponds to the full GAAT pipeline; variants are
+obtained by removing or replacing individual components.
+Here, “Baseline” denotes the common pretrained encoder
+and task heads with the three alignment modules disabled; the
+benchmark-specific input modalities and optimization proto-
+cols remain unchanged.
+We compare the baseline, the three module ablations (with-
+out syncPATC, MG-Sparse-MMA, or RA-QCGCL), and the
+full configuration while keeping the remaining components
+and pretraining schedule unchanged. Tab. XIV reports these
+rows. The full configuration gives the strongest overall perfor-
+mance across the representative tasks. The individual removals
+reveal the roles of syncPATC, MG-Sparse-MMA, and RA-
+QCGCL.
+For
+the
+reported
+configuration,
+the
+syncPATC
+priors
+πtok
+m , πq
+m,k are detached for RA-QCGCL and retained for
+MG-Sparse-MMA. We sweep the sparse-query count Ks ∈
+{2, 4, 8}, query count Nq ∈{4, 8, 16}, neighborhood radius
+r ∈{1, 2, 3}, and reliable-token ratio τK ∈{0.10, 0.25, 0.50}.
+The default settings are Ks =4, Nq =8, r=2, and τK =0.25.
+
+
+15
+TABLE XIII
+SINGLE-FRAME ACQUISITION-STATE PREDICTION RESULTS ON UAVMETA STATEBENCH. ALL METHODS USE THE SYNCHRONIZED PAIRED RGB–IR
+INPUT; NO METADATA OR TEMPORAL NEIGHBOURS ARE PROVIDED AS MODEL INPUTS.
+Method
+Backbone
+MSPA-4D↑
+CARS MAE↓
+OSGS MAE↓
+VSS MAE↓
+FMCS MAE↓
+ResNet-50
+ResNet-50
+42.03
+3.57
+22.19
+12.05
+13.53
+ResNet-101
+ResNet-101
+36.33
+7.63
+20.75
+9.05
+17.75
+ViT-Base
+ViT-B/16
+40.13
+7.30
+20.53
+7.68
+17.68
+ViT-Large
+ViT-L/16
+40.83
+7.33
+20.65
+7.61
+17.72
+Swin-Base
+Swin-B
+39.85
+7.24
+20.55
+7.81
+17.68
+Swin-Large
+Swin-L
+40.66
+7.21
+20.55
+7.88
+17.68
+Swin-V2
+Swin-V2-B
+42.27
+7.34
+20.59
+9.06
+13.24
+SkySense-HR
+Swin-H
+45.82
+4.16
+20.45
+7.88
+15.97
+SkySense-S2
+ViT-L/4
+52.26
+2.24
+20.70
+8.16
+12.92
+GAAT (Ours)
+GAAT
+52.69
+2.39
+21.04
+8.05
+12.66
+TABLE XIV
+ABLATION OF GAAT COMPONENTS ACROSS REPRESENTATIVE DOWNSTREAM TASKS. HIGHER IS BETTER FOR ALL METRICS. BENCHMARK-SPECIFIC
+PROTOCOLS, INPUT MODALITIES, AND TRAINING RATIOS FOLLOW THE CORRESPONDING MAIN-TEXT DEFINITIONS; M3OT “OVERALL” VALUES USE THE
+BENCHMARK’S POOLED RGB–IR PROTOCOL.
+Variant
+Semantic Segmentation
+Object Detection
+Scene Classification
+Change Detection
+Multi-Object Tracking
+UAVid
+mIoU
+UDD6
+mIoU
+KUST4K
+mIoU
+DroneVeh.
+mAP50
+VisDrone
+mAP50
+UAVDT
+mAP50
+AID
+Acc
+RESISC45
+Acc
+LEVIR-CD
+F1
+CDD
+F1
+M3OT
+HOTA
+M3OT
+IDF1
+Baseline
+55.40
+67.98
+80.19
+64.72
+53.63
+79.65
+97.32
+94.37
+85.47
+92.07
+49.77
+61.03
+w/o syncPATC
+67.47
+77.11
+82.07
+78.94
+56.60
+77.40
+95.25
+92.43
+83.19
+93.37
+48.85
+58.92
+w/o MG-Sparse-MMA
+55.55
+68.45
+80.09
+53.05
+57.16
+79.85
+96.60
+94.49
+85.62
+93.39
+48.82
+58.50
+w/o RA-QCGCL
+55.08
+68.67
+80.60
+74.18
+53.63
+81.31
+97.19
+94.49
+85.56
+95.30
+44.84
+54.10
+Full GAAT
+69.98
+78.71
+82.14
+80.12
+66.75
+84.26
+97.48
+94.49
+95.96
+97.79
+50.42
+64.40
+J. Qualitative Analysis
+Fig. 9 compares GAAT and MaRS heatmaps on five rep-
+resentative UAV scenes. In these five examples, GAAT con-
+centrates responses near vehicles, road structures, and pedes-
+trians, whereas MaRS activates broader regions. This pattern
+follows the top-Ks query routing and geometry-calibrated
+local sampling of MG-Sparse-MMA, with the syncPATC offset
+prior ¯ok
+m refining the sampling locations. The compactness
+is expected from the reliable-token ratio τK, which keeps
+only the top quarter of patches before fusion, so query
+updates stay confined to the selected neighborhoods while
+RA-QCGCL supplies query-level alignment where patch-level
+correspondence is weak. These maps are qualitative, and they
+are consistent with Table XIV, where removing syncPATC or
+MG-Sparse-MMA lowers detection accuracy on DroneVehicle
+and VisDrone.
+VI. DISCUSSION
+A. Cross-Task Impact of Geometry-Aware Alignment
+GAAT shows that local geometric reliability can serve as
+a shared organizing principle for multimodal UAV represen-
+tation learning. Across six primary downstream tasks, GAAT
+achieves state-of-the-art results on multiple benchmarks and
+remains competitive in settings where geometry is less central.
+The strongest performance pattern appears in segmentation,
+detection, change detection, and tracking, where predictions
+depend directly on spatially precise features. Strong results
+on both established external benchmarks and the acquisition-
+disjoint UAVMeta split show that the gains are not confined
+to one dataset or task head. This breadth supports GAAT as a
+transferable multimodal pretrained model rather than a task-
+specific fusion architecture.
+The ablation results in Tab. XIV further support the
+alignment-first design. The full model provides the strongest
+overall performance pattern across the representative tasks,
+while removing any core module weakens transfer on sev-
+eral benchmarks. syncPATC supplies transformation-consistent
+reliability priors before cross-modal interaction. MG-Sparse-
+MMA converts these priors into geometry-calibrated sparse
+updates, and RA-QCGCL aligns the supervision with the same
+patch-and-query structure. Their complementary behavior in-
+dicates that reliability estimation, sparse fusion, and cross-
+granularity supervision operate as one coordinated pipeline.
+This ablation pattern supports the joint contribution of the
+three components without attributing the gains to any one
+module in isolation.
+B. Interpreting Geometry-Aware Transfer
+The cross-task pattern also clarifies when geometry-aware
+pretraining is most valuable. Dense prediction and association
+tasks require local structures to remain spatially coherent
+across modalities, so incorrect same-index interaction can
+directly corrupt their predictions. Global recognition provides
+complementary evidence of transferable semantics, while the
+particularly strong gains on spatially sensitive tasks match the
+intended geometric mechanism. This pattern is consistent with
+the intended role of prioritizing reliable local interaction.
+UAV platforms also introduce viewpoint, scale, and ap-
+pearance changes that vary substantially across acquisitions.
+The view-gap curriculum exposes syncPATC to progressively
+
+
+16
+(a)
+(b)
+(c)
+(d)
+(e)
+GAAT
+MaRS
+Fig. 9.
+Feature-response heatmaps for GAAT (top) and MaRS (bottom) across five UAV scenes (a)–(e); brighter colors indicate stronger responses. Each
+column shows the same scene for both models, so the two rows can be compared directly. GAAT responses stay compact around vehicles, road structures,
+and pedestrians, while MaRS spreads activation across larger background regions.
+stronger affine perturbations, while the HFE blocks preserve
+RGB texture and IR thermal contrast before fusion. Evalua-
+tions across daytime and nighttime imagery, external datasets,
+and single-branch transfer settings indicate that the learned
+representation remains effective beyond the paired pretraining
+configuration. Together, the broad benchmark comparisons and
+matched ablations support both the competitive reach of GAAT
+and the contribution of its alignment modules.
+C. Role of UAVMeta and StateBench
+Most UAV benchmarks evaluate what a model predicts
+without describing the sensing conditions under which the
+prediction was produced. UAVMeta and StateBench extend
+this evaluation space by coupling paired RGB–IR percep-
+tion with acquisition-state prediction. UAVMeta provides one
+acquisition domain for segmentation, detection, and classi-
+fication, while StateBench exposes proxy scores related to
+camera reliability, observation scale, viewpoint stability, and
+maneuver complexity as explicit targets. GAAT attains the
+highest reported aggregate MSPA-4D score and the lowest
+FMCS error, indicating that its representation can predict
+complementary acquisition-state proxies in addition to scene
+content.
+StateBench complements downstream task metrics with
+aggregate and per-state views of the acquisition process. This
+formulation creates a basis for condition-stratified evaluation,
+failure analysis, and future adaptation policies that respond to
+sensing quality or flight state. In this sense, UAVMeta and
+StateBench connect multimodal representation learning with
+the physical acquisition process that generates UAV imagery.
+D. Broader Scope and Outlook
+The present study focuses on paired RGB–IR data, which
+provide a representative setting for complementary UAV sens-
+ing under residual local misalignment. The alignment-first
+formulation is not tied to a specific downstream task, and the
+UAVMeta schema can accommodate SAR, depth, multispec-
+tral imagery, and other sensing streams. Extending GAAT to
+these modalities and to more complex geometric variation is
+a natural next step. The broad benchmark results and matched
+ablations position geometry-aware alignment as a promising
+basis for scalable multimodal UAV perception.
+VII. CONCLUSION
+We presented GAAT (Geometry-Aware Alignment Trans-
+former), an alignment-first framework that coordinates patch-
+center reliability estimation, geometry-guided sparse fusion,
+and cross-granularity contrastive supervision. Across six pri-
+mary downstream tasks and multiple UAV datasets, GAAT
+demonstrates strong multi-task transfer, attains state-of-the-
+art results on multiple benchmarks, and remains competitive
+in other task-specific settings. We also introduced UAVMeta
+for paired RGB–IR pretraining and multi-task evaluation and
+StateBench for predicting four acquisition-state proxy scores
+related to camera reliability, observation scale, viewpoint
+stability, and flight maneuver complexity; GAAT achieves
+the highest reported aggregate MSPA-4D score. Although
+current validation centers on paired RGB–IR data and affine-
+supervised reliability, these results support GAAT as a broadly
+transferable framework for geometry-aware and acquisition-
+aware aerial perception.
+APPENDIX A
+ADDITIONAL EXPERIMENTAL RESULTS
+A. Crowd Counting on VisDrone-CC
+Crowd counting estimates the number of people or objects
+in densely populated scenes. We evaluate GAAT on VisDrone-
+CC, a UAV-based crowd counting benchmark from the Vis-
+Drone Challenge 2020 [110], following prior low-altitude UAV
+counting protocols [111]. We report the protocol’s MAE and
+
+
+17
+MSE metrics, for which lower values are better, using the
+benchmark input stream and a CountReg regression head on
+top of the GAAT backbone.
+Tab. XV compares GAAT with the official VisDrone-CC
+baselines and representative density-regression, distribution-
+matching, transformer, and point-based counting methods
+[112]–[116]. GAAT CountReg records the lowest listed MAE
+(9.40) and MSE (14.18), indicating improved counting accu-
+racy under this evaluation protocol.
+TABLE XV
+CROWD-COUNTING RESULTS ON VISDRONE-CC. LOWER MAE AND MSE
+ARE BETTER.
+Protocol
+Method
+MAE ↓
+MSE ↓
+Official VisDrone-CC 2020 Challenge
+Official CC2020
+FPNCC
+11.66
+15.45
+Official CC2020
+BVCC
+12.36
+17.32
+Official CC2020
+CFF
+13.64
+16.59
+Prior Work
+Density-based
+CSRNet
+14.32
+18.67
+Density-based
+BL
+13.89
+18.21
+Density-based
+DM-Count
+12.24
+16.89
+Transformer-based
+TransCrowd
+11.58
+16.34
+Point-based
+P2PNet
+11.12
+15.78
+Ours
+GAAT
+GAAT CountReg
+9.40
+14.18
+B. Additional Semantic Segmentation Results
+Additional
+segmentation
+comparisons
+are
+reported
+in
+Tabs. XVI–XIX. Here, mAcc denotes mean class accuracy,
+aAcc denotes overall pixel accuracy, and mPA denotes mean
+pixel accuracy. Results are interpreted within each benchmark
+rather than pooled across datasets. The cited segmentation
+families include FCN, U-Net, PSPNet, DeepLabV3+, DANet,
+UPerNet, OCRNet, SETR, Segmenter, SegFormer, UNet-
+Former, PIDNet, and BiSeNetV2 [59], [60], [66], [117]–[126];
+UAVid and the remote-sensing foundation-model baselines are
+cited separately [13], [16], [27], [30].
+On UAVid, Tab. XVI shows that GAAT(U) reaches the
+highest listed mAcc (82.31) and mIoU (69.98). These values
+exceed RingMo-Aerial(M), the strongest listed comparator on
+both metrics, by 3.61 and 1.28 points, respectively.
+On UDD5, GAAT(U) obtains the highest listed mIoU
+(77.17) and aAcc (90.31) in Tab. XVII. The margins over the
+strongest listed comparator for each metric are 1.71 points in
+mIoU and 0.68 points in aAcc.
+On UDD6, Tab. XVIII shows that GAAT(U) achieves the
+highest listed aAcc (89.95), while its mIoU of 78.71 is 0.19
+points below RingMo-Aerial(M).
+On UAVM, GAAT(C) records the highest listed mIoU
+(87.08), mPA (93.70), and mF1 (92.75) in Tab. XIX. These
+values exceed the strongest listed non-GAAT results by 7.58,
+7.84, and 4.80 points, respectively.
+C. Additional Object Detection Results
+Tabs. XX–XXIV report additional detection comparisons
+on HIT-UAV, LLVIP, UAVDT, VisDrone-DET, and IndraEye.
+TABLE XVI
+SEMANTIC-SEGMENTATION RESULTS ON UAVID. HIGHER MACC AND
+MIOU ARE BETTER.
+Method
+Backbone
+mAcc
+mIoU
+DeepLabV3+
+Xception-65
+61.60
+48.70
+DANet
+ResNet-101
+61.80
+48.80
+ACNet
+ResNet-101
+62.10
+48.90
+OCRNet
+HRNetV2-W48
+61.90
+48.90
+SETR
+ViT-Large
+61.00
+47.80
+SegFormer
+MiT-B5
+66.65
+55.24
+ViT-Adapter
+ViT-Adapter-B
+66.61
+55.15
+PIDNet
+PIDNet-L
+53.21
+40.94
+DOFA
+ViT-B
+61.82
+49.21
+CSWin
+CSWin
+64.00
+51.80
+UAVFormer
+Swin-Base
+65.10
+53.20
+BiSeNetV2
+BiSeNetV2
+71.35
+61.64
+Segmenter
+ViT
+64.89
+55.48
+CoaT
+CoaT
+76.74
+67.55
+BANet
+BANet
+60.87
+43.28
+UNetFormer
+UNetFormer
+70.69
+60.61
+RingMo
+RingMo + UPerNet
+71.60
+61.90
+RingMo-Aerial(U)
+RingMo-Aerial
+76.50
+66.40
+RingMo-Aerial(A)
+RingMo-Aerial
+74.30
+64.40
+RingMo-Aerial(M)
+RingMo-Aerial
+78.70
+68.70
+GAAT(U) (Ours)
+GAAT
+82.31
+69.98
+TABLE XVII
+SEMANTIC-SEGMENTATION RESULTS ON UDD5. HIGHER MIOU AND
+AACC ARE BETTER.
+Method
+Backbone
+mIoU
+aAcc
+GCN
+ResNet-50
+73.17
+88.57
+ENet
+ENet
+71.38
+88.14
+UPerNet
+Swin-Base
+73.12
+89.45
+DeepLabV3+
+ResNet-101
+70.55
+88.33
+SegFormer
+MiT-B5
+68.36
+88.67
+ViT-Adapter
+ViT-Adapter-L
+68.85
+87.93
+PIDNet
+PIDNet-L
+53.97
+81.48
+DOFA
+ViT-L
+75.46
+89.59
+SatMAE++
+ViT-L
+74.89
+89.35
+Prithvi-EO-2.0
+Prithvi-EO
+75.36
+89.63
+GAAT(U) (Ours)
+GAAT
+77.17
+90.31
+HIT-UAV, LLVIP, UAVDT, and VisDrone are established UAV
+or visible–infrared detection benchmarks [4], [5], [28], [29];
+the cited detector families include DETR, DINO, Deformable
+DETR, DDQ-DETR, and visible–thermal fusion baselines
+such as ICAFusion and DIVFusion [1], [2], [46], [61], [68],
+[127]–[129].
+On HIT-UAV, GAAT(D) achieves the highest listed mAP
+(56.40), mAP50 (87.01), and mAP75 (60.48) in Tab. XX. The
+corresponding margins over the strongest listed comparator for
+each metric are 2.20, 3.91, and 0.23 points.
+On LLVIP, Tab. XXI shows that GAAT(D) obtains the
+
+
+18
+TABLE XVIII
+SEMANTIC-SEGMENTATION RESULTS ON UDD6. HIGHER MIOU AND
+AACC ARE BETTER.
+Method
+Backbone
+mIoU
+aAcc
+DeepLabV3+
+ResNet-50
+69.01
+85.63
+SegFormer
+MiT-B5
+68.47
+86.93
+UPerNet
+Swin-Base
+74.65
+88.45
+ViT-Adapter
+ViT-Adapter-L
+68.13
+85.19
+PIDNet
+PIDNet-L
+52.82
+77.25
+DOFA
+ViT-L
+74.96
+87.92
+SatMAE++
+ViT-L
+74.61
+87.82
+Prithvi-EO-2.0
+Prithvi-EO
+75.39
+88.37
+RingMo(U)
+RingMo
+75.30
+87.40
+RingMo-Aerial(U)
+RingMo-Aerial
+78.50
+89.40
+RingMo-Aerial(M)
+RingMo-Aerial
+78.90
+89.70
+GAAT(U) (Ours)
+GAAT
+78.71
+89.95
+TABLE XIX
+SEMANTIC-SEGMENTATION RESULTS ON UAVM. HIGHER MIOU, MPA,
+AND MF1 ARE BETTER.
+Type
+Method
+mIoU
+mPA
+mF1
+Generic Semantic Segmentation
+Generic SS UPerNet
+57.24
+63.71 64.32
+Generic SS DeepLabV3+
+62.33
+68.99 67.49
+Generic SS FCN
+50.03
+55.21 56.87
+Generic SS PSPNet
+52.17
+58.45 57.41
+RGB+Multispectral Fusion
+RGB+MS
+MFNet
+63.32
+68.54 71.69
+RGB+MS
+EGFNet
+54.56
+64.10 66.55
+RGB+MS
+RTFNet
+67.32
+74.38 74.62
+RGB+MS
+PSTNet
+57.40
+63.79 64.22
+Hyperspectral/Remote Sensing
+HSI/RS
+HyLITE
+38.98
+44.99 43.85
+HSI/RS
+FreeNet
+56.62
+61.70 60.74
+HSI/RS
+UNetFormer
+67.52
+74.21 71.49
+HSI/RS
+ClusterFormer
+62.60
+68.43 70.71
+Multispectral Segmentation
+MSS
+UAVMNet
+69.31
+77.23 80.61
+MSS
+UAVMNet
+79.50
+85.86 87.95
+Ours
+GAAT(C)
+87.08
+93.70 92.75
+TABLE XX
+OBJECT-DETECTION RESULTS ON HIT-UAV. HIGHER MAP, MAP50, AND
+MAP75 ARE BETTER.
+Method
+Backbone
+mAP
+mAP50
+mAP75
+SSD-512
+VGG16
+43.40
+75.20
+43.80
+Faster R-CNN
+ResNet-101
+37.50
+66.70
+37.70
+YOLOv4-tiny
+CSPDarknet-tiny
+52.40
+81.56
+58.54
+RT-DETR
+ResNet-50
+26.07
+51.50
+22.88
+CSFPR-RTDETR
+CSFPR-RTDETR
+42.42
+83.10
+40.84
+DDQ-DETR
+Swin-Base
+51.50
+83.10
+57.10
+Faster R-CNN
+ResNet-50 FPN-v2
+54.20
+82.23
+60.25
+GAAT(D) (Ours)
+GAAT
+56.40
+87.01
+60.48
+highest listed validation mAP (63.60) and mAP50 (96.15).
+These values are 1.50 and 0.95 points above the strongest
+listed comparator for the respective metric.
+On UAVDT, GAAT(D) records the highest listed mAP
+TABLE XXI
+OBJECT-DETECTION RESULTS ON LLVIP VALIDATION SET. HIGHER MAP
+AND MAP50 ARE BETTER.
+Method
+Backbone
+mAP (val)
+mAP50 (val)
+YOLOv8l-IR
+YOLOv8
+62.10
+95.20
+Text-IF
+Transformer
+60.20
+94.10
+ICAFusion
+ICAFusion
+60.10
+95.20
+YOLOv8l-RGB
+YOLOv8
+54.00
+91.90
+DIVFusion
+YOLOv5
+52.00
+89.80
+FMCAF
+YOLOv11
+59.51
+92.08
+DIVFusion
+YOLOv5
+52.00
+89.80
+Faster R-CNN
+ResNet-50 FPN-v2
+50.45
+92.59
+GAAT(D) (Ours)
+GAAT
+63.60
+96.15
+TABLE XXII
+OBJECT-DETECTION RESULTS ON UAVDT. HIGHER MAP, MAP50, AND
+MAP75 ARE BETTER.
+Method
+Backbone
+mAP
+mAP50
+mAP75
+MCR-UOD
+YOLOv8
+31.40
+44.70
+35.60
+SPAR
+YOLOv8
+30.50
+43.90
+34.70
+EVORL
+ResNet-50
+28.00
+43.80
+31.50
+TPH-YOLOv5
+YOLOv5
+26.90
+41.30
+32.70
+Cascade R-CNN
+ResNet-50
+17.10
+30.50
+18.60
+Faster R-CNN
+ResNet-50
+12.10
+23.50
+10.80
+DDQ-DETR
+Swin-Base
+39.30
+68.80
+41.80
+GAAT(D) (Ours)
+GAAT
+54.93
+84.26
+66.04
+TABLE XXIII
+OBJECT-DETECTION RESULTS ON VISDRONE-DET. HIGHER MAP,
+MAP50, AND MAP75 ARE BETTER.
+Method
+Backbone
+mAP
+mAP50
+mAP75
+Light-RCNN
+ResNet-50
+16.50
+32.80
+15.10
+CornerNet
+ResNet-50
+17.40
+34.10
+15.80
+RetinaNet
+Swin-Base
+22.60
+38.10
+23.50
+Cascade R-CNN
+Swin-Base
+28.40
+45.20
+30.10
+CEASC
+ResNet-18
+28.70
+50.70
+28.40
+GLSAN
+ResNet-50
+25.80
+51.50
+22.90
+QueryDet
+ResNet-50
+28.30
+48.10
+28.70
+VistrongerDet
+ResNet-50
+33.85
+57.27
+34.81
+DMNet
+ResNet-101
+29.40
+49.30
+30.60
+HRDNet
+ResNet-101
+28.30
+49.20
+28.10
+ClusDet
+ResNeXt-101
+28.40
+53.20
+26.40
+SDPDet
+ResNet-101
+34.20
+57.80
+34.90
+AMRNet
+ResNet-101
+31.70
+52.60
+33.00
+OGMN
+ResNeXt-101
+35.00
+59.70
+35.80
+DDQ-DETR
+Swin-Base
+36.10
+57.10
+37.20
+RingMo-Aerial (C)
+RingMo-Aerial
+31.10
+51.80
+32.50
+RingMo-Aerial (A)
+RingMo-Aerial
+31.00
+51.40
+32.10
+RingMo-Aerial (D)
+RingMo-Aerial
+38.60
+63.30
+39.40
+GAAT(D) (Ours)
+GAAT
+41.14
+66.75
+42.64
+(54.93), mAP50 (84.26), and mAP75 (66.04) in Tab. XXII.
+Relative to DDQ-DETR, the strongest listed comparator on
+all three metrics, the gains are 15.63, 15.46, and 24.24 points,
+respectively.
+On VisDrone-DET, Tab. XXIII shows that GAAT(D)
+achieves the highest listed mAP (41.14), mAP50 (66.75),
+and mAP75 (42.64). The corresponding improvements over
+RingMo-Aerial (D) are 2.54, 3.45, and 3.24 points.
+The IndraEye results differ by modality. For EO, GAAT(D)
+remains below Oriented R-CNN on all three metrics; for IR,
+
+
+19
+TABLE XXIV
+OBJECT-DETECTION RESULTS ON INDRAEYE FOR EO AND IR
+MODALITIES. HIGHER MAP, MAP50, AND MAP75 ARE BETTER.
+Method
+Backbone
+mAP
+mAP50
+mAP75
+EO Modality
+Faster R-CNN
+ResNet-50-FPN
+40.50
+47.60
+32.40
+ReDet
+ResNet-101
+37.80
+43.90
+28.70
+Oriented R-CNN
+ResNet-50-FPN
+48.20
+56.30
+40.10
+YOLOv5
+CSPDarknet53
+45.00
+52.80
+36.50
+RetinaNet
+ResNet-50-FPN
+42.30
+50.10
+34.20
+SSD
+VGG16
+39.00
+46.00
+30.50
+OrientedFormer
+ResNet-50
+39.02
+47.60
+30.50
+RS-DETR
+ResNet-50-FPN
+7.67
+12.32
+8.01
+GAAT(D) (Ours)
+GAAT
+44.47
+55.00
+38.98
+IR Modality
+Faster R-CNN
+ResNet-50-FPN
+50.10
+57.30
+42.80
+ReDet
+ResNet-101
+37.00
+43.80
+29.50
+Oriented R-CNN
+ResNet-50-FPN
+58.40
+65.60
+50.20
+YOLOv5
+CSPDarknet53
+55.20
+62.90
+46.70
+RetinaNet
+ResNet-50-FPN
+52.60
+59.70
+44.30
+SSD
+VGG16
+47.00
+54.00
+38.00
+OrientedFormer
+ResNet-50
+58.57
+64.00
+53.10
+RS-DETR
+ResNet-50-FPN
+21.59
+33.94
+22.86
+GAAT(D) (Ours)
+GAAT
+57.50
+71.10
+52.14
+it achieves the highest listed mAP50 (71.10), while its mAP
+(57.50) and mAP75 (52.14) remain below the best listed values
+of 58.57 and 53.10 from OrientedFormer.
+D. UAVMeta Evaluation Protocol and Scope
+UAVMeta 1.0.0-rc1 exposes three supervised perception
+tasks: scene classification, object detection, and semantic
+segmentation. The canonical acquisition-disjoint split contains
+1,715/572/288 temporally synchronized RGB–IR pairs for
+training/validation/test. All stochastic UAVMeta configurations
+use seeds 42, 43, and 44. Classification ignores stored label
+0 (Void) and evaluates IDs 1–8, with validation macro-
+F1 used for checkpoint selection. Segmentation evaluates all
+seven stored classes, including background ID 0, and selects
+checkpoints using validation mIoU. The selected checkpoint
+is evaluated once on the test set; confusion matrices, per-class
+statistics, and per-acquisition metrics are archived with the run
+outputs. The three task comparisons are reported in the main
+text in Tabs. IX, VII, and V.
+The current release contains no change masks, temporal
+change labels, object identities, or trajectory annotations.
+Change detection and multi-object tracking are therefore eval-
+uated on the external annotated benchmarks listed in the main
+text, while UAVMeta 1.0.0-rc1 is used for scene classification,
+object detection, and semantic segmentation.
+E. Additional Qualitative Results
+The following figures collect representative outputs after
+the quantitative comparisons above. Fig. 10 covers semantic
+segmentation on UDD5 and UAVMeta, Fig. 11 covers object
+detection on UAVDT, VisDrone-DET, and UAVMeta, and
+Fig. 12 covers bi-temporal change detection on CDD and
+LEVIR-CD. These examples are qualitative and complement
+the dataset-level metrics reported above; the captions specify
+the inputs, reference annotations, predictions, and error maps
+shown in each panel.
+
+
+20
+(a) UDD5.
+(b) UAVMeta.
+Fig. 10. Qualitative semantic-segmentation results on (a) UDD5 and (b) UAVMeta. In (a), columns show the input image, ground truth, DeepLabV3-R101
+prediction, GAAT(U) prediction with UPerNet, baseline error map, and GAAT error map. In (b), columns show the RGB input, paired IR input, ground truth,
+DeepLabV3-R101 prediction, GAAT(C) prediction with a SegFormer-style decoder, baseline error map, and GAAT error map. Each row presents one example.
+
+
+21
+(a) UAVDT.
+(b) VisDrone-DET.
+(c) UAVMeta.
+Fig. 11.
+Qualitative object-detection results on (a) UAVDT, (b) VisDrone-DET, and (c) UAVMeta. Panels (a) and (b) show the input image, ground-truth
+boxes, MaRS predictions with a Faster R-CNN head, and GAAT predictions with the same detection head. Panel (c) shows the RGB input, paired IR input,
+RGB-only DDQ-DETR prediction, and RGB–IR GAAT(D) prediction. Each row presents one example.
+
+
+22
+(a) CDD.
+(b) LEVIR-CD.
+Fig. 12. Qualitative change-detection results on (a) CDD and (b) LEVIR-CD. Columns show the images at times A and B, ground-truth change mask, MaRS
+prediction with ChangeFormer, GAAT(CF) prediction, and error maps. In the final column, B and G denote the baseline and GAAT error maps, respectively.
+
+
+23
+REFERENCES
+[1] X. Ying, C. Xiao, W. An, R. Li, X. He, B. Li, X. Cao, Z. Li,
+Y. Wang, M. Hu, Q. Xu, Z. Lin, M. Li, S. Zhou, L. Liu, and
+W. Sheng, “Visible-thermal tiny object detection: A benchmark dataset
+and baselines,” IEEE Transactions on Pattern Analysis and Machine
+Intelligence, vol. 47, no. 7, pp. 6088–6096, 2025. [Online]. Available:
+https://doi.org/10.1109/TPAMI.2025.3544621
+[2] H. Zhu, W. Dong, L. Yang, H. Li, Y. Yang, Y. Ren, Q. Zhu,
+Z.
+Feng,
+C.
+Li,
+S.
+Lin,
+R.
+Wang,
+X.
+Luo,
+and
+B.
+Zhang,
+“Wavemamba: Wavelet-driven mamba fusion for rgb-infrared object
+detection,” in Proceedings of the IEEE/CVF International Conference
+on Computer Vision (ICCV), 2025, pp. 11 219–11 229. [Online].
+Available: https://doi.org/10.1109/ICCV51701.2025.01044
+[3] J. Ouyang, Q. Wang, Y. Shang, P. Jin, H. Zhong, L. Zhou, and T. Shen,
+“An rgb-tir dataset from uav platform for robust urban traffic scenes
+semantic segmentation,” Scientific Data, vol. 12, no. 1, p. 1701, 2025.
+[Online]. Available: https://doi.org/10.1038/s41597-025-05994-7
+[4] J. Suo, T. Wang, X. Zhang, H. Chen, W. Zhou, and W. Shi, “Hit-uav:
+A high-altitude infrared thermal dataset for unmanned aerial vehicle-
+based object detection,” Scientific Data, vol. 10, no. 1, p. 227, 2023.
+[Online]. Available: https://doi.org/10.1038/s41597-023-02066-6
+[5] X. Jia, C. Zhu, M. Li, W. Tang, and W. Zhou, “Llvip: A visible-
+infrared paired dataset for low-light vision,” in 2021 IEEE/CVF
+International Conference on Computer Vision Workshops (ICCVW),
+2021, pp. 3489–3497. [Online]. Available: https://doi.org/10.1109/
+iccvw54120.2021.00389
+[6] Z. Nie, L. Xue, Z. Fang, J. Ren, Y. Wei, and J. Zheng, “M3ot:
+A multi-drone multi-modality dataset for multi-object tracking,”
+Scientific Data, vol. 12, no. 1, p. 1927, 2025. [Online]. Available:
+https://doi.org/10.1038/s41597-025-06204-0
+[7] A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weissenborn, X. Zhai,
+T. Unterthiner, M. Dehghani, M. Minderer, G. Heigold, S. Gelly,
+J. Uszkoreit, and N. Houlsby, “An image is worth 16x16 words:
+Transformers
+for
+image
+recognition
+at
+scale,”
+2020.
+[Online].
+Available: https://arxiv.org/abs/2010.11929
+[8] Z. Liu, Y. Lin, Y. Cao, H. Hu, Y. Wei, Z. Zhang, S. Lin,
+and B. Guo, “Swin transformer: Hierarchical vision transformer
+using shifted windows,” in 2021 IEEE/CVF International Conference
+on Computer Vision (ICCV), 2021, pp. 10 012–10 022. [Online].
+Available: https://doi.org/10.1109/ICCV48922.2021.00986
+[9] Z. Liu, H. Hu, Y. Lin, Z. Yao, Z. Xie, Y. Wei, J. Ning, Y. Cao, Z. Zhang,
+L. Dong, F. Wei, and B. Guo, “Swin transformer v2: Scaling up
+capacity and resolution,” in 2022 IEEE/CVF Conference on Computer
+Vision and Pattern Recognition (CVPR), 2022, pp. 12 009–12 019.
+[Online]. Available: https://doi.org/10.1109/CVPR52688.2022.01170
+[10] T. Chen, S. Kornblith, M. Norouzi, and G. Hinton, “A simple
+framework for contrastive learning of visual representations,” 2020.
+[Online]. Available: https://arxiv.org/abs/2002.05709
+[11] K. He, H. Fan, Y. Wu, S. Xie, and R. Girshick, “Momentum contrast
+for unsupervised visual representation learning,” in 2020 IEEE/CVF
+Conference on Computer Vision and Pattern Recognition (CVPR),
+2020, pp. 9729–9738. [Online]. Available: https://doi.org/10.1109/
+CVPR42600.2020.00975
+[12] M. Caron, H. Touvron, I. Misra, H. Jegou, J. Mairal, P. Bojanowski,
+and
+A.
+Joulin,
+“Emerging
+properties
+in
+self-supervised
+vision
+transformers,”
+in
+2021
+IEEE/CVF
+International
+Conference
+on
+Computer Vision (ICCV), 2021, pp. 9650–9660. [Online]. Available:
+https://doi.org/10.1109/ICCV48922.2021.00951
+[13] D. Szwarcman, S. Roy, P. Fraccaro, Þ. E. Gíslason, B. Blumenstiel,
+R. Ghosal, P. H. de Oliveira, J. L. de Sousa Almeida, R. Sedona,
+Y. Kang, S. Chakraborty, S. Wang, C. Gomes, A. Kumar, V. Gaur,
+M. Truong, D. Godwin, S. Khallaghi, H. Lee, C.-Y. Hsu, A. A.
+Asanjan, B. Mujeci, D. Shidham, R. O. Balogun, V. Kolluru,
+T. Keenan, P. Arevalo, W. Li, H. Alemohammad, P. Olofsson,
+T. Mayer, C. Hain, R. Kennedy, B. Zadrozny, D. Bell, G. Cavallaro,
+C. Watson, M. Maskey, R. Ramachandran, and J. B. Moreno,
+“Prithvi-eo-2.0: A versatile multitemporal foundation model for
+earth observation applications,” IEEE Transactions on Geoscience
+and Remote Sensing, vol. 64, pp. 1–20, 2026. [Online]. Available:
+https://doi.org/10.1109/tgrs.2025.3642610
+[14] Y. Cong, S. Khanna, C. Meng, P. Liu, E. Rozi, Y. He, M. Burke,
+D. B. Lobell, and S. Ermon, “Satmae: Pre-training transformers
+for temporal and multi-spectral satellite imagery,” 2022. [Online].
+Available: https://arxiv.org/abs/2207.08051
+[15] C. J. Reed, R. Gupta, S. Li, S. Brockman, C. Funk, B. Clipp,
+K. Keutzer, S. Candido, M. Uyttendaele, and T. Darrell, “Scale-
+mae: A scale-aware masked autoencoder for multiscale geospatial
+representation learning,” in 2023 IEEE/CVF International Conference
+on Computer Vision (ICCV), 2023, pp. 4088–4099. [Online]. Available:
+https://doi.org/10.1109/iccv51070.2023.00378
+[16] X. Sun, P. Wang, W. Lu, Z. Zhu, X. Lu, Q. He, J. Li, X. Rong, Z. Yang,
+H. Chang, Q. He, G. Yang, R. Wang, J. Lu, and K. Fu, “Ringmo: A
+remote sensing foundation model with masked image modeling,” IEEE
+Transactions on Geoscience and Remote Sensing, vol. 61, pp. 1–22,
+2023. [Online]. Available: https://doi.org/10.1109/TGRS.2022.3194732
+[17] F. Bastani, P. Wolters, R. Gupta, J. Ferdinando, and A. Kembhavi,
+“Satlaspretrain: A large-scale dataset for remote sensing image
+understanding,” in 2023 IEEE/CVF International Conference on
+Computer Vision (ICCV), 2023, pp. 16 772–16 782. [Online]. Available:
+https://doi.org/10.1109/iccv51070.2023.01538
+[18] A. Fuller, K. Millard, and J. Green, “Croma: Remote sensing
+representations with contrastive radar-optical masked autoencoders,”
+in Advances in Neural Information Processing Systems 36, 2023, pp.
+5506–5538. [Online]. Available: https://doi.org/10.52202/075280-0241
+[19] Z. Xiong, Y. Wang, F. Zhang, A. J. Stewart, J. Hanna, D. Borth,
+I. Papoutsis, B. L. Saux, G. Camps-Valls, and X. X. Zhu, “Neural
+plasticity-inspired multimodal foundation model for earth observation,”
+2024. [Online]. Available: https://arxiv.org/abs/2403.15356
+[20] G. Astruc, N. Gonthier, C. Mallet, and L. Landrieu, “Omnisat:
+Self-supervised modality fusion for earth observation,” in Lecture
+Notes in Computer Science, 2025, pp. 409–427. [Online]. Available:
+https://doi.org/10.1007/978-3-031-73390-1_24
+[21] ——, “Anysat: One earth observation model for many resolutions,
+scales, and modalities,” in 2025 IEEE/CVF Conference on Computer
+Vision and Pattern Recognition (CVPR), 2025, pp. 19 530–19 540.
+[Online]. Available: https://doi.org/10.1109/CVPR52734.2025.01819
+[22] X. Guo, J. Lao, B. Dang, Y. Zhang, L. Yu, L. Ru, L. Zhong, Z. Huang,
+K. Wu, D. Hu, H. He, J. Wang, J. Chen, M. Yang, Y. Zhang,
+and Y. Li, “Skysense: A multi-modal remote sensing foundation
+model towards universal interpretation for earth observation imagery,”
+in Proceedings of the IEEE/CVF Conference on Computer Vision
+and Pattern Recognition (CVPR), 2024, pp. 27 672–27 683. [Online].
+Available: https://doi.org/10.1109/CVPR52733.2024.02613
+[23] Y. Zhang, L. Ru, K. Wu, L. Yu, L. Liang, Y. Li, and J. Chen,
+“Skysense v2: A unified foundation model for multi-modal remote
+sensing,” in Proceedings of the IEEE/CVF International Conference on
+Computer Vision (ICCV), 2025, pp. 9136–9146. [Online]. Available:
+https://doi.org/10.1109/ICCV51701.2025.00854
+[24] K. Wu, Y. Zhang, L. Ru, B. Dang, J. Lao, L. Yu, J. Luo,
+Z. Zhu, Y. Sun, J. Zhang, Q. Zhu, J. Wang, M. Yang, J. Chen,
+Y. Zhang, and Y. Li, “A semantic-enhanced multi-modal remote
+sensing foundation model for earth observation,” Nature Machine
+Intelligence, vol. 7, no. 8, pp. 1235–1249, 2025. [Online]. Available:
+https://doi.org/10.1038/s42256-025-01078-8
+[25] D. Wang, J. Zhang, M. Xu, L. Liu, D. Wang, E. Gao, C. Han,
+H. Guo, B. Du, D. Tao, and L. Zhang, “Mtp: Advancing remote
+sensing foundation model via multitask pretraining,” IEEE Journal
+of Selected Topics in Applied Earth Observations and Remote
+Sensing, vol. 17, pp. 11 632–11 654, 2024. [Online]. Available:
+https://doi.org/10.1109/jstars.2024.3408154
+[26] Z. Wang, Z. Wang, P. Cheng, L. Zhao, P. Tian, Y. Wang, M. Chen,
+X. Li, and X. Sun, “Ringmo-galaxy: A remote sensing distributed
+foundation model for diverse downstream tasks,” IEEE Transactions
+on Geoscience and Remote Sensing, vol. 63, pp. 1–18, 2025. [Online].
+Available: https://doi.org/10.1109/TGRS.2024.3517878
+[27] W. Diao, H. Yu, K. Kang, T. Ling, D. Liu, Y. Feng, H. Bi, L. Ren,
+X. Li, Y. Mao, and X. Sun, “Ringmo-aerial: An aerial remote sensing
+foundation model with affine transformation contrastive learning,”
+IEEE Transactions on Pattern Analysis and Machine Intelligence,
+vol. 47, no. 12, pp. 10 900–10 913, 2025. [Online]. Available:
+https://doi.org/10.1109/TPAMI.2025.3602237
+[28] P. Zhu, L. Wen, D. Du, X. Bian, H. Fan, Q. Hu, and H. Ling, “Detection
+and tracking meet drones challenge,” IEEE Transactions on Pattern
+Analysis and Machine Intelligence, vol. 44, no. 11, pp. 7380–7399,
+2022. [Online]. Available: https://doi.org/10.1109/tpami.2021.3119563
+[29] D. Du, Y. Qi, H. Yu, Y. Yang, K. Duan, G. Li, W. Zhang,
+Q. Huang, and Q. Tian, “The unmanned aerial vehicle benchmark:
+Object detection and tracking,” in Lecture Notes in Computer
+Science, 2018, pp. 375–391. [Online]. Available: https://doi.org/10.
+1007/978-3-030-01249-6_23
+
+
+24
+[30] Y. Lyu, G. Vosselman, G.-S. Xia, A. Yilmaz, and M. Y. Yang, “Uavid:
+A semantic segmentation dataset for uav imagery,” ISPRS Journal of
+Photogrammetry and Remote Sensing, vol. 165, pp. 108–119, 2020.
+[Online]. Available: https://doi.org/10.1016/j.isprsjprs.2020.05.009
+[31] G. Cheng, J. Han, and X. Lu, “Remote sensing image scene
+classification: Benchmark and state of the art,” Proceedings of the
+IEEE, vol. 105, no. 10, pp. 1865–1883, 2017. [Online]. Available:
+https://doi.org/10.1109/jproc.2017.2675998
+[32] Y. Long, G.-S. Xia, S. Li, W. Yang, M. Y. Yang, X. X. Zhu,
+L. Zhang, and D. Li, “On creating benchmark dataset for aerial
+image interpretation: Reviews, guidances, and million-aid,” IEEE
+Journal of Selected Topics in Applied Earth Observations and
+Remote Sensing, vol. 14, pp. 4205–4230, 2021. [Online]. Available:
+https://doi.org/10.1109/jstars.2021.3070368
+[33] R.
+Yang,
+Y.
+Liu,
+H.
+Yan,
+Y.
+Zhou,
+Y.
+Fu,
+H.
+Luo,
+and
+Y. Zhong, “Mars: A multi-modality very-high-resolution remote
+sensing
+foundation
+model
+with
+cross-granularity
+meta-modality
+learning,” in Proceedings of the AAAI Conference on Artificial
+Intelligence, vol. 40, no. 14, 2026, pp. 11 685–11 693. [Online].
+Available: https://doi.org/10.1609/aaai.v40i14.38153
+[34] K. He, X. Chen, S. Xie, Y. Li, P. Dollar, and R. Girshick, “Masked
+autoencoders
+are
+scalable
+vision
+learners,”
+in
+2022
+IEEE/CVF
+Conference on Computer Vision and Pattern Recognition (CVPR),
+2022, pp. 16 000–16 009. [Online]. Available: https://doi.org/10.1109/
+CVPR52688.2022.01553
+[35] R. Bachmann, D. Mizrahi, A. Atanov, and A. Zamir, “Multimae:
+Multi-modal multi-task masked autoencoders,” in Lecture Notes
+in
+Computer
+Science,
+2022,
+pp.
+348–367.
+[Online].
+Available:
+https://doi.org/10.1007/978-3-031-19836-6_20
+[36] O. Manas, A. Lacoste, X. Giro-i Nieto, D. Vazquez, and P. Rodriguez,
+“Seasonal contrast: Unsupervised pre-training from uncurated remote
+sensing data,” in 2021 IEEE/CVF International Conference on
+Computer Vision (ICCV), 2021, pp. 9414–9423. [Online]. Available:
+https://doi.org/10.1109/ICCV48922.2021.00928
+[37] Y. Fan, J. Wan, T. Han, A. B. Chan, and A. J. Ma, “Video
+individual counting for moving drones,” in Proceedings of the
+IEEE/CVF International Conference on Computer Vision (ICCV),
+2025, pp. 12 284–12 293. [Online]. Available: https://doi.org/10.1109/
+ICCV51701.2025.01142
+[38] J. Yang, F. Ji, Z. Lai, J. Wu, M. Cui, and Y. Wang, “Zero-
+parameter
+geometric
+gating
+for
+temporally
+stable
+low-altitude
+uav
+video
+semantic
+segmentation,”
+2026.
+[Online].
+Available:
+https://arxiv.org/abs/2606.09162
+[39] J. Yang, H. Zhang, F. Ji, Y. Wang, M. Wang, Y. Luo, and
+W. Ding, “Frequency point game environment for uavs via expert
+knowledge and large language model,” 2025. [Online]. Available:
+https://arxiv.org/abs/2508.02757
+[40] J. Yang, M. Cui, H. Zhang, F. Ji, Z. Lai, and Y. Wang, “Agent-based
+anti-jamming techniques for uav communications in adversarial
+environments: A comprehensive survey,” 2025. [Online]. Available:
+https://arxiv.org/abs/2508.11687
+[41] J. Zhang, H. Liu, K. Yang, X. Hu, R. Liu, and R. Stiefelhagen,
+“Cmx: Cross-modal fusion for rgb-x semantic segmentation with
+transformers,”
+IEEE
+Transactions
+on
+Intelligent
+Transportation
+Systems, vol. 24, no. 12, pp. 14 679–14 694, 2023. [Online]. Available:
+https://doi.org/10.1109/tits.2023.3300537
+[42] Q. Ha, K. Watanabe, T. Karasawa, Y. Ushiku, and T. Harada, “Mfnet:
+Towards real-time semantic segmentation for autonomous vehicles with
+multi-spectral scenes,” in 2017 IEEE/RSJ International Conference
+on Intelligent Robots and Systems (IROS), 2017, pp. 5108–5115.
+[Online]. Available: https://doi.org/10.1109/IROS.2017.8206396
+[43] Y. Wang, X. Chen, L. Cao, W. Huang, F. Sun, and Y. Wang,
+“Multimodal token fusion for vision transformers,” in 2022 IEEE/CVF
+Conference on Computer Vision and Pattern Recognition (CVPR),
+2022, pp. 12 186–12 195. [Online]. Available: https://doi.org/10.1109/
+CVPR52688.2022.01187
+[44] Z. Wan, P. Zhang, Y. Wang, S. Yong, S. Stepputtis, K. Sycara,
+and Y. Xie, “Sigma: Siamese mamba network for multi-modal
+semantic segmentation,” in 2025 IEEE/CVF Winter Conference on
+Applications of Computer Vision (WACV), 2025, pp. 1734–1744.
+[Online]. Available: https://doi.org/10.1109/WACV61041.2025.00176
+[45] J. Dai, H. Qi, Y. Xiong, Y. Li, G. Zhang, H. Hu, and Y. Wei,
+“Deformable convolutional networks,” in 2017 IEEE International
+Conference on Computer Vision (ICCV), 2017, pp. 764–773. [Online].
+Available: https://doi.org/10.1109/ICCV.2017.89
+[46] X. Zhu, W. Su, L. Lu, B. Li, X. Wang, and J. Dai, “Deformable
+detr: Deformable transformers for end-to-end object detection,” 2020.
+[Online]. Available: https://arxiv.org/abs/2010.04159
+[47] D.
+G.
+Lowe,
+“Distinctive
+image
+features
+from
+scale-invariant
+keypoints,” International Journal of Computer Vision, vol. 60, no. 2,
+pp. 91–110, 2004. [Online]. Available: https://doi.org/10.1023/B:
+VISI.0000029664.99615.94
+[48] E. Rublee, V. Rabaud, K. Konolige, and G. Bradski, “Orb: An
+efficient alternative to sift or surf,” in 2011 International Conference
+on Computer Vision, 2011, pp. 2564–2571. [Online]. Available:
+https://doi.org/10.1109/ICCV.2011.6126544
+[49] M. A. Fischler and R. C. Bolles, “Random sample consensus,”
+Communications of the ACM, vol. 24, no. 6, pp. 381–395, 1981.
+[Online]. Available: https://doi.org/10.1145/358669.358692
+[50] Z. Teed and J. Deng, “Raft: Recurrent all-pairs field transforms for
+optical flow,” in Lecture Notes in Computer Science, 2020, pp. 402–
+419. [Online]. Available: https://doi.org/10.1007/978-3-030-58536-5_
+24
+[51] J. Sun, Z. Shen, Y. Wang, H. Bao, and X. Zhou, “Loftr: Detector-
+free local feature matching with transformers,” in 2021 IEEE/CVF
+Conference on Computer Vision and Pattern Recognition (CVPR),
+2021, pp. 8922–8931. [Online]. Available: https://doi.org/10.1109/
+cvpr46437.2021.00881
+[52] D.
+DeTone,
+T.
+Malisiewicz,
+and
+A.
+Rabinovich,
+“Superpoint:
+Self-supervised interest point detection and description,” in 2018
+IEEE/CVF Conference on Computer Vision and Pattern Recognition
+Workshops
+(CVPRW),
+2018,
+pp.
+224–236.
+[Online].
+Available:
+https://doi.org/10.1109/cvprw.2018.00060
+[53] P.-E.
+Sarlin,
+D.
+DeTone,
+T.
+Malisiewicz,
+and
+A.
+Rabinovich,
+“Superglue: Learning feature matching with graph neural networks,”
+in 2020 IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), 2020, pp. 4938–4947. [Online]. Available:
+https://doi.org/10.1109/CVPR42600.2020.00499
+[54] P. Lindenberger, P.-E. Sarlin, and M. Pollefeys, “Lightglue: Local
+feature matching at light speed,” in 2023 IEEE/CVF International
+Conference on Computer Vision (ICCV), 2023, pp. 17 627–17 638.
+[Online]. Available: https://doi.org/10.1109/iccv51070.2023.01616
+[55] Y. Sun, B. Cao, P. Zhu, and Q. Hu, “Drone-based rgb-infrared
+cross-modality vehicle detection via uncertainty-aware learning,”
+IEEE Transactions on Circuits and Systems for Video Technology,
+vol.
+32,
+no.
+10,
+pp.
+6700–6713,
+2022.
+[Online].
+Available:
+https://doi.org/10.1109/TCSVT.2022.3168279
+[56] P. Zhang, J. Zhao, D. Wang, H. Lu, and X. Ruan, “Visible-thermal uav
+tracking: A large-scale benchmark and new baseline,” in Proceedings
+of the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), 2022, pp. 8886–8895. [Online]. Available:
+https://arxiv.org/abs/2204.04120
+[57] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N.
+Gomez, L. Kaiser, and I. Polosukhin, “Attention is all you need,”
+2017. [Online]. Available: https://arxiv.org/abs/1706.03762
+[58] G. Hinton, O. Vinyals, and J. Dean, “Distilling the knowledge in a
+neural network,” 2015. [Online]. Available: https://arxiv.org/abs/1503.
+02531
+[59] T.
+Xiao,
+Y.
+Liu,
+B.
+Zhou,
+Y.
+Jiang,
+and
+J.
+Sun,
+“Unified
+perceptual
+parsing
+for
+scene
+understanding,”
+in
+Lecture
+Notes
+in
+Computer
+Science,
+2018,
+pp.
+432–448.
+[Online].
+Available:
+https://doi.org/10.1007/978-3-030-01228-1_26
+[60] E. Xie, W. Wang, Z. Yu, A. Anandkumar, J. M. Alvarez, and
+P. Luo, “Segformer: Simple and efficient design for semantic
+segmentation with transformers,” 2021. [Online]. Available: https:
+//arxiv.org/abs/2105.15203
+[61] S. Zhang, X. Wang, J. Wang, J. Pang, C. Lyu, W. Zhang, P. Luo,
+and K. Chen, “Dense distinct query for end-to-end object detection,”
+in 2023 IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), 2023, pp. 7329–7338. [Online]. Available:
+https://doi.org/10.1109/cvpr52729.2023.00708
+[62] W. G. C. Bandara and V. M. Patel, “A transformer-based siamese
+network for change detection,” in IGARSS 2022 - 2022 IEEE
+International Geoscience and Remote Sensing Symposium, 2022,
+pp. 207–210. [Online]. Available: https://doi.org/10.1109/igarss46834.
+2022.9883686
+[63] Y. Zhang, P. Sun, Y. Jiang, D. Yu, F. Weng, Z. Yuan, P. Luo, W. Liu,
+and X. Wang, “Bytetrack: Multi-object tracking by associating every
+detection box,” in Lecture Notes in Computer Science, 2022, pp. 1–21.
+[Online]. Available: https://doi.org/10.1007/978-3-031-20047-2_1
+[64] B. Kerbl, G. Kopanas, T. Leimkuehler, and G. Drettakis, “3d gaussian
+splatting for real-time radiance field rendering,” ACM Transactions
+
+
+25
+on Graphics, vol. 42, no. 4, pp. 1–14, 2023. [Online]. Available:
+https://doi.org/10.1145/3592433
+[65] I. Loshchilov and F. Hutter, “Decoupled weight decay regularization,”
+2017. [Online]. Available: https://arxiv.org/abs/1711.05101
+[66] O. Ronneberger, P. Fischer, and T. Brox, “U-net: Convolutional
+networks for biomedical image segmentation,” in Lecture Notes
+in
+Computer
+Science,
+2015,
+pp.
+234–241.
+[Online].
+Available:
+https://doi.org/10.1007/978-3-319-24574-4_28
+[67] Y. Sun, W. Zuo, and M. Liu, “Rtfnet: Rgb-thermal fusion network
+for semantic segmentation of urban scenes,” IEEE Robotics and
+Automation Letters, vol. 4, no. 3, pp. 2576–2583, 2019. [Online].
+Available: https://doi.org/10.1109/LRA.2019.2904733
+[68] J. Shen, Y. Chen, Y. Liu, X. Zuo, H. Fan, and W. Yang, “Icafusion:
+Iterative cross-attention guided feature fusion for multispectral object
+detection,” Pattern Recognition, vol. 145, p. 109913, 2024. [Online].
+Available: https://doi.org/10.1016/j.patcog.2023.109913
+[69] Y. Wang, G. Li, and Z. Liu, “Sgfnet: Semantic-guided fusion
+network for rgb-thermal semantic segmentation,” IEEE Transactions
+on Circuits and Systems for Video Technology, vol. 33, no. 12, pp.
+7737–7748, 2023. [Online]. Available: https://doi.org/10.1109/TCSVT.
+2023.3281419
+[70] A. Howard, M. Sandler, B. Chen, W. Wang, L.-C. Chen, M. Tan,
+G. Chu, V. Vasudevan, Y. Zhu, R. Pang, H. Adam, and Q. Le,
+“Searching
+for
+mobilenetv3,”
+in
+2019
+IEEE/CVF
+International
+Conference on Computer Vision (ICCV), 2019, pp. 1314–1324.
+[Online]. Available: https://doi.org/10.1109/ICCV.2019.00140
+[71] T.-Y. Lin, M. Maire, S. Belongie, J. Hays, P. Perona, D. Ramanan,
+P. Dollár, and C. L. Zitnick, “Microsoft coco: Common objects in
+context,” in Lecture Notes in Computer Science, 2014, pp. 740–755.
+[Online]. Available: https://doi.org/10.1007/978-3-319-10602-1_48
+[72] S. Ren, K. He, R. Girshick, and J. Sun, “Faster r-cnn: Towards
+real-time object detection with region proposal networks,” IEEE
+Transactions on Pattern Analysis and Machine Intelligence, vol. 39,
+no. 6, pp. 1137–1149, 2017. [Online]. Available: https://doi.org/10.
+1109/TPAMI.2016.2577031
+[73] Z. Cai and N. Vasconcelos, “Cascade r-cnn: Delving into high quality
+object detection,” in 2018 IEEE/CVF Conference on Computer Vision
+and Pattern Recognition, 2018, pp. 6154–6162. [Online]. Available:
+https://doi.org/10.1109/CVPR.2018.00644
+[74] W. Liu, D. Anguelov, D. Erhan, C. Szegedy, S. Reed, C.-Y. Fu,
+and A. C. Berg, “Ssd: Single shot multibox detector,” in Lecture
+Notes in Computer Science, 2016, pp. 21–37. [Online]. Available:
+https://doi.org/10.1007/978-3-319-46448-0_2
+[75] T.-Y. Lin, P. Goyal, R. Girshick, K. He, and P. Dollar, “Focal loss for
+dense object detection,” in 2017 IEEE International Conference on
+Computer Vision (ICCV), 2017, pp. 2980–2988. [Online]. Available:
+https://doi.org/10.1109/ICCV.2017.324
+[76] J. Redmon, S. Divvala, R. Girshick, and A. Farhadi, “You only look
+once: Unified, real-time object detection,” in 2016 IEEE Conference
+on Computer Vision and Pattern Recognition (CVPR), 2016, pp.
+779–788. [Online]. Available: https://doi.org/10.1109/CVPR.2016.91
+[77] C.-Y. Wang, A. Bochkovskiy, and H.-Y. M. Liao, “Yolov7: Trainable
+bag-of-freebies sets new state-of-the-art for real-time object detectors,”
+in 2023 IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), 2023, pp. 7464–7475. [Online]. Available:
+https://doi.org/10.1109/CVPR52729.2023.00721
+[78] J. Ding, N. Xue, Y. Long, G.-S. Xia, and Q. Lu, “Learning
+roi transformer for oriented object detection in aerial images,”
+in 2019 IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), 2019, pp. 2849–2858. [Online]. Available:
+https://doi.org/10.1109/CVPR.2019.00296
+[79] J. Han, J. Ding, J. Li, and G.-S. Xia, “Align deep features for
+oriented object detection,” IEEE Transactions on Geoscience and
+Remote Sensing, vol. 60, pp. 1–11, 2022. [Online]. Available:
+https://doi.org/10.1109/TGRS.2021.3062048
+[80] X. Xie, G. Cheng, J. Wang, X. Yao, and J. Han, “Oriented r-cnn
+for object detection,” in 2021 IEEE/CVF International Conference on
+Computer Vision (ICCV), 2021, pp. 3520–3529. [Online]. Available:
+https://doi.org/10.1109/ICCV48922.2021.00350
+[81] Z. Tian, C. Shen, H. Chen, and T. He, “Fcos: Fully convolutional one-
+stage object detection,” in 2019 IEEE/CVF International Conference
+on Computer Vision (ICCV), 2019, pp. 9627–9636. [Online]. Available:
+https://doi.org/10.1109/ICCV.2019.00972
+[82] Y. Zhao, W. Lv, S. Xu, J. Wei, G. Wang, Q. Dang, Y. Liu,
+and J. Chen, “Detrs beat yolos on real-time object detection,”
+in 2024 IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), 2024, pp. 16 965–16 974. [Online]. Available:
+https://doi.org/10.1109/CVPR52733.2024.01605
+[83] G.-S. Xia, J. Hu, F. Hu, B. Shi, X. Bai, Y. Zhong, L. Zhang, and
+X. Lu, “Aid: A benchmark data set for performance evaluation of
+aerial scene classification,” IEEE Transactions on Geoscience and
+Remote Sensing, vol. 55, no. 7, pp. 3965–3981, 2017. [Online].
+Available: https://doi.org/10.1109/TGRS.2017.2685945
+[84] P. Helber, B. Bischke, A. Dengel, and D. Borth, “Eurosat: A novel
+dataset and deep learning benchmark for land use and land cover
+classification,” IEEE Journal of Selected Topics in Applied Earth
+Observations and Remote Sensing, vol. 12, no. 7, pp. 2217–2226, 2019.
+[Online]. Available: https://doi.org/10.1109/JSTARS.2019.2918242
+[85] D.
+Muhtar,
+X.
+Zhang,
+P.
+Xiao,
+Z.
+Li,
+and
+F.
+Gu,
+“Cmid:
+A unified self-supervised learning framework for remote sensing
+image
+understanding,”
+IEEE
+Transactions
+on
+Geoscience
+and
+Remote Sensing, vol. 61, pp. 1–17, 2023. [Online]. Available:
+https://doi.org/10.1109/TGRS.2023.3268232
+[86] D. Wang, Q. Zhang, Y. Xu, J. Zhang, B. Du, D. Tao, and
+L.
+Zhang,
+“Advancing
+plain
+vision
+transformer
+toward
+remote
+sensing foundation model,” IEEE Transactions on Geoscience and
+Remote Sensing, vol. 61, pp. 1–15, 2023. [Online]. Available:
+https://doi.org/10.1109/TGRS.2022.3222818
+[87] K. He, X. Zhang, S. Ren, and J. Sun, “Deep residual learning for
+image recognition,” in 2016 IEEE Conference on Computer Vision and
+Pattern Recognition (CVPR), 2016, pp. 770–778. [Online]. Available:
+https://doi.org/10.1109/CVPR.2016.90
+[88] Z. Liu, H. Mao, C.-Y. Wu, C. Feichtenhofer, T. Darrell, and S. Xie, “A
+convnet for the 2020s,” in 2022 IEEE/CVF Conference on Computer
+Vision and Pattern Recognition (CVPR), 2022, pp. 11 976–11 986.
+[Online]. Available: https://doi.org/10.1109/CVPR52688.2022.01167
+[89] M. Tan and Q. V. Le, “Efficientnetv2: Smaller models and faster
+training,” in Proceedings of the 38th International Conference on
+Machine Learning, vol. 139, 2021, pp. 10 096–10 106. [Online].
+Available: https://arxiv.org/abs/2104.00298
+[90] Q. Shi, M. Liu, S. Li, X. Liu, F. Wang, and L. Zhang, “A deeply
+supervised attention metric-based network and an open aerial image
+dataset for remote sensing change detection,” IEEE Transactions on
+Geoscience and Remote Sensing, vol. 60, pp. 1–16, 2022. [Online].
+Available: https://doi.org/10.1109/tgrs.2021.3085870
+[91] H. Chen and Z. Shi, “A spatial-temporal attention-based method
+and a new dataset for remote sensing image change detection,”
+Remote Sensing, vol. 12, no. 10, p. 1662, 2020. [Online]. Available:
+https://doi.org/10.3390/rs12101662
+[92] R. Caye Daudt, B. Le Saux, and A. Boulch, “Fully convolutional
+siamese
+networks
+for
+change
+detection,”
+in
+2018
+25th
+IEEE
+International Conference on Image Processing (ICIP), 2018, pp. 4063–
+4067. [Online]. Available: https://doi.org/10.1109/ICIP.2018.8451652
+[93] S. Fang, K. Li, J. Shao, and Z. Li, “Snunet-cd: A densely
+connected siamese network for change detection of vhr images,”
+IEEE Geoscience and Remote Sensing Letters, vol. 19, pp. 1–5, 2022.
+[Online]. Available: https://doi.org/10.1109/LGRS.2021.3056416
+[94] H. Chen, Z. Qi, and Z. Shi, “Remote sensing image change
+detection with transformers,” IEEE Transactions on Geoscience and
+Remote Sensing, vol. 60, pp. 1–14, 2022. [Online]. Available:
+https://doi.org/10.1109/tgrs.2021.3095166
+[95] A. Codegoni, G. Lombardi, and A. Ferrari, “Tinycd: a (not so)
+deep learning model for change detection,” Neural Computing and
+Applications, vol. 35, no. 11, pp. 8471–8486, 2023. [Online].
+Available: https://doi.org/10.1007/s00521-022-08122-3
+[96] J. Luiten, A. O˘sep, P. Dendorfer, P. Torr, A. Geiger, L. Leal-
+Taixé, and B. Leibe, “Hota: A higher order metric for evaluating
+multi-object tracking,” International Journal of Computer Vision,
+vol. 129, no. 2, pp. 548–578, 2021. [Online]. Available: https:
+//doi.org/10.1007/s11263-020-01375-2
+[97] K. Bernardin and R. Stiefelhagen, “Evaluating multiple object tracking
+performance: The clear mot metrics,” EURASIP Journal on Image
+and Video Processing, vol. 2008, pp. 1–10, 2008. [Online]. Available:
+https://doi.org/10.1155/2008/246309
+[98] A. Bewley, Z. Ge, L. Ott, F. Ramos, and B. Upcroft, “Simple online
+and realtime tracking,” in 2016 IEEE International Conference on
+Image Processing (ICIP), 2016, pp. 3464–3468. [Online]. Available:
+https://doi.org/10.1109/ICIP.2016.7533003
+[99] N. Wojke, A. Bewley, and D. Paulus, “Simple online and realtime
+tracking with a deep association metric,” in 2017 IEEE International
+Conference on Image Processing (ICIP), 2017, pp. 3645–3649.
+[Online]. Available: https://doi.org/10.1109/ICIP.2017.8296962
+
+
+26
+[100] X. Zhou, V. Koltun, and P. Krähenbühl, “Tracking objects as points,”
+in Lecture Notes in Computer Science, 2020, pp. 474–490. [Online].
+Available: https://doi.org/10.1007/978-3-030-58548-8_28
+[101] Y. Zhang, C. Wang, X. Wang, W. Zeng, and W. Liu, “Fairmot:
+On
+the
+fairness
+of
+detection
+and
+re-identification
+in
+multiple
+object tracking,” International Journal of Computer Vision, vol.
+129, no. 11, pp. 3069–3087, 2021. [Online]. Available: https:
+//doi.org/10.1007/s11263-021-01513-4
+[102] J. Cao, J. Pang, X. Weng, R. Khirodkar, and K. Kitani, “Observation-
+centric
+sort:
+Rethinking
+sort
+for
+robust
+multi-object
+tracking,”
+in 2023 IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), 2023, pp. 9686–9696. [Online]. Available:
+https://doi.org/10.1109/cvpr52729.2023.00934
+[103] G. Maggiolino, A. Ahmad, J. Cao, and K. Kitani, “Deep oc-sort:
+Multi-pedestrian tracking by adaptive re-identification,” in 2023 IEEE
+International Conference on Image Processing (ICIP), 2023, pp.
+3025–3029. [Online]. Available: https://doi.org/10.1109/ICIP49359.
+2023.10222576
+[104] F. Yu, D. Wang, E. Shelhamer, and T. Darrell, “Deep layer
+aggregation,” in 2018 IEEE/CVF Conference on Computer Vision
+and Pattern Recognition, 2018, pp. 2403–2412. [Online]. Available:
+https://doi.org/10.1109/CVPR.2018.00255
+[105] R. Zhang, P. Isola, A. A. Efros, E. Shechtman, and O. Wang,
+“The unreasonable effectiveness of deep features as a perceptual
+metric,”
+in
+2018
+IEEE/CVF
+Conference
+on
+Computer
+Vision
+and Pattern Recognition, 2018, pp. 586–595. [Online]. Available:
+https://doi.org/10.1109/CVPR.2018.00068
+[106] B.
+Mildenhall,
+P.
+P.
+Srinivasan,
+M.
+Tancik,
+J.
+T.
+Barron,
+R.
+Ramamoorthi,
+and
+R.
+Ng,
+“Nerf:
+Representing
+scenes
+as
+neural
+radiance
+fields
+for
+view
+synthesis,”
+in
+Lecture
+Notes
+in
+Computer
+Science,
+2020,
+pp.
+405–421.
+[Online].
+Available:
+https://doi.org/10.1007/978-3-030-58452-8_24
+[107] T. Müller, A. Evans, C. Schied, and A. Keller, “Instant neural graphics
+primitives with a multiresolution hash encoding,” ACM Transactions
+on Graphics, vol. 41, no. 4, pp. 1–15, 2022. [Online]. Available:
+https://doi.org/10.1145/3528223.3530127
+[108] A. Chen, Z. Xu, A. Geiger, J. Yu, and H. Su, “Tensorf: Tensorial
+radiance fields,” in Lecture Notes in Computer Science, 2022, pp. 333–
+350. [Online]. Available: https://doi.org/10.1007/978-3-031-19824-3_
+20
+[109] Q. Chen, S. Shu, and X. Bai, “Thermal3d-gs: Physics-induced 3d
+gaussians for thermal infrared novel-view synthesis,” in Lecture
+Notes in Computer Science, 2025, pp. 253–269. [Online]. Available:
+https://doi.org/10.1007/978-3-031-73383-3_15
+[110] D. Du, L. Wen, P. Zhu, H. Fan, Q. Hu, H. Ling, M. Shah, J. Pan,
+A. Al-Ali, A. Mohamed, B. Imene, B. Dong, B. Zhang, B. H. Nesma,
+C. Xu, C. Duan, C. Castiello, C. Mencar, D. Liang, F. Krüger,
+G. Vessio, G. Castellano, J. Wang, J. Gao, K. Abualsaud, L. Ding,
+L. Zhao, M. Cianciotta, M. Saqib, N. Almaadeed, O. Elharrouss,
+P. Lyu, Q. Wang, S. Liu, S. Qiu, S. Pan, S. Al-Maadeed, S. D.
+Khan, T. Khattab, T. Han, T. Golda, W. Xu, X. Bai, X. Xu,
+X.
+Li,
+Y.
+Zhao,
+Y.
+Tian,
+Y.
+Lin,
+Y.
+Xu,
+Y.
+Yao,
+Z.
+Xu,
+Z. Zhao, Z. Luo, Z. Wei, and Z. Zhao, “Visdrone-cc2020: The
+vision meets drone crowd counting challenge results,” in Lecture
+Notes in Computer Science, 2020, pp. 675–691. [Online]. Available:
+https://doi.org/10.1007/978-3-030-66823-5_41
+[111] B. Ptak, D. Pieczy´nski, M. Piechocki, and M. Kraft, “On-board
+crowd counting and density estimation using low altitude unmanned
+aerial vehicles—looking beyond beating the benchmark,” Remote
+Sensing, vol. 14, no. 10, p. 2288, 2022. [Online]. Available:
+https://doi.org/10.3390/rs14102288
+[112] Y. Li, X. Zhang, and D. Chen, “Csrnet: Dilated convolutional
+neural networks for understanding the highly congested scenes,”
+in 2018 IEEE/CVF Conference on Computer Vision and Pattern
+Recognition,
+2018,
+pp.
+1091–1100.
+[Online].
+Available:
+https:
+//doi.org/10.1109/CVPR.2018.00120
+[113] Z. Ma, X. Wei, X. Hong, and Y. Gong, “Bayesian loss for crowd count
+estimation with point supervision,” in 2019 IEEE/CVF International
+Conference on Computer Vision (ICCV), 2019, pp. 6142–6151.
+[Online]. Available: https://doi.org/10.1109/ICCV.2019.00624
+[114] B. Wang, H. Liu, D. Samaras, and M. H. Nguyen, “Distribution
+matching for crowd counting,” in Advances in Neural Information
+Processing Systems, vol. 33, 2020, pp. 1595–1607. [Online]. Available:
+https://arxiv.org/abs/2009.13077
+[115] D. Liang, X. Chen, W. Xu, Y. Zhou, and X. Bai, “Transcrowd:
+weakly-supervised crowd counting with transformers,” Science China
+Information Sciences, vol. 65, no. 6, p. 160104, 2022. [Online].
+Available: https://doi.org/10.1007/s11432-021-3445-y
+[116] Q. Song, C. Wang, Z. Jiang, Y. Wang, Y. Tai, C. Wang, J. Li,
+F. Huang, and Y. Wu, “Rethinking counting and localization in crowds:
+A purely point-based framework,” in 2021 IEEE/CVF International
+Conference on Computer Vision (ICCV), 2021, pp. 3365–3374.
+[Online]. Available: https://doi.org/10.1109/ICCV48922.2021.00335
+[117] J. Long, E. Shelhamer, and T. Darrell, “Fully convolutional networks
+for semantic segmentation,” in 2015 IEEE Conference on Computer
+Vision and Pattern Recognition (CVPR), 2015, pp. 3431–3440.
+[Online]. Available: https://doi.org/10.1109/CVPR.2015.7298965
+[118] H. Zhao, J. Shi, X. Qi, X. Wang, and J. Jia, “Pyramid scene
+parsing network,” in 2017 IEEE Conference on Computer Vision
+and Pattern Recognition (CVPR), 2017, pp. 2881–2890. [Online].
+Available: https://doi.org/10.1109/CVPR.2017.660
+[119] L.-C. Chen, Y. Zhu, G. Papandreou, F. Schroff, and H. Adam,
+“Encoder-decoder with atrous separable convolution for semantic
+image
+segmentation,”
+in
+Lecture
+Notes
+in
+Computer
+Science,
+2018,
+pp.
+833–851.
+[Online].
+Available:
+https://doi.org/10.1007/
+978-3-030-01234-2_49
+[120] J. Fu, J. Liu, H. Tian, Y. Li, Y. Bao, Z. Fang, and H. Lu, “Dual attention
+network for scene segmentation,” in 2019 IEEE/CVF Conference on
+Computer Vision and Pattern Recognition (CVPR), 2019, pp. 3146–
+3154. [Online]. Available: https://doi.org/10.1109/CVPR.2019.00326
+[121] Y. Yuan, X. Chen, and J. Wang, “Object-contextual representations
+for semantic segmentation,” in Lecture Notes in Computer Science,
+2020,
+pp.
+173–190.
+[Online].
+Available:
+https://doi.org/10.1007/
+978-3-030-58539-6_11
+[122] S. Zheng, J. Lu, H. Zhao, X. Zhu, Z. Luo, Y. Wang, Y. Fu,
+J.
+Feng,
+T.
+Xiang,
+P.
+H.
+Torr,
+and
+L.
+Zhang,
+“Rethinking
+semantic segmentation from a sequence-to-sequence perspective with
+transformers,” in 2021 IEEE/CVF Conference on Computer Vision
+and Pattern Recognition (CVPR), 2021, pp. 6881–6890. [Online].
+Available: https://doi.org/10.1109/CVPR46437.2021.00681
+[123] R. Strudel, R. Garcia, I. Laptev, and C. Schmid, “Segmenter:
+Transformer for semantic segmentation,” in 2021 IEEE/CVF Interna-
+tional Conference on Computer Vision (ICCV), 2021, pp. 7262–7272.
+[Online]. Available: https://doi.org/10.1109/ICCV48922.2021.00717
+[124] L. Wang, R. Li, C. Zhang, S. Fang, C. Duan, X. Meng, and P. M.
+Atkinson, “Unetformer: A unet-like transformer for efficient semantic
+segmentation of remote sensing urban scene imagery,” ISPRS Journal
+of Photogrammetry and Remote Sensing, vol. 190, pp. 196–214, 2022.
+[Online]. Available: https://doi.org/10.1016/j.isprsjprs.2022.06.008
+[125] J.
+Xu,
+Z.
+Xiong,
+and
+S.
+P.
+Bhattacharyya,
+“Pidnet:
+A
+real-
+time semantic segmentation network inspired by pid controllers,”
+in 2023 IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (CVPR), 2023, pp. 19 529–19 539. [Online]. Available:
+https://doi.org/10.1109/cvpr52729.2023.01871
+[126] C.
+Yu,
+C.
+Gao,
+J.
+Wang,
+G.
+Yu,
+C.
+Shen,
+and
+N.
+Sang,
+“Bisenet v2: Bilateral network with guided aggregation for real-
+time semantic segmentation,” International Journal of Computer
+Vision, vol. 129, no. 11, pp. 3051–3068, 2021. [Online]. Available:
+https://doi.org/10.1007/s11263-021-01515-2
+[127] N. Carion, F. Massa, G. Synnaeve, N. Usunier, A. Kirillov, and
+S. Zagoruyko, “End-to-end object detection with transformers,” in
+Lecture Notes in Computer Science, 2020, pp. 213–229. [Online].
+Available: https://doi.org/10.1007/978-3-030-58452-8_13
+[128] H. Zhang, F. Li, S. Liu, L. Zhang, H. Su, J. Zhu, L. M. Ni,
+and H.-Y. Shum, “Dino: Detr with improved denoising anchor
+boxes for end-to-end object detection,” 2022. [Online]. Available:
+https://arxiv.org/abs/2203.03605
+[129] L. Tang, X. Xiang, H. Zhang, M. Gong, and J. Ma, “Divfusion:
+Darkness-free
+infrared
+and
+visible
+image
+fusion,”
+Information
+Fusion, vol. 91, pp. 477–493, 2023. [Online]. Available: https:
+//doi.org/10.1016/j.inffus.2022.10.034

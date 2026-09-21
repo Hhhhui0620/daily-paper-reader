@@ -1,0 +1,57 @@
+{
+  "date": "20260823-20260921",
+  "date_label": "2026-08-23 ~ 2026-09-21",
+  "generated_at": "2026-09-21 09:05:51 UTC",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2608.27971v2",
+      "route": "20260823-20260921/2608.27971v2-gaat-geometry-aware-alignment-transformer-for-multimodal-uav-perception",
+      "title": "GAAT: Geometry-Aware Alignment Transformer for Multimodal UAV Perception",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "面向UAV多模态RGB/红外/SAR感知、先对齐后交互并估计局部对应可靠性的Transformer",
+      "first_seen_at": "2026-09-21 09:05:51 UTC",
+      "updated_at": "2026-09-21 09:05:51 UTC"
+    },
+    {
+      "paper_id": "2609.12622v1",
+      "route": "20260823-20260921/2609.12622v1-ra-sod-reliability-aware-rgb-t-salient-object-detection-under-modality-degradation",
+      "title": "RA-SOD: Reliability-Aware RGB-T Salient Object Detection under Modality Degradation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "建模模态可靠性的可靠性感知RGB-T显著目标检测融合",
+      "first_seen_at": "2026-09-21 09:05:51 UTC",
+      "updated_at": "2026-09-21 09:05:51 UTC"
+    },
+    {
+      "paper_id": "2608.29235v1",
+      "route": "20260823-20260921/2608.29235v1-uncertainty-aware-multimodal-anti-uav-detection-via-evidential-fusion-and-conflict-discounted-belief-aggregation",
+      "title": "Uncertainty-Aware Multimodal Anti-UAV Detection via Evidential Fusion and Conflict-Discounted Belief Aggregation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "不确定性感知的RGB-热红外证据融合与冲突折扣信念聚合",
+      "first_seen_at": "2026-09-21 09:05:51 UTC",
+      "updated_at": "2026-09-21 09:05:51 UTC"
+    }
+  ]
+}
