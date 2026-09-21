@@ -25,3 +25,62 @@ subscriptions:
     stage: A
     diff_threshold_pct: 15
   keyword_recall_mode: or
+  intent_profiles:
+    - tag: uav-rgbt-sod
+      description: 面向UAV未配准RGB-T显著目标检测的不确定性感知跨模态对齐方法
+      enabled: true
+      paper_sources:
+        - arxiv
+      keywords:
+        - keyword: unmanned aerial vehicle
+          keyword_cn: 无人机
+          query: unmanned aerial vehicle imagery for multimodal perception
+        - keyword: rgb-t salient object detection
+          keyword_cn: RGB-T显著目标检测
+          query: RGB and thermal salient object detection in aerial imagery
+        - keyword: cross-modal alignment
+          keyword_cn: 跨模态对齐
+          query: cross-modal alignment between visible and thermal features
+        - keyword: uncertainty-aware alignment
+          keyword_cn: 不确定性感知对齐
+          query: uncertainty-aware alignment of multimodal features
+        - keyword: unregistered multimodal images
+          keyword_cn: 未配准多模态图像
+          query: unregistered visible and thermal image pairs
+        - keyword: multimodal feature fusion
+          keyword_cn: 多模态特征融合
+          query: multimodal feature fusion under misalignment
+      intent_queries:
+        - query: Uncertainty aware cross modal alignment for unregistered RGB T salient object detection from UAV platforms
+          query_cn: 面向无人机平台的未配准RGB T显著目标检测的不确定性感知跨模态对齐
+          enabled: true
+          source: manual
+          note: ''
+        - query: >-
+            Robust multimodal salient object detection fusing visible and thermal aerial images with spatial
+            misalignment
+          query_cn: 融合可见光与热红外航拍图像并处理空间失配的鲁棒多模态显著目标检测
+          enabled: true
+          source: manual
+          note: ''
+        - query: Uncertainty modeling for cross modal feature alignment in aerial multimodal saliency detection
+          query_cn: 航拍多模态显著性检测中跨模态特征对齐的不确定性建模
+          enabled: true
+          source: manual
+          note: ''
+      updated_at: '2026-09-21T01:43:00.309Z'
+source_backends:
+  arxiv:
+    papers_table: arxiv_papers
+    use_vector_rpc: true
+    vector_rpc: match_arxiv_papers
+    vector_rpc_exact: match_arxiv_papers_exact
+    use_bm25_rpc: true
+    bm25_rpc: match_arxiv_papers_bm25
+    sync_table: arxiv_sync_status
+    sync_success_value: success
+    schema: public
+    kind: supabase
+    enabled: true
+    url: https://lyucdwgefyfbmaiopjbk.supabase.co
+    anon_key: sb_publishable_lX-oi64Uxyd7SIVv3_w2Uw_MTOojeKq
