@@ -1,0 +1,1230 @@
+Dynamic Thermal Gaussians: Multimodal 4D Gaussian Splatting
+Rongfeng Lu∗
+Lishui University
+Lishui, China
+Lishui Key Laboratory of
+Low-Altitude Multimodal Sensing and
+Intelligent Computing
+Lishui, China
+rongfeng-lu@hdu.edu.cn
+Lifeng Lin∗
+Hangzhou Dianzi University
+Hangzhou, China
+lifeng_lin@hdu.edu.cn
+Xiaobao Wei∗
+University of Chinese Academy of
+Sciences
+Beijing, China
+weixiaobao0210@gmail.com
+Quan Chen
+Jiaxing University
+Jiaxing, China
+chenquan@zjxu.edu.cn
+Ming Lu
+Hangzhou Dianzi University
+Hangzhou, China
+lu199192@gmail.com
+Yitian Xue
+Zhejiang University
+Hangzhou, China
+yitianxue@zju.edu.cn
+Yaoqi Sun✉†
+Lishui University
+Lishui, China
+sunyq2233@163.com
+Yuhan Gao
+Hangzhou Dianzi University
+Hangzhou, China
+yuhangao@hdu.edu.cn
+Anke Xue
+Hangzhou Dianzi University
+Hangzhou, China
+akxue@hdu.edu.cn
+Chenggang Yan
+Hangzhou Dianzi University
+Hangzhou, China
+cgyan@hdu.edu.cn
+Abstract
+Thermography plays a vital role in military and broader thermal
+analysis applications. Recent progress in 3D thermal reconstruction
+has extended temperature analysis from 2D to 3D space, yet most ex-
+isting works assume static temperature distributions, neglecting the
+temporal dynamics of heat transfer in real-world environments. To
+address this limitation, we propose the first dynamic RGB-Thermal
+reconstruction framework for complex scenes. Our method jointly
+models RGB appearance, thermal observations, and scene geometry
+as they change over time. Specifically, we introduce a multimodal
+dynamic scene representation that anchors both the color and ther-
+mal modalities to a shared geometric substrate, ensuring their con-
+sistency under spatiotemporal deformations. We further design mul-
+timodal embeddings to enhance the motion expressiveness for each
+modality, and propose a multimodal routing mechanism that re-
+tains a unified set of shared multimodal Gaussians as the geometric
+backbone while adaptively spawning modality-specific Gaussians
+to strengthen the representational capacity in detail-rich regions of
+each individual modality. In addition, we contribute a novel bench-
+mark dataset featuring high-frequency temperature variations to fa-
+cilitate the evaluation of 4D reconstruction. Extensive experiments
+demonstrate that our method achieves high-fidelity spatiotemporal
+reconstruction of both appearance and temperature. Our code and
+dataset are available at: https://github.com/LinLif1869/DTG.
+∗Both authors contributed equally to this research.
+†Corresponding author.
+Keywords
+Multimodal fusion, 4D scene reconstruction, Novel view synthesis,
+3D Gaussian splatting
+1
+Introduction
+Temperature governs diverse natural and engineered processes.
+Thermal imaging converts surface temperature distributions into
+interpretable 2D observations and supports applications ranging
+from military surveillance [8] and industrial analysis [5] to archi-
+tecture [4], search and rescue [45], and medical diagnostics [13]. In
+real-world environments, thermal fields evolve continuously and
+can change rapidly under convection, conduction, and radiation.
+Existing 3D thermal field reconstruction methods characterize spa-
+tial geometry but do not effectively capture complex dynamic heat
+transfer. Therefore, extending thermal field reconstruction into the
+4D spatiotemporal domain has become key to advancing this field.
+Recent advances in Neural Radiance Fields (NeRF) [23] and 3D
+Gaussian Splatting (3DGS) [12] have significantly improved high-
+fidelity novel view synthesis and 3D reconstruction. Building on
+them, numerous studies [3, 7, 17, 21] target high-quality static
+3D thermal field reconstruction. Recent methods further model
+temporal thermal evolution over RGB-derived or fixed scene ge-
+ometry [18, 34, 41]. They do not jointly reconstruct dynamic RGB
+appearance, thermal observations, and scene geometry in com-
+plex scenes with object motion and rapid temperature changes. We
+address this setting with the first dynamic RGB-Thermal recon-
+struction framework for complex scenes.
+arXiv:2609.24531v1  [cs.CV]  21 Sep 2026
+
+
+Rongfeng Lu et al.
+The lack of open-source thermal field reconstruction datasets has
+constrained progress in 4D thermal reconstruction. Existing bench-
+marks do not cover joint RGB-Thermal reconstruction in complex
+scenes where geometry and temperature change rapidly. To support
+research in this setting, we introduce DynamicRGBT-Scenes, a
+benchmark dataset for dynamic RGB-Thermal scene reconstruction
+with fast temperature changes. DynamicRGBT-Scenes contains 12
+synchronized dual-view RGB-Thermal sequences captured using
+two handheld device pairs, each consisting of a FLIR A700 ther-
+mal camera and an iPhone 15 Pro. The scenes include open-flame
+grilling, electric iron soldering, hair drying, and clothes ironing,
+among others. They cover rapid temperature changes, object mo-
+tion, low light, and occlusion.
+Representative 4D RGB methods include 4DGaussians [39], DN-
+4DGS [20], and E-D3DGS [2]. Recent work further extends dynamic
+rendering to manipulation [15], robotic [32], and street scenes [36].
+The discrete 3DGS representation provides flexibility for complex
+topological changes. Extending these methods to thermal fields
+remains difficult because thermal images often lack texture and
+distinctive features, leading to unstable optimization. To address
+this challenge, we propose a multimodal dynamic reconstruction
+framework that integrates thermal and RGB modalities. We build
+a unified Gaussian representation that preserves geometric con-
+sistency and temporal continuity, where each Gaussian encodes
+both color and thermal attributes. We further introduce multimodal
+embeddings and dynamic deformation to model temporal evolu-
+tion, along with a multimodal routing mechanism that separates
+shared and modality-specific Gaussians to enhance detail represen-
+tation. Comprehensive experiments show that our method achieves
+state-of-the-art dynamic thermal field reconstruction.
+In summary, the main contributions are as follows:
+(1) We present DynamicRGBT-Scenes, the first benchmark to
+capture rapid thermal variations in dynamic environments with
+synchronized RGB–thermal image pairs from dual viewpoints.
+(2) We propose Dynamic Thermal Gaussians, the first dy-
+namic RGB-Thermal reconstruction framework for complex scenes,
+rendering high-fidelity RGB and thermal views at any timestep.
+(3) We design multimodal embeddings and a progressive defor-
+mation architecture to model the distinct temporal evolution of
+each modality. We further integrate a learnable multimodal routing
+mechanism into the unified dynamic Gaussian representation to
+automatically distinguish shared and modality-specific Gaussians.
+(4) Extensive experiments demonstrate that our multimodal
+method achieves state-of-the-art performance across both thermal
+and RGB modalities, establishing a solid foundation for spatiotem-
+poral thermography.
+2
+Related Work
+2.1
+Thermal Scene Reconstruction
+Thermal imaging estimates surface temperature from infrared radia-
+tion emitted by objects, typically within the mid-wave or long-wave
+infrared spectrum. The resulting temperature distributions are com-
+monly visualized using pseudo-color mapping. Since thermal mea-
+surements do not depend on visible illumination, thermal imaging
+can provide informative observations in low-light environments
+and under partial occlusion.
+Multi-view thermal images enable 3D temperature analysis be-
+yond fixed viewpoints. KinectFusion [26] established dense surface
+mapping, and later systems added infrared observations [14, 24, 30].
+These static methods lack photorealistic novel-view synthesis and
+adapt poorly across thermal conditions. ThermoNeRF [7], Thermal-
+NeRF [44], and ThermalNeRF [17] extend NeRF to static RGB-
+Thermal or thermal-only fields, but costly implicit representations
+limit real-time rendering and structural control.
+To address these limitations, recent work adopts 3DGS as a
+more efficient and explicit alternative. ThermalGaussian and Ther-
+malGaussian++ [21, 22] align and render RGB and thermal views;
+Thermal3D-GS [3] adds atmospheric and conductive priors for phys-
+ical consistency; Veta-GS [25] uses view-dependent deformation to
+improve thermal edges; and MMOne [6] unifies multimodal inputs
+in 3DGS.
+Beyond static reconstruction, dynamic thermal reconstruction
+has also received increasing attention. ThermalGS [18] models tem-
+poral thermal radiation with Gaussian geometry guided by an RGB
+mesh and semantic features. NTR-Gaussian [41] predicts nighttime
+thermal evolution from learned thermodynamic parameters and
+numerical integration. ETGS [34] assigns explicit thermal param-
+eters to Gaussians and uses closed-form heat transfer to predict
+arbitrary timestamps. These methods model thermal evolution over
+RGB-derived or fixed geometry, whereas we jointly reconstruct
+time-varying RGB appearance, thermal observations, and scene
+geometry.
+2.2
+Dynamic Scene Rendering
+Early dynamic NeRF methods extend spatial representations over
+time [38]. D-NeRF [29] conditions a deformation field on time to
+model non-rigid motion. Nerfies [27] and HyperNeRF [28] use per-
+frame latent codes for canonical-space deformation, with HyperN-
+eRF lifting the representation to higher dimensions for topology
+changes. HyperReel [1] combines ray-conditioned sampling with a
+compact dynamic volume for efficient, high-quality 6-DoF video
+synthesis.
+Beyond NeRF-based methods, explicit 3DGS representations sup-
+port generalizable [40] and sparse-view [16] reconstruction, while
+their 4D extensions provide an efficient alternative to NeRF vol-
+ume rendering [10, 35, 37]. D-3DGS [42] learns canonical time-
+dependent deformation for high-fidelity dynamic reconstruction.
+4DGaussians [39] combine spatiotemporal neural voxels with Gaus-
+sians for faster rendering with explicit structure. E-D3DGS [2]
+uses per-Gaussian embeddings to drive dual-level deformation for
+complex motion and detail. Other methods use structured 4D Gaus-
+sians [43], denoised spatiotemporal aggregation [20], and light-
+weight predictors with entropy constraints [47] to improve appear-
+ance, stability, and storage, respectively.
+These methods reconstruct dynamic geometry and appearance
+from RGB observations but omit thermal measurements. Dynamic
+Thermal Gaussians instead integrates RGB and thermal supervision
+in one dynamic Gaussian representation for complex scenes.
+
+
+Dynamic Thermal Gaussians: Multimodal 4D Gaussian Splatting
+Figure 1: Overview. We first construct a geometrically consistent multimodal dynamic representation in a shared canonical
+space, then model temporal evolution through embedding-based multimodal deformation, and finally employ a multimodal
+routing mechanism to adaptively spawn modality-specific Gaussians that enhance detail representation for each modality.
+3
+Method
+As illustrated in Figure 1, we construct Dynamic Thermal Gaussians,
+a unified framework for multimodal dynamic reconstruction. Mul-
+timodal Dynamic Modeling (Section 3.2) combines shared canon-
+ical Gaussian geometry with modality-specific attributes; Multi-
+modal Embedding-Based Deformation (Section 3.3) models
+dynamic variations using temporal and modality-specific Gaussian
+embeddings; and Multimodal Routing Mechanism (Section 3.4)
+adaptively assigns Gaussians to different modality roles.
+3.1
+Preliminary
+3D Gaussian Splatting (3DGS) [12] is an explicit representation
+for 3D reconstruction and rendering that models a scene with
+anisotropic 3D Gaussians. Each Gaussian jointly represents ge-
+ometry, opacity, and view-dependent appearance. The fully dif-
+ferentiable formulation supports end-to-end optimization, while
+splatting provides efficient rasterization-style rendering.
+The 3DGS pipeline starts from a collection of unordered in-
+put images, which are processed through Structure-from-Motion
+(SfM) [31] to estimate camera poses and generate a sparse point
+cloud. These sparse points are then used to initialize the Gaussian
+centers 𝜇. Each Gaussian is represented as:
+𝐺(𝑥) = 𝑒−1
+2 (𝑥−𝜇)𝑇Σ−1 (𝑥−𝜇),
+(1)
+where Σ represents the covariance matrix, and 𝑥denotes any point
+in the 3D scene. Each 3D Gaussian is further projected onto the
+image plane through the camera’s intrinsic matrix, yielding a corre-
+sponding 2D Gaussian distribution. The rendered image is obtained
+by alpha compositing:
+𝐶(𝑥′) =
+∑︁
+𝑘∈𝑄
+𝑐𝑘𝛼𝑘
+𝑘−1
+Ö
+𝑗=1
+ 1 −𝛼𝑗
+ ,
+(2)
+where𝑥′ denotes the target pixel,𝑄is the set of Gaussians contribut-
+ing to that pixel. 𝛼𝑘represents the opacity of the 𝑘-th Gaussian,
+and 𝑐𝑘is its color represented by spherical harmonics. All Gaussian
+attributes are learnable and optimized directly in an end-to-end
+manner during training.
+3.2
+Multimodal Dynamic Modeling
+To jointly model multimodal dynamic observations (e.g., RGB and
+thermal) within a unified 3D Gaussian representation while captur-
+ing modality-specific temporal imaging variations, we introduce
+a multimodal dynamic Gaussian representation. This formulation
+explicitly encodes modality-specific attributes into the Gaussian
+representation under the premise of maintaining multimodal geo-
+metric consistency and temporal continuity. It serves as a unified
+representational foundation for subsequent multimodal deforma-
+tion modeling and training.
+In dynamic multimodal scenes, different sensing modalities may
+exhibit substantially different imaging mechanisms. However, at
+any given timestamp, they observe the same underlying physical
+scene. Therefore, we design a shared geometric representation
+for all modalities. Each 3D Gaussian 𝐺𝑖is parameterized by its
+mean position 𝜇𝑖and covariance Σ𝑖, represented via rotation 𝑅𝑖
+and scale 𝑆𝑖. These geometric parameters are shared across all
+modalities and serve as a common reference coordinate system for
+time-dependent deformation. This shared canonical space enforces
+spatial alignment between modalities and ensures that temporal
+updates remain geometrically consistent.
+Based on shared geometry, we introduce modality-specific at-
+tributes to capture cross-modal appearance differences. For each
+modality 𝑚∈{𝑟𝑔𝑏,𝑡ℎ𝑒𝑟𝑚𝑎𝑙}, each Gaussian 𝐺𝑖is associated with:
+appearance features 𝑓𝑚
+𝑖, encoding modality-specific radiance; opac-
+ity 𝜎𝑚
+𝑖, modeling modality-dependent visibility; modality embed-
+ding vectors 𝑒𝑚
+𝑖, providing modality-aware conditioning signals
+for the deformation network. Unlike ThermalGaussian [21], this
+representation does not assume equal relevance of each Gaussian
+across modalities. Instead, modality-dependent participation masks
+
+
+Rongfeng Lu et al.
+are learned to selectively gate Gaussians while keeping the under-
+lying canonical geometry shared. Combining shared geometry and
+modality-specific attributes, each Gaussian can be expressed as
+𝐺𝑖=
+
+𝜇𝑖, 𝑅𝑖,𝑆𝑖,
+
+𝑓𝑚
+𝑖, 𝜎𝑚
+𝑖,𝑒𝑚
+𝑖
+	
+𝑚
+
+,
+(3)
+where geometric parameters (𝜇𝑖, 𝑅𝑖,𝑆𝑖) are dynamically updated
+by a modality-aware deformation network, and modality-specific
+attributes capture distinct temporal patterns reflecting the imaging
+characteristics of each modality.
+Overall, this representation models multimodal observations on
+shared geometry while separating modality-dependent variations
+into dedicated attribute channels. Decoupling shared geometry
+from modality-specific attributes provides a stable foundation for
+dynamic deformation and joint optimization without prematurely
+assigning each Gaussian to a modality, preserving the flexibility
+required for adaptive routing.
+3.3
+Multimodal Embedding-Based Deformation
+Gaussian deformation fields have been shown to be effective for
+modeling dynamic scenes [2, 39, 42, 43]. In this formulation, tem-
+poral variations are modeled as continuous transformations in the
+canonical Gaussian space, rather than constructing independent
+representations for each timestamp, which enforces temporal coher-
+ence and improves modeling stability. However, existing approaches
+predominantly focus on single-modality observations and do not
+explicitly account for the heterogeneous deformation behaviors
+induced by different sensing modalities.
+To address this, we propose a multimodal embedding-based de-
+formation framework, where deformations are jointly conditioned
+on time embeddings and modality-specific Gaussian embeddings.
+We further introduce a progressive, modality-separated deforma-
+tion architecture to capture modality-dependent dynamics under
+shared geometric constraints. We condition the deformation field
+on two complementary types of embeddings: time embeddings
+and modality-specific Gaussian embeddings. The time embeddings
+encode the temporal evolution in dynamic scenes and serve as a
+shared global condition across modalities. For each timestamp 𝑡,
+every Gaussian is associated with a time embedding 𝑒𝑡∈R128 to
+guide its continuous temporal evolution.
+Building upon E-D3DGS [2], we further construct modality-
+specific Gaussian embeddings for each Gaussian. As in Section 3.2,
+every Gaussian 𝐺𝑖is associated with a modality-specific embedding
+𝑒𝑚
+𝑖
+∈R32, which encodes its modality-dependent state and provides
+conditioning signals for deformation. We model dynamic variations
+as residual updates over a canonical Gaussian representation, in-
+stead of predicting time-dependent absolute parameters. Given a
+time embedding 𝑒𝑡and a modality-specific Gaussian embedding
+𝑒𝑚
+𝑖, the deformation network predicts parameter offsets that are
+additively applied to the static Gaussian parameters.
+To explicitly account for the modality-specific roles in dynamic
+modeling, we adopt a progressive deformation strategy decomposed
+into two stages. In the first stage, the deformation function F rgb
+takes the time embedding 𝑒𝑡and the RGB Gaussian embeddings
+𝑒rgb
+𝑖
+as input, and predicts residual updates for geometric attributes,
+RGB appearance, and RGB-specific opacity:
+F rgb :
+
+e𝑡, ergb
+𝑖
+
+→
+
+Δ𝜇, Δr, Δs, Δ𝜎rgb, Δfrgb
+,
+(4)
+where Δ(·) denotes residuals w.r.t. the canonical parameters. This
+stage captures the dominant structural motion and the dynamic
+appearance variations in the visible modality. Conditioned on the
+geometry updated in the first stage, the second deformation field
+is dominated by the thermal modality, further updating geometric
+attributes, thermal appearance and thermal-specific opacity, while
+reducing interference with RGB representations during thermal
+dynamic modeling:
+F th :
+
+e𝑡, eth
+𝑖
+
+→
+
+Δ𝜇, Δr, Δs, Δ𝜎th, Δfth
+.
+(5)
+The thermal reconstruction loss is backpropagated through F th to
+the shared geometric parameters as well as the thermal appearance
+and opacity. Thermal observations therefore directly supervise
+dynamic geometry and cross-modal alignment.
+In summary, temporal and modality-specific Gaussian embed-
+dings jointly condition deformation in the canonical Gaussian
+space. Combined with residual parameterization and a progressive
+modality-aware deformation strategy, this design models multi-
+modal dynamics while preserving modality-specific deformation
+paths, reducing cross-modal interference, and improving model-
+ing stability. It thus provides a unified dynamic representation for
+subsequent modality-aware training and optimization.
+3.4
+Multimodal Routing Mechanism
+Building upon the unified geometry and modality-specific attributes,
+a remaining key question is determining which regions should be
+shared across modalities and which should be dominated by a single
+modality within a unified dynamic Gaussian representation. Forc-
+ing every Gaussian to participate in all modalities may introduce
+unnecessary coupling, while fully separating geometry would break
+spatial consistency and temporal continuity. To address this, we
+introduce a multimodal routing mechanism in the shared canonical
+space, enabling Gaussians to form shared and modality-specific
+structures adaptively under unified geometric constraints.
+Specifically, each Gaussian 𝐺𝑖is associated with a routing logit
+variable: ℓ𝑖∈R3, corresponding to three structural roles: {shared,
+rgb-only, thermal-only}. This variable captures the structural pref-
+erence of each Gaussian in the multimodal representation. Since
+structural roles are discrete, directly applying hard assignment
+would make the optimization non-differentiable. We therefore adopt
+the Gumbel-Softmax relaxation [11]. For each structural role 𝑘:
+𝑔𝑖,𝑘= −log(−log(𝑢𝑖,𝑘)),
+𝑢𝑖,𝑘∼U(0, 1),
+(6)
+𝑠soft
+𝑖,𝑘=
+exp  (ℓ𝑖,𝑘+ 𝑔𝑖,𝑘)/𝜏
+Í
+𝑗exp  (ℓ𝑖,𝑗+ 𝑔𝑖,𝑗)/𝜏 .
+(7)
+𝜏denotes the temperature parameter. The soft assignment 𝑠soft
+𝑖,𝑘
+provides a differentiable approximation for gradient propagation.
+During forward rendering, we use the corresponding hard assign-
+ment 𝑠hard
+𝑖,𝑘
+and backpropagate gradients with the Straight-Through
+estimator [19], enabling stable optimization of the discrete routing
+variables:
+𝑠hard
+𝑖,𝑘
+= one_hot
+
+arg max
+𝑘
+𝑠soft
+𝑖,𝑘
+
+.
+(8)
+
+
+Dynamic Thermal Gaussians: Multimodal 4D Gaussian Splatting
+The three structural states are further mapped to modality par-
+ticipation masks:
+Maskrgb
+𝑖
+= 𝑠hard
+𝑖,shared + 𝑠hard
+𝑖,rgb,
+Maskth
+𝑖= 𝑠hard
+𝑖,shared + 𝑠hard
+𝑖,thermal,
+(9)
+where Mask𝑚
+𝑖∈{0, 1} indicates whether Gaussian 𝐺𝑖participates
+in modality 𝑚. Combined with the modality-specific opacity 𝜎𝑚
+𝑖,
+the effective opacity becomes:
+˜𝜎𝑚
+𝑖(𝑡) = 𝜎𝑚
+𝑖(𝑡) · Mask𝑚
+𝑖.
+(10)
+Therefore, the modality routing mechanism only regulates the
+participation contributions of Gaussians across modalities, without
+altering geometric evolution or multimodal deformation.
+Because modality routing introduces discrete structural variables,
+allowing unrestricted specialization at early training stages may
+destabilize geometric convergence. We therefore adopt a progres-
+sive training strategy. In the initial stage, all Gaussians are treated
+as shared to ensure stable geometry learning and dynamic defor-
+mation modeling. As training proceeds, learnable routing variables
+are gradually activated, allowing modality preferences to emerge
+under reconstruction signals. In the specialization stage, routing as-
+signments converge to stable shared and modality-specific regions
+under the joint influence of reconstruction objectives and global
+distribution constraints. In the final stage, routing assignments are
+fixed to ensure stable optimization and evaluation.
+Based on this design, we further extend the densification and
+pruning mechanism of 3DGS [12] in a structure-consistent man-
+ner. While the original densification and pruning operations rely
+solely on geometric gradients and opacity, we apply them sepa-
+rately for different structural roles during the specialization stage.
+Shared Gaussians follow the shared criteria, while rgb-only and
+thermal-only Gaussians are densified or pruned according to gradi-
+ents computed from their respective modalities. Newly generated
+Gaussians inherit the structural role of their parent, preserving
+structural consistency.
+This structure-consistent densification mechanism ensures that
+modality specialization is reflected not only in participation masks
+but also in spatial resolution allocation. RGB-dominant regions nat-
+urally acquire more rgb-only Gaussians, thermal-dominant regions
+accumulate more thermal-only Gaussians, and modality-consistent
+regions remain shared. As a result, routing variables correspond to
+explicit spatial structures rather than abstract probability weights,
+enhancing the interpretability of multimodal specialization.
+In summary, by introducing structure-aware modality routing
+into a unified dynamic Gaussian representation and combining
+it with progressive learning and a structure-consistent densifica-
+tion mechanism, the model adaptively forms shared and modality-
+specific regions while preserving geometric consistency and tem-
+poral continuity, thereby improving the expressiveness and inter-
+pretability of dynamic thermal field reconstruction.
+We optimize the RGB and thermal renderings with a multimodal
+reconstruction loss Lrec that compares each rendered modality
+with its observation. A routing prior prevents premature structural
+specialization during early training. Together with the embedding
+and temporal smoothness terms inherited from E-D3DGS [2], the
+overall objective is defined as:
+Ltotal = Lrec + 𝜆KLLKL + 𝜆embedLembed + 𝜆timeLtime.
+(11)
+We use RGB ℓ1/SSIM and thermal ℓ1 reconstruction terms. For
+routing, LKL = 𝐾𝐿(¯s∥𝑝0) regularizes the mean soft assignment ¯𝑠𝑘=
+1
+𝑁
+Í
+𝑖𝑠soft
+𝑖,𝑘with 𝜆KL = 0.01. The prior 𝑝0 starts from [0.8, 0.1, 0.1],
+is set to [0.5, 0.3, 0.2] when specialization begins, and is linearly
+annealed to [0.15, 0.7, 0.15] before the final routing stage.
+4
+Self-collected Multimodal Dataset
+We collect DynamicRGBT-Scenes with two custom handheld
+rigs, each equipped with an iPhone 15 Pro and a FLIR A700 thermal
+camera. All sequences are recorded under smooth camera motion.
+The commercial-grade FLIR A700 records thermal images at up to
+640 × 480 and 30 Hz, with a measurable range of −20 ◦C to 120 ◦C, a
+24◦× 18◦FOV, and an accuracy of ±2%. The iPhone 15 Pro records
+2K RGB videos at 30 Hz, which are cropped and downsampled to
+640 × 480 for resolution-consistent paired processing.
+The dataset contains 12 long-duration sequences spanning tem-
+perature variation, object motion, occlusion, and low-light condi-
+tions. We manually synchronize device frames and subsample them
+into long paired RGB-Thermal sequences, aligning both modalities
+in viewpoint and temporal sampling within hardware and sensor
+constraints. Following Nerfies [27], we reconstruct sparse point
+clouds and camera poses from RGB frames using COLMAP [31]
+and assign them to synchronized thermal frames, providing a stable
+shared geometric reference for both modalities and for consistent
+quantitative and qualitative comparisons across methods.
+5
+Experiments
+5.1
+Implementation Details
+Our method builds upon E-D3DGS [2] with the same optimization
+settings. Training starts from RGB-based sparse points and camera
+poses shared with synchronized thermal frames. Each iteration first
+updates geometry and RGB attributes in the RGB deformation stage,
+then geometry and thermal attributes under thermal supervision.
+All Gaussians remain shared for 1,000 iterations before the routing
+logits become learnable. Specialization starts after 10,000 iterations;
+at 20,000 iterations, routing assignments are fixed and densifica-
+tion stops. We set the temperature 𝜏to 1.0 and the routing-logit
+learning rate to 0.001. At inference, the target timestamp drives
+both deformation stages, routing masks select the Gaussians for
+each modality, and rendering from the target pose produces RGB
+and thermal outputs. All methods are trained for 30,000 iterations
+on a single NVIDIA A5000 GPU. The resolution of both RGB and
+thermal images is 320×240.
+5.2
+Metrics and Baselines
+We evaluate RGB and thermal reconstruction using Peak Signal-
+to-Noise Ratio (PSNR) [9], Structural Similarity (SSIM) [33], and
+Learned Perceptual Image Patch Similarity (LPIPS) [46].
+We compare two representative baseline groups. ThermalGaus-
+sian [21] and MMOne [6] are static multimodal methods that jointly
+model RGB and thermal observations but do not handle dynamic
+scenes. D-3DGS [42], 4DGaussians [39], and E-D3DGS [2] are single-
+modality dynamic methods that model temporal variation without
+multimodal information. These groups cover static RGB-Thermal re-
+construction and dynamic RGB reconstruction, providing relevant
+comparisons for our joint dynamic RGB-Thermal setting.
+
+
+Rongfeng Lu et al.
+Table 1: Per-scene PSNR comparison. ThermalGaussian [21] is shortened as “T-GS”; average SSIM/LPIPS are in Table 2.
+Modality
+Metric
+Method
+Heating
+Table
+HotBar
+HeatGun
+Bacon
+IcePacks
+HairDryer HairDryer
+Dark
+Ironing
+Cloth
+Candles
+HotWater
+Foam
+Covers
+Avg.
+Thermal
+PSNR↑
+D-3DGS [42]
+18.13
+28.31
+23.80
+22.57
+29.09
+24.34
+23.17
+28.33
+34.02
+29.54
+24.90
+21.57
+25.65
+4DGaussians [39]
+24.83
+31.28
+30.00
+26.60
+32.33
+27.39
+29.49
+30.82
+33.17
+30.98
+36.64
+29.33
+30.24
+E-D3DGS [2]
+25.81
+30.93
+30.56
+29.46
+31.01
+24.50
+30.81
+32.27
+32.20
+31.56
+38.11
+31.43
+30.72
+T-GS [21]
+17.99
+19.88
+22.12
+19.32
+25.06
+21.33
+21.04
+23.37
+27.50
+23.53
+22.84
+18.81
+21.90
+MMOne [6]
+18.05
+20.33
+22.35
+21.01
+25.29
+22.43
+20.76
+23.55
+27.83
+23.86
+23.97
+19.06
+22.37
+Ours
+26.45
+33.15
+32.83
+30.20
+32.47
+28.26
+30.83
+32.27
+34.57
+33.96
+38.14
+33.73
+32.24
+RGB
+PSNR↑
+D-3DGS [42]
+18.11
+22.73
+22.36
+18.32
+15.08
+14.35
+27.10
+16.80
+22.95
+16.45
+15.52
+18.17
+18.99
+4DGaussians [39]
+19.87
+27.19
+26.23
+20.30
+18.03
+15.50
+30.09
+21.99
+24.72
+19.07
+19.02
+23.74
+22.15
+E-D3DGS [2]
+21.55
+27.68
+28.00
+23.25
+18.60
+15.66
+31.73
+23.75
+26.84
+22.39
+22.45
+25.38
+23.94
+T-GS [21]
+15.96
+16.61
+18.81
+11.89
+11.43
+13.20
+21.64
+13.49
+14.26
+11.70
+12.58
+15.57
+14.76
+MMOne [6]
+16.14
+16.96
+18.42
+12.45
+11.63
+12.69
+21.34
+13.35
+14.43
+11.79
+12.65
+15.29
+14.76
+Ours
+21.84
+28.33
+28.90
+24.22
+19.94
+17.92
+31.96
+25.18
+28.15
+23.42
+23.70
+26.79
+25.03
+Table 2: Average quantitative comparison across all scenes.
+Methods
+RGB
+Thermal
+PSNR↑
+SSIM↑
+LPIPS↓
+PSNR↑
+SSIM↑
+LPIPS↓
+D-3DGS [42]
+18.99
+0.690
+0.351
+–
+–
+–
+–
+–
+–
+25.65
+0.916
+0.170
+4DGaussians [39]
+22.15
+0.744
+0.303
+–
+–
+–
+–
+–
+–
+30.24
+0.930
+0.148
+E-D3DGS [2]
+23.94
+0.795
+0.238
+–
+–
+–
+–
+–
+–
+30.72
+0.934
+0.144
+ThermalGaussian [21]
+14.76
+0.479
+0.498
+21.90
+0.874
+0.255
+MMOne [6]
+14.76
+0.491
+0.494
+22.37
+0.886
+0.253
+Ours
+25.03
+0.828
+0.206
+32.24
+0.947
+0.119
+Since thermal imagery lacks stable texture for COLMAP-based
+pose estimation, we use RGB-derived sparse points and camera
+poses [31] as the shared geometric reference. All methods thus use
+a consistent protocol, with results reported separately by modality.
+5.3
+Thermal View Synthesis
+Tables 1 and 2 report thermal results. Our method achieves the best
+averages of 32.24 dB PSNR, 0.947 SSIM, and 0.119 LPIPS, exceeding
+the strongest dynamic baseline by 1.52 dB in PSNR. In dynamic
+scenes, static multimodal methods fit mixed temporal states rather
+than reconstructing a time-varying thermal field. Single-modality
+dynamic methods model temporal variation without complemen-
+tary cross-modal information. Our method instead combines both
+modalities in a unified dynamic process and renders high-fidelity
+RGB and thermal images at arbitrary timesteps and viewpoints.
+Figure 2 compares novel-view thermal rendering across scenes.
+Static multimodal methods recover only blurred scene outlines
+in dynamic settings. Single-modality dynamic methods improve
+dynamic detail recovery but still show clear distortions in high-
+temperature or rapidly varying regions because they lack multi-
+modal information. In contrast, our renderings remain closer to the
+ground truth, preserve clearer structures in high-temperature areas,
+and show more consistent temperature transitions. Figure 3 further
+compares representative timesteps, providing evidence of temporal
+consistency under rapidly changing thermal patterns. Thermal-
+Gaussian performs poorly across timesteps, showing that a static
+Table 3: Ablation study results averaged over all scenes.
+Methods
+RGB
+Thermal
+PSNR↑
+SSIM↑
+LPIPS↓
+PSNR↑
+SSIM↑
+LPIPS↓
+E-D3DGS(RGB)
+23.94
+0.795
+0.238
+–
+–
+–
+E-D3DGS(Thermal)
+–
+–
+–
+30.72
+0.934
+0.144
++ shared Gaussian
+24.58
+0.816
+0.220
+30.23
+0.931
+0.144
++ multimodal embeddings
+24.89
+0.826
+0.208
+30.72
+0.936
+0.139
++ multimodal routing
+25.03
+0.828
+0.206
+32.24
+0.947
+0.119
+representation cannot handle multimodal dynamic reconstruction.
+E-D3DGS recovers overall dynamic motion but misses fine-grained
+details in rapidly changing regions because it lacks multimodal
+modeling, such as the stream of poured hot water. Our method
+captures both global motion and local detail under fast temperature
+changes.
+5.4
+RGB View Synthesis
+Multimodal supervision improves not only thermal reconstruc-
+tion but also RGB dynamic reconstruction. Table 1 shows that our
+method achieves the best RGB averages, with 25.03 dB PSNR, 0.828
+SSIM, and 0.206 LPIPS, exceeding the strongest baseline by 1.09
+dB in PSNR. Static multimodal methods degrade substantially on
+this task because they lack dynamic modeling. Although D-3DGS,
+4DGaussians, and E-D3DGS are designed for dynamic RGB recon-
+struction, our method outperforms them across all scenes, showing
+that cross-modal optimization also benefits RGB reconstruction.
+Figure 4 compares RGB renderings. The static methods Ther-
+malGaussian and MMOne show clear motion blur and geometric
+distortion. D-3DGS improves global geometry, but high-frequency
+details remain blurry. 4DGaussians and E-D3DGS further improve
+geometric completeness and approach the ground truth in static
+backgrounds, yet still lose detail in the fast-moving, low-contrast
+regions marked by yellow boxes, such as flowing water. This stream
+has strong radiative contrast against the background in thermal
+images. Multimodal supervision therefore helps our method pre-
+serve dynamic detail and produce results closer to the ground truth
+in these challenging regions. These results further validate our
+method for dynamic RGB novel-view synthesis.
+
+
+Dynamic Thermal Gaussians: Multimodal 4D Gaussian Splatting
+ThermalGaussian
+MMOne
+D-3DGS
+4DGaussians
+E-D3DGS
+Ours
+GT
+Figure 2: Qualitative comparison of methods for thermal novel-view synthesis
+Thermal-
+Gaussian
+E-D3DGS
+Ours
+GT
+#26
+#153
+#197
+#308
+#418
+#583
+Figure 3: Qualitative comparison across timesteps for representative methods in HotWater.
+5.5
+Ablation Studies
+We conduct ablation studies on DynamicRGBT-Scenes to evaluate
+the contribution of each component. Table 3 reports results for the
+RGB and thermal modalities, using E-D3DGS(RGB/Thermal) as the
+corresponding baselines.
+Starting from the modality-specific baselines, the shared multi-
+modal Gaussian representation enables joint dynamic reconstruc-
+tion of both modalities within a unified framework. This design
+improves RGB performance but slightly reduces thermal reconstruc-
+tion quality. We then add multimodal embeddings to disentangle
+temporal codes and Gaussian embeddings across modalities. Both
+modalities improve, with thermal performance nearly matching its
+single-modality baseline. This result shows that the embeddings
+reduce feature coupling between heterogeneous modalities during
+joint modeling. Finally, multimodal routing consistently improves
+
+
+Rongfeng Lu et al.
+(a) ThermalGaussian
+(b) MMOne
+(c) D-3DGS
+(d) 4DGaussians
+(e) E-D3DGS
+(f) Ours
+(g) RGB GT
+(h) Thermal GT
+Figure 4: Qualitative comparison of different methods for RGB novel-view synthesis.
+(a) Shared Gaussians (RGB)
+(b) RGB-only Gaussians
+(c) Shared Gaussians (Thermal)
+(d) Thermal-only Gaussians
+Figure 5: Spatial distribution of different Gaussians in RGB
+and thermal views after multimodal routing.
+both modalities; for thermal reconstruction, it yields a clear PSNR
+gain of 1.52 dB.
+To analyze the spatial distribution induced by multimodal rout-
+ing, Figure 5 projects sampled Gaussians from the HotWater scene
+onto RGB and thermal images. Shared Gaussians concentrate in
+regions with correlated cross-modal variation. RGB-only Gaussians
+mainly cover textured backgrounds with limited temperature vari-
+ation and also cover some moving regions to preserve visual detail.
+In contrast, thermal-only Gaussians concentrate in regions with sig-
+nificant temperature changes, including hot water, flowing streams,
+and their boundaries. These observations show that multimodal
+routing effectively separates shared and modality-specific Gaus-
+sians, improving each modality’s capacity to model fine-grained
+regions. Overall, every component contributes positively; together,
+these gains support the effectiveness of the proposed multimodal
+dynamic reconstruction framework.
+6
+Conclusions
+In this work, we present DynamicRGBT-Scenes, a benchmark for
+joint dynamic RGB-Thermal reconstruction, and Dynamic Thermal
+Gaussians, the first dynamic RGB-Thermal reconstruction frame-
+work for complex scenes. The framework jointly models RGB and
+thermal modalities through a shared geometric representation,
+modality embeddings, and a structure-aware routing mechanism.
+Combined with a dynamic deformation strategy, it effectively decou-
+ples geometric motion from modality-specific variations, enabling
+stable reconstruction of rapidly evolving thermal fields and sup-
+porting novel-view synthesis at arbitrary timesteps and viewpoints.
+The dataset’s synchronized high-frequency observations support
+4D thermal analysis. Extensive experiments show state-of-the-art
+reconstruction performance and confirm the benefits of multimodal
+embeddings and adaptive routing for spatiotemporal thermography
+in real-world environments.
+
+
+Dynamic Thermal Gaussians: Multimodal 4D Gaussian Splatting
+Acknowledgments
+This work was supported by the National Key Research and De-
+velopment Program of China (No. 2023YFB4502803), the National
+Natural Science Foundation of China (No. 12371349), and the Joint
+Fund of Zhejiang Provincial Natural Science Foundation of China
+(No. LLSSZ25F030002).
+References
+[1] Benjamin Attal, Jia-Bin Huang, Christian Richardt, Michael Zollhoefer, Johannes
+Kopf, Matthew O’Toole, and Changil Kim. 2023. Hyperreel: High-fidelity 6-dof
+video with ray-conditioned sampling. In Proceedings of the IEEE/CVF Conference
+on Computer Vision and Pattern Recognition. 16610–16620.
+[2] Jeongmin Bae, Seoha Kim, Youngsik Yun, Hahyun Lee, Gun Bang, and Youngjung
+Uh. 2024. Per-gaussian embedding-based deformation for deformable 3d gaussian
+splatting. In European Conference on Computer Vision. Springer, 321–335.
+[3] Qian Chen, Shihao Shu, and Xiangzhi Bai. 2024. Thermal3D-GS: Physics-induced
+3D Gaussians for Thermal Infrared Novel-view Synthesis. In European Conference
+on Computer Vision. Springer, 253–269.
+[4] Yasser El Masri and Tarek Rakha. 2020. A scoping review of non-destructive
+testing (NDT) techniques in building performance diagnostic inspections. Con-
+struction and Building Materials 265 (2020), 120542.
+[5] Adam Glowacz. 2021. Fault diagnosis of electric impact drills using thermal
+imaging. Measurement 171 (2021), 108815.
+[6] Zhifeng Gu and Bing Wang. 2025. Mmone: Representing multiple modalities in
+one scene. In Proceedings of the IEEE/CVF International Conference on Computer
+Vision. 1088–1098.
+[7] Mariam Hassan, Florent Forest, Olga Fink, and Malcolm Mielle. 2024. Ther-
+moNeRF: Multimodal Neural Radiance Fields for Thermal Novel View Synthesis.
+arXiv preprint arXiv:2403.12154 (2024).
+[8] Yunze He, Baoyuan Deng, Hongjin Wang, Liang Cheng, Ke Zhou, Siyuan Cai,
+and Francesco Ciampa. 2021. Infrared machine vision and infrared thermography
+with deep learning: A review. Infrared physics & technology 116 (2021), 103754.
+[9] Alain Horé and Djemel Ziou. 2010. Image Quality Metrics: PSNR vs. SSIM. In
+2010 20th International Conference on Pattern Recognition. 2366–2369. doi:10.1109/
+ICPR.2010.579
+[10] Nan Huang, Xiaobao Wei, Wenzhao Zheng, Pengju An, Ming Lu, Wei Zhan,
+Masayoshi Tomizuka, Kurt Keutzer, and Shanghang Zhang. 2024. S3Gaussian:
+Self-Supervised Street Gaussians for Autonomous Driving.
+arXiv preprint
+arXiv:2405.20323 (2024).
+[11] Eric Jang, Shixiang Gu, and Ben Poole. 2017. Categorical Reparameterization
+with Gumbel-Softmax. In International Conference on Learning Representations.
+[12] Bernhard Kerbl, Georgios Kopanas, Thomas Leimkühler, and George Drettakis.
+2023. 3d gaussian splatting for real-time radiance field rendering. ACM Transac-
+tions on Graphics 42, 4 (2023), 1–14.
+[13] Barid Baran Lahiri, Subramaniam Bagavathiappan, T Jayakumar, and John Philip.
+2012. Medical applications of infrared thermography: a review. Infrared physics
+& technology 55, 4 (2012), 221–235.
+[14] Huaizhou Li, Shuaijun Wang, Zhenpeng Bai, Hong Wang, Sen Li, and Shupei
+Wen. 2023. Research on 3D reconstruction of binocular vision based on thermal
+infrared. Sensors 23, 17 (2023), 7372.
+[15] Ying Li, Xiaobao Wei, Xiaowei Chi, Yuming Li, Zhongyu Zhao, Hao Wang,
+Ningning Ma, Ming Lu, Sirui Han, and Shanghang Zhang. 2025. Manipdreamer3d:
+Synthesizing plausible robotic manipulation video with occupancy-aware 3d
+trajectory. arXiv preprint arXiv:2509.05314 (2025).
+[16] Lifeng Lin, Rongfeng Lu, Quan Chen, Haofan Ren, Ming Lu, Yaoqi Sun, Cheng-
+gang Yan, and Anke Xue. 2025. VGNC: Reducing the Overfitting of Sparse-
+view 3DGS via Validation-guided Gaussian Number Control. In Proceedings of
+the 33rd ACM International Conference on Multimedia (Dublin, Ireland) (MM
+’25). Association for Computing Machinery, New York, NY, USA, 4474–4483.
+doi:10.1145/3746027.3755460
+[17] Yvette Y Lin, Xin-Yi Pan, Sara Fridovich-Keil, and Gordon Wetzstein. 2024. Ther-
+malNeRF: Thermal Radiance Fields. In 2024 IEEE International Conference on
+Computational Photography (ICCP). IEEE, 1–12.
+[18] Yuxiang Liu, Xi Chen, Shen Yan, Zeyu Cui, Huaxin Xiao, Yu Liu, and Maojun
+Zhang. 2025. ThermalGS: Dynamic 3D Thermal Reconstruction with Gaussian
+Splatting. Remote Sensing 17, 2 (2025), 335. doi:10.3390/rs17020335
+[19] Zechun Liu, Kwang-Ting Cheng, Dong Huang, Eric P Xing, and Zhiqiang Shen.
+2022. Nonuniform-to-uniform quantization: Towards accurate quantization via
+generalized straight-through estimation. In Proceedings of the IEEE/CVF confer-
+ence on computer vision and pattern recognition. 4942–4952.
+[20] Jiahao Lu, Jiacheng Deng, Ruijie Zhu, Yanzhe Liang, Wenfei Yang, Tianzhu Zhang,
+and Xu Zhou. 2024. Dn-4dgs: Denoised deformable network with temporal-
+spatial aggregation for dynamic scene rendering. Advances in Neural Information
+Processing Systems 37 (2024), 84114–84138.
+[21] Rongfeng Lu, Hangyu Chen, Zunjie Zhu, Yuhang Qin, Ming Lu, Chenggang Yan,
+et al. 2024. ThermalGaussian: Thermal 3D Gaussian Splatting. In The Thirteenth
+International Conference on Learning Representations.
+[22] Rongfeng Lu, Chi Zhu, Quan Chen, Le Zhang, Ming Lu, Tingyu Wang, Haofan
+Ren, Yitian Xue, Yunfei Guo, and Chenggang Yan. 2026. ThermalGaussian++:
+Improving Alignment and Resolution for ThermalGaussian. IEEE Transactions
+on Pattern Analysis and Machine Intelligence 48, 9 (2026), 10728–10743. doi:10.
+1109/TPAMI.2026.3689388
+[23] Ben Mildenhall, Pratul P Srinivasan, Matthew Tancik, Jonathan T Barron, Ravi
+Ramamoorthi, and Ren Ng. 2021. Nerf: Representing scenes as neural radiance
+fields for view synthesis. Commun. ACM 65, 1 (2021), 99–106.
+[24] Antonio Rafael Ordóñez Müller. 2019. Close range 3D thermography: real-time
+reconstruction of high fidelity 3D thermograms. Vol. 7. kassel university press
+GmbH.
+[25] Myeongseok Nam, Wongi Park, Minsol Kim, Hyejin Hur, and Soomok Lee. 2025.
+Veta-GS: View-dependent deformable 3D Gaussian Splatting for thermal infrared
+Novel-view Synthesis. In 2025 IEEE International Conference on Image Processing
+(ICIP). IEEE, 965–970.
+[26] Richard A Newcombe, Shahram Izadi, Otmar Hilliges, David Molyneaux, David
+Kim, Andrew J Davison, Pushmeet Kohi, Jamie Shotton, Steve Hodges, and
+Andrew Fitzgibbon. 2011. Kinectfusion: Real-time dense surface mapping and
+tracking. In 2011 10th IEEE international symposium on mixed and augmented
+reality. Ieee, 127–136.
+[27] Keunhong Park, Utkarsh Sinha, Jonathan T Barron, Sofien Bouaziz, Dan B Gold-
+man, Steven M Seitz, and Ricardo Martin-Brualla. 2021. Nerfies: Deformable
+neural radiance fields. In Proceedings of the IEEE/CVF international conference on
+computer vision. 5865–5874.
+[28] Keunhong Park, Utkarsh Sinha, Peter Hedman, Jonathan T Barron, Sofien
+Bouaziz, Dan B Goldman, Ricardo Martin-Brualla, and Steven M Seitz. 2021.
+Hypernerf: A higher-dimensional representation for topologically varying neu-
+ral radiance fields. arXiv preprint arXiv:2106.13228 (2021).
+[29] Albert Pumarola, Enric Corona, Gerard Pons-Moll, and Francesc Moreno-Noguer.
+2021. D-nerf: Neural radiance fields for dynamic scenes. In Proceedings of the
+IEEE/CVF conference on computer vision and pattern recognition. 10318–10327.
+[30] Johannes Rangel, Samuel Soldan, and A Kroll. 2014. 3D thermal imaging: Fusion
+of thermography and depth cameras. In International Conference on Quantitative
+InfraRed Thermography, Vol. 3.
+[31] Johannes L. Schönberger and Jan-Michael Frahm. 2016. Structure-from-Motion
+Revisited. In 2016 IEEE Conference on Computer Vision and Pattern Recognition
+(CVPR). 4104–4113. doi:10.1109/CVPR.2016.445
+[32] Hao Wang, Xiaobao Wei, Ying Li, Qingpo Wuwu, Dongli Wu, Jiajun Cao,
+Ming Lu, Wenzhao Zheng, and Shanghang Zhang. 2025. RoboArmGS: High-
+Quality Robotic Arm Splatting via Bézier Curve Refinement. arXiv preprint
+arXiv:2511.17961 (2025).
+[33] Zhou Wang, A.C. Bovik, H.R. Sheikh, and E.P. Simoncelli. 2004. Image quality
+assessment: from error visibility to structural similarity. IEEE Transactions on
+Image Processing 13, 4 (2004), 600–612. doi:10.1109/TIP.2003.819861
+[34] Zhongwen Wang, Han Ling, Weihao Zhang, Yinghui Sun, and Quansen Sun.
+2026. ETGS: Explicit Thermodynamics Gaussian Splatting for Dynamic Thermal
+Reconstruction. In The Fourteenth International Conference on Learning Represen-
+tations.
+[35] Xiaobao Wei, Peng Chen, Guangyu Li, Ming Lu, Hui Chen, and Feng Tian.
+2025. Gazegaussian: High-fidelity gaze redirection with 3d gaussian splatting. In
+Proceedings of the IEEE/CVF International Conference on Computer Vision. 13293–
+13303.
+[36] Xiaobao Wei, Qingpo Wuwu, Zhongyu Zhao, Zhuangzhe Wu, Nan Huang, Ming
+Lu, Ningning Ma, and Shanghang Zhang. 2025. Emd: Explicit motion modeling for
+high-quality street gaussian splatting. In Proceedings of the IEEE/CVF international
+conference on computer vision. 28462–28472.
+[37] Xiaobao Wei, Zhangjie Ye, Yuxiang Gu, Zunjie Zhu, Yunfei Guo, Yingying Shen,
+Shan Zhao, Ming Lu, Haiyang Sun, Bing Wang, et al. 2026. ParkGaussian:
+Surround-view 3D Gaussian Splatting for Autonomous Parking. arXiv preprint
+arXiv:2601.01386 (2026).
+[38] Xiaobao Wei, Renrui Zhang, Jiarui Wu, Jiaming Liu, Ming Lu, Yandong Guo, and
+Shanghang Zhang. 2024. Nto3d: Neural target object 3d reconstruction with
+segment anything. In Proceedings of the IEEE/CVF Conference on Computer Vision
+and Pattern Recognition. 20352–20362.
+[39] Guanjun Wu, Taoran Yi, Jiemin Fang, Lingxi Xie, Xiaopeng Zhang, Wei Wei,
+Wenyu Liu, Qi Tian, and Xinggang Wang. 2024. 4d gaussian splatting for real-
+time dynamic scene rendering. In Proceedings of the IEEE/CVF conference on
+computer vision and pattern recognition. 20310–20320.
+[40] Zhicong Wu, Hongbin Xu, Gang Xu, Ping Nie, Zhixin Yan, Jinkai Zheng,
+Liangqiong Qu, Ming Li, and Liqiang Nie. 2025. TextSplat: Text-Guided Se-
+mantic Fusion for Generalizable Gaussian Splatting. In Proceedings of the 33rd
+ACM International Conference on Multimedia (Dublin, Ireland) (MM ’25). Associa-
+tion for Computing Machinery, New York, NY, USA, 8478–8487. doi:10.1145/
+3746027.3755516
+
+
+Rongfeng Lu et al.
+[41] Kun Yang, Yuxiang Liu, Zeyu Cui, Yu Liu, Maojun Zhang, Shen Yan, and Qing
+Wang. 2025. NTR-Gaussian: Nighttime Dynamic Thermal Reconstruction with
+4D Gaussian Splatting Based on Thermodynamics. In Proceedings of the IEEE/CVF
+Conference on Computer Vision and Pattern Recognition. 691–700.
+[42] Ziyi Yang, Xinyu Gao, Wen Zhou, Shaohui Jiao, Yuqing Zhang, and Xiaogang
+Jin. 2024. Deformable 3d gaussians for high-fidelity monocular dynamic scene
+reconstruction. In Proceedings of the IEEE/CVF conference on computer vision and
+pattern recognition. 20331–20341.
+[43] Zeyu Yang, Hongye Yang, Zijie Pan, and Li Zhang. 2023. Real-time photorealistic
+dynamic scene representation and rendering with 4d gaussian splatting. arXiv
+preprint arXiv:2310.10642 (2023).
+[44] Tianxiang Ye, Qi Wu, Junyuan Deng, Guoqing Liu, Liu Liu, Songpengcheng Xia,
+Liang Pang, Wenxian Yu, and Ling Pei. 2024. Thermal-nerf: Neural radiance
+fields from an infrared camera. In 2024 IEEE/RSJ International Conference on
+Intelligent Robots and Systems (IROS). IEEE, 1046–1053.
+[45] Seokwon Yeom. 2024. Thermal Image Tracking for Search and Rescue Missions
+with a Drone. Drones 8, 2 (2024), 53.
+[46] Richard Zhang, Phillip Isola, Alexei A. Efros, Eli Shechtman, and Oliver Wang.
+2018. The Unreasonable Effectiveness of Deep Features as a Perceptual Metric. In
+2018 IEEE/CVF Conference on Computer Vision and Pattern Recognition. 586–595.
+doi:10.1109/CVPR.2018.00068
+[47] Xinjie Zhang, Zhening Liu, Yifan Zhang, Xingtong Ge, Dailan He, Tongda Xu,
+Yan Wang, Zehong Lin, Shuicheng Yan, and Jun Zhang. 2025. Mega: Memory-
+efficient 4d gaussian splatting for dynamic scenes. In Proceedings of the IEEE/CVF
+International Conference on Computer Vision. 27828–27838.

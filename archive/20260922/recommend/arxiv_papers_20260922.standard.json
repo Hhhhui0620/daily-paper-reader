@@ -1,0 +1,103 @@
+{
+  "mode": "standard",
+  "generated_at": "2026-09-22T22:04:13.826029+00:00",
+  "stats": {
+    "mode": "standard",
+    "tag_count": 1,
+    "deep_divecandidates": 0,
+    "deep_cap": 6,
+    "deep_selected": 0,
+    "quick_candidates": 2,
+    "quick_skim_target": 11,
+    "quick_selected": 2
+  },
+  "deep_dive": [],
+  "quick_skim": [
+    {
+      "id": "2609.23267v1",
+      "source": "arxiv",
+      "title": "Knowing When to Trust Images: Reliability-Aware Multi-modal Entity Alignment",
+      "abstract": "The visual modality, i.e., images, plays a key role in multi-modal entity alignment (MMEA). Existing approaches often directly fuse the image with other modalities to align different entities. Although simple, such strategies overlook the potential noise in the images and their semantic misalignment with corresponding entities, resulting in suboptimal fusion and degraded performance. Addressing this, we propose a novel Reliability-Aware framework for MMEA (RA-MMEA), which assesses visual reliability and adaptively improves unreliable visual representations for robust entity alignment. The core lies in two modules, including dependency-aware visual reliability prediction (DA-VRP) and stability-regularized visual embedding generation (SR-VEG). The former aims to estimate the reliability of an image by leveraging multi-modal dependency within the entity, while the latter focuses on producing alternative visual representation conditioned on semantics encoded in textual modalities for multi-modal fusion. Compared to current methods, RA-MMEA enables more reliable visual representations for modality fusion, thereby improving performance. In extensive experiments, RA-MMEA achieves state-of-the-art results, verifying the importance of reliable visual modality for entity alignment and the effectiveness of RA-MMEA. The code and results will be released.",
+      "authors": [
+        "Chenxiao Li",
+        "Yunhe Feng",
+        "Dongfang Liu",
+        "Dong Nie",
+        "Yan Huang",
+        "Heng Fan"
+      ],
+      "primary_category": "cs.CL",
+      "categories": [
+        "cs.CL",
+        "cs.AI",
+        "cs.CV"
+      ],
+      "published": "2026-09-20T00:55:40+00:00",
+      "link": "https://arxiv.org/pdf/2609.23267v1",
+      "tags": [
+        "keyword:uav-rgbt-sod",
+        "query:uav-rgbt-sod"
+      ],
+      "llm_score": 7.0,
+      "llm_evidence_en": "reliability-aware adaptive alignment handling noise and semantic misalignment",
+      "llm_evidence_cn": "可靠性感知的自适应对齐，处理噪声与语义错位",
+      "llm_evidence": "可靠性感知的自适应对齐，处理噪声与语义错位",
+      "canonical_evidence": "可靠性感知的自适应对齐，处理噪声与语义错位",
+      "llm_tldr_en": "Multi-modal entity alignment often fuses images directly, ignoring image noise and semantic misalignment; this paper proposes RA-MMEA, a reliability-aware framework with visual reliability prediction and stability-regularized embedding generation for robust alignment.",
+      "llm_tldr_cn": "多模态实体对齐常直接融合图像与其他模态，却忽视图像噪声及与实体的语义错位，造成融合次优。该文提出可靠性感知框架RA-MMEA，包含依赖感知视觉可靠性预测(DA-VRP)与稳定性正则化视觉嵌入生成(SR-VEG)两个模块。框架评估视觉可靠性并自适应修正不可靠视觉表征，从而实现更鲁棒的实体对齐。该工作凸显了显式建模模态可靠性与错位对多模态融合鲁棒性的价值。",
+      "llm_tldr": "多模态实体对齐常直接融合图像与其他模态，却忽视图像噪声及与实体的语义错位，造成融合次优。该文提出可靠性感知框架RA-MMEA，包含依赖感知视觉可靠性预测(DA-VRP)与稳定性正则化视觉嵌入生成(SR-VEG)两个模块。框架评估视觉可靠性并自适应修正不可靠视觉表征，从而实现更鲁棒的实体对齐。该工作凸显了显式建模模态可靠性与错位对多模态融合鲁棒性的价值。",
+      "llm_tags": [
+        "query:uav-rgbt-sod"
+      ],
+      "matched_query_tag": "query:uav-rgbt-sod",
+      "matched_query_text": "uncertainty-aware alignment of multimodal features",
+      "matched_requirement_id": "req-4",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "7"
+    },
+    {
+      "id": "2609.24531v1",
+      "source": "arxiv",
+      "title": "Dynamic Thermal Gaussians: Multimodal 4D Gaussian Splatting",
+      "abstract": "Thermography plays a vital role in military and broader thermal analysis applications. Recent progress in 3D thermal reconstruction has extended temperature analysis from 2D to 3D space, yet most existing works assume static temperature distributions, neglecting the temporal dynamics of heat transfer in real-world environments. To address this limitation, we propose the first dynamic RGB-Thermal reconstruction framework for complex scenes. Our method jointly models RGB appearance, thermal observations, and scene geometry as they change over time. Specifically, we introduce a multimodal dynamic scene representation that anchors both the color and thermal modalities to a shared geometric substrate, ensuring their consistency under spatiotemporal deformations. We further design multimodal embeddings to enhance the motion expressiveness for each modality, and propose a multimodal routing mechanism that retains a unified set of shared multimodal Gaussians as the geometric backbone while adaptively spawning modality-specific Gaussians to strengthen the representational capacity in detail-rich regions of each individual modality. In addition, we contribute a novel benchmark dataset featuring high-frequency temperature variations to facilitate the evaluation of 4D reconstruction. Extensive experiments demonstrate that our method achieves high-fidelity spatiotemporal reconstruction of both appearance and temperature. Our code and dataset are available at: https://github.com/LinLif1869/DTG.",
+      "authors": [
+        "Rongfeng Lu",
+        "Lifeng Lin",
+        "Xiaobao Wei",
+        "Quan Chen",
+        "Ming Lu",
+        "Yitian Xue",
+        "Yaoqi Sun",
+        "Yuhan Gao",
+        "Anke Xue",
+        "Chenggang Yan"
+      ],
+      "primary_category": "cs.CV",
+      "categories": [
+        "cs.CV"
+      ],
+      "published": "2026-09-21T13:03:17+00:00",
+      "link": "https://arxiv.org/pdf/2609.24531v1",
+      "tags": [
+        "keyword:uav-rgbt-sod",
+        "query:uav-rgbt-sod"
+      ],
+      "llm_score": 6.0,
+      "llm_evidence_en": "jointly anchors color and thermal modalities to a shared geometric substrate for consistency",
+      "llm_evidence_cn": "将颜色与热模态锚定到共享几何基底以保持一致性",
+      "llm_evidence": "将颜色与热模态锚定到共享几何基底以保持一致性",
+      "canonical_evidence": "将颜色与热模态锚定到共享几何基底以保持一致性",
+      "llm_tldr_en": "Dynamic Thermal Gaussians introduces the first dynamic RGB-Thermal 4D reconstruction framework, jointly modeling RGB appearance, thermal observations and geometry over time by anchoring both modalities to a shared geometric substrate for consistency under spatiotemporal deformation.",
+      "llm_tldr_cn": "现有三维热重建多假设温度静态分布，忽略真实环境中热传递的时间动态。作者提出首个动态RGB-热四维重建框架，联合建模随时间变化的RGB外观、热观测与场景几何，通过共享几何基底锚定颜色与热模态以保证时空形变下的一致性。实验表明该方法能重建复杂场景的动态热分布，为可见光与热红外的跨模态对齐与一致性建模提供了新范式。",
+      "llm_tldr": "现有三维热重建多假设温度静态分布，忽略真实环境中热传递的时间动态。作者提出首个动态RGB-热四维重建框架，联合建模随时间变化的RGB外观、热观测与场景几何，通过共享几何基底锚定颜色与热模态以保证时空形变下的一致性。实验表明该方法能重建复杂场景的动态热分布，为可见光与热红外的跨模态对齐与一致性建模提供了新范式。",
+      "llm_tags": [
+        "query:uav-rgbt-sod"
+      ],
+      "matched_query_tag": "query:uav-rgbt-sod",
+      "matched_query_text": "cross-modal alignment between visible and thermal features",
+      "matched_requirement_id": "req-3",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "6"
+    }
+  ]
+}

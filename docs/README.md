@@ -48,17 +48,17 @@
 <section class="dpr-home-dashboard-card dpr-home-report-card">
   <div class="dpr-home-dashboard-header">
     <div>
-      <span class="dpr-home-dashboard-kicker">2026-09-21</span>
+      <span class="dpr-home-dashboard-kicker">2026-09-22</span>
       <h3 class="dpr-home-dashboard-title">今日汇总</h3>
     </div>
-    <strong class="dpr-home-dashboard-count">共 4 篇</strong>
+    <strong class="dpr-home-dashboard-count">共 2 篇</strong>
   </div>
   <dl class="dpr-home-dashboard-stats">
     <div class="dpr-home-dashboard-stat"><dt>累计更新</dt><dd>1 次</dd></div>
     <div class="dpr-home-dashboard-stat"><dt>精读</dt><dd>0</dd></div>
-    <div class="dpr-home-dashboard-stat"><dt>速读</dt><dd>4</dd></div>
+    <div class="dpr-home-dashboard-stat"><dt>速读</dt><dd>2</dd></div>
   </dl>
-  <p class="dpr-home-dashboard-body">最近更新：2026-09-21 22:20:02 UTC<br>状态：成功</p>
+  <p class="dpr-home-dashboard-body">最近更新：2026-09-22 22:04:36 UTC<br>状态：成功</p>
 </section>
 <section class="dpr-home-dashboard-card dpr-home-brief-card">
   <div class="dpr-home-dashboard-header">
@@ -69,9 +69,7 @@
     <strong class="dpr-home-dashboard-count">AI</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<p>今日成功速读4篇、精读0篇，聚焦热成像-可见光配准、含噪点对应下的单应估计与事件预训练。</p>
-<p>最值得看的是《XCalib Depth-Guided Geometric Optimization for Dense Thermal-Visible Video Registration》（7.0/10），其次可关注《Hyper-RED: Scalable Event Pre-training via Semantic Hypergraph Distillation》（6.0/10）。</p>
-<p>普通读者可先看XCalib的热-可见配准思路，再扫读两篇6分工作，重点判断方法是否易复现、适用场景是否明确。</p>
+<p>今日速读2篇论文，聚焦多模态AI的可靠性判断与动态4D重建两个方向。最值得关注的是《Knowing When to Trust Images》提出的可靠性感知多模态实体对齐（7.0分），教你让模型学会判断图像何时可信。普通读者可先了解&quot;模型如何知道自己该不该信一张图&quot;这一思路，再顺带看看4D高斯泼溅如何把热信息融入动态场景。</p>
   </div>
 </section>
 <section class="dpr-home-dashboard-card dpr-home-deep-card">
@@ -93,12 +91,12 @@
       <span class="dpr-home-dashboard-kicker">今日累计</span>
       <h3 class="dpr-home-dashboard-title">速读推荐</h3>
     </div>
-    <strong class="dpr-home-dashboard-count">4 篇</strong>
+    <strong class="dpr-home-dashboard-count">2 篇</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="XCalib Depth-Guided Geometric Optimization for Dense Thermal-Visible Video Registration">XCalib Depth-Guided Geometric Optimization for Dense Thermal-Visible Video Registration</span></li><li><span class="dpr-home-dashboard-paper-title" title="Closed-form Bayesian homography estimation from noisy point correspondences">Closed-form Bayesian homography estimation from noisy point correspondences</span></li><li><span class="dpr-home-dashboard-paper-title" title="Hyper-RED: Scalable Event Pre-training via Semantic Hypergraph Distillation">Hyper-RED: Scalable Event Pre-training via Semantic Hypergraph Distillation</span></li></ul>
+<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="Knowing When to Trust Images: Reliability-Aware Multi-modal Entity Alignment">Knowing When to Trust Images: Reliability-Aware Multi-modal Entity Alignment</span></li><li><span class="dpr-home-dashboard-paper-title" title="Dynamic Thermal Gaussians: Multimodal 4D Gaussian Splatting">Dynamic Thermal Gaussians: Multimodal 4D Gaussian Splatting</span></li></ul>
   </div>
-  <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">uav-rgbt-sod <strong>4</strong></span></div>
+  <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">uav-rgbt-sod <strong>2</strong></span></div>
 </section>
 </div>
 

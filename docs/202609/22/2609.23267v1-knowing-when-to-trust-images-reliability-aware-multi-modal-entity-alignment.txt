@@ -1,0 +1,542 @@
+Title: Knowing When to Trust Images: Reliability-Aware Multi-modal Entity Alignment
+
+URL Source: https://arxiv.org/pdf/2609.23267v1
+
+Published Time: Tue, 22 Sep 2026 01:10:09 GMT
+
+Number of Pages: 14
+
+Markdown Content:
+# Knowing When to Trust Images: Reliability-Aware Multi-modal Entity Alignment 
+
+Chenxiao Li 1 Yunhe Feng 1 Dongfang Liu 2 Dong Nie 3 Yan Huang 1 Heng Fan 1
+
+> 1
+
+University of North Texas 2Purdue University 3Meta Inc 
+
+chenxiaoli@my.unt.edu heng.fan@unt.edu 
+
+Abstract 
+
+The visual modality, i.e. , images, plays a key role in multi-modal entity alignment (MMEA). Existing approaches often directly fuse the im-age with other modalities to align different en-tities. Although simple, such strategies over-look the potential noise in the images and their semantic misalignment with corresponding en-tities, resulting in suboptimal fusion and de-graded performance. Addressing this, we pro-pose a novel Reliability-Aware framework for 
+
+MMEA (RA-MMEA ), which assesses visual reliability and adaptively improves unreliable visual representations for robust entity align-ment. The core lies in two modules, includ-ing dependency-aware visual reliability predic-tion (DA-VRP) and stability-regularized visual embedding generation (SR-VEG). The former aims to estimate the reliability of an image by leveraging multi-modal dependency within the entity, while the latter focuses on producing alternative visual representation conditioned on semantics encoded in textual modalities for multi-modal fusion. Compared to current meth-ods, RA-MMEA enables more reliable visual representations for modality fusion, thereby improving performance. In extensive exper-iments, RA-MMEA achieves state-of-the-art results, verifying the importance of reliable vi-sual modality for entity alignment and the effec-tiveness of RA-MMEA. The code and results will be released. 
+
+1 Introduction 
+
+Multi-modal knowledge graphs (MMKGs) employ heterogeneous information such as image, text, and structure to represent real-world entities. Yet, inde-pendently constructed MMKGs often contain dupli-cated or semantically overlapping entities, resulting in fragmented knowledge across graphs. To address this issue, multi-modal entity alignment (MMEA) (Chen et al., 2020; Liu et al., 2019) has been intro-duced to identify equivalent entities across different MMKGs by leveraging multi-modal information, 1e2e3e1r3r2r1a2a3a⨁ Modality Feature Fusion     
+
+> Graph
+> Relation
+> Attribute
+> Image
+> (a) Existing MMEA methods
+> Graph Embedding Relation Embedding Attribute Embedding
+> Visual Embedding Visual Reliability Virtual Visual Embedding VR 1e2e3e1
+
+r3r2r1a2a3a 
+
+> ⨁Modality Feature Fusion
+> Graph
+> Relation
+> Attribute
+> (b) The Proposed RA-MMEA
+> Image
+> generation reliable
+> unreliable
+> VR
+
+Figure 1: Comparison of existing methods directly fus-ing image and other modalities in (a) and RA-MMEA that first assesses the reliability of the image and then performs fusion in (b). Best viewed in pdf for all figures .
+
+thus consolidating fragmented MMKGs into uni-fied and complete knowledge resources. In MMEA, visual modality, i.e. , images, offers rich appearance information and is crucial for align-ing entities. Existing models typically directly fuse the image and other modalities to construct entity representation (see Fig. 1 (a)). However, images in MMKGs are not always reliable. They may be ir-relevant to the entity or exhibit a large semantic gap from the text. Directly incorporating such noisy images into multi-modal fusion may compromise the entity representation and consequently degrade alignment. To alleviate this, a straightforward solu-tion is to filter out unreliable images using manually annotated class conflict dictionaries (CCDs) (Shi et al., 2022). However, constructing CCDs entails significant labeling efforts, which is laborious and expensive. Besides, manually designed class con-flict rules in CCDs inevitably introduce biases and struggle to generalize to real-world scenarios. arXiv:2609.23267v1 [cs.CL] 20 Sep 2026 In this paper, we propose to learn visual relia-bility from the entity itself and adaptively handle unreliable images before multi-modal fusion, and introduce a novel Reliability-Aware framework for MMEA (RA-MMEA ), that assesses visual relia-bility and adaptively improves unreliable visual representations for robust entity alignment (see Fig. 1(b)). The key intuition is that image relia-bility can be inferred from its consistency with the semantic context of an entity, including graph, re-lation, and attribute. Based on this intuition, we design a dependency-aware visual reliability pre-dictor (DA-VRP) in RA-MMEA, which estimates image reliability from global multi-modal depen-dency. Reliable images are expected to form coher-ent dependency with the remaining entity modal-ities, whereas unreliable images tend to deviate from such dependency and behave as outliers in the multi-modal representation space. DA-VRP first calculates the dependency score of the image with other modalities through dependency relation modeling, and then uses such dependency score to learn a binary reliability predictor that identifies and suppresses unreliable visual modalities. To en-able end-to-end optimization with discrete binary indicators, we employ Gumbel-Softmax to predict the binary reliability in a differentiable manner. After filtering unreliable images, the suppressed visual information needs to be compensated. To this end, we present a simple yet effective stability-regularized visual embedding generation module in RA-MMEA, termed SR-VEG, that aims to pro-duce alternative visual representation conditioned on other modalities for multi-modal fusion. Specif-ically, it adaptively integrates features from other modalities and employs latent-variable modeling to generate visual representations. To preserve dependency consistency under modality removal, we further present a weight-difference penalty that aligns dependency scores computed with and with-out the visual modality. This regularization stabi-lizes the overall dependency estimation within an entity, leading to better reconstructed visual fea-tures and thereby improving entity alignment. To the best of our knowledge, RA-MMEA is the first method that explicitly models visual reli-ability in MMEA. Compared with existing meth-ods, RA-MMEA jointly estimates visual reliability and selectively reconstructs only unreliable visual representations before multi-modal fusion. This reliability-aware paradigm prevents unreliable vi-sual information from degrading entity represen-tations while preserving reliable visual informa-tion. Extensive experiments on multiple bench-marks demonstrate that RA-MMEA consistently achieves state-of-the-art performance, highlighting the importance of reliability-aware visual modeling for robust entity alignment. In summary, our contributions are as follows: ♠
+
+We propose RA-MMEA, the first reliability-aware framework for MMEA; ♥ We present DA-VRP that leverages global multi-modal dependency within an entity for visual reliability prediction; ♣ We introduce SR-VEG that generates virtual visual embeddings under stability-regularized consistency constraints; ♦ On multiple benchmarks, our RA-MMEA achieves state-of-the-art results. 
+
+2 Related Work 
+
+Multi-modal Entity Alignment (MMEA). Typi-cal MMEA methods primarily focus on improving multi-modal fusion to optimize embedding repre-sentations (Zhang et al., 2024). To mitigate noise arising from modality heterogeneity, existing stud-ies (Shi et al., 2022; Li et al., 2025a) employ an-notated ontology matching as a filtering criterion to enhance embedding quality. To handle uncer-tain missing values in fusion, another line of work (Chen et al., 2023b; Li et al., 2023b, 2024) proposes generating pseudo-representation for the missing modality in multi-modal fusion. In contrast to these strategies that regulate input data quality or quan-tity, methods such as (Lin et al., 2022; Chen et al., 2022, 2023a; Li et al., 2025b) adopt contrastive learning or Transformer to precisely model inter-modal relationships, thereby alleviating the adverse effects of multi-modal information imbalance. De-spite promising results, the aforementioned meth-ods overlook the importance of addressing unreli-able visual modality to improve MMEA. 
+
+LLMs in Multi-modal Entity Alignment. Large language models (LLMs) have been recently em-ployed for MMEA due to their strong reasoning and understanding capabilities. Chen et al. (2024) employ LLMs to generate and embed attribute ab-stracts, facilitating attribute alignment. Ji et al. (2025) project multi-modal embeddings based on LLM-based attribute summaries to obtain the poten-tial associations between them. Lu et al. (2025) pro-pose LLM-guided visual alignment and attribute enhancement to achieve semantic filtering and en-hancement in MMEA. Li et al. (2026) resolve dual-level noisy correspondence via a dedicated two-Multi-modal      
+
+> Knowledge Embedding
+> ℎ𝑘
+> 𝑔
+> ℎ𝑘
+> 𝑟
+> ℎ𝑘 𝑎
+> ℎ𝑘 𝑣
+> Dependency Relation Modeling (DRM)
+> 𝑤 𝑘 𝑔
+> 𝑤 𝑘
+> 𝑟
+> 𝑤 𝑘
+> 𝑎
+> 𝑔 𝑘 𝑣
+> Weighted Fusion
+> DRM
+> ℎ𝑘 𝑔 ℎ𝑘 𝑟 ℎ𝑘 𝑎 തℎ𝑘
+> 𝑣
+> Multi-modal Feature Fusion
+> ℎ𝑘
+> 𝑣
+> ℎ𝑘 𝑔
+> ℎ𝑘 𝑟
+> ℎ𝑘
+> 𝑎
+> Eq. (3)
+> ෝ𝑤 𝑘 𝑔
+> ෝ𝑤 𝑘 𝑟
+> ෝ𝑤 𝑘 𝑎
+> Regularization Eq. (6)
+> 𝑤 𝑘 𝑣
+> 𝑝 𝑘
+> 𝑣
+> Gumbel-Softmax
+> × 𝑤 𝑘 𝑔
+> × 𝑤 𝑘 𝑟
+> × 𝑤 𝑘 𝑎
+> VAE Encoder
+> VAE Decoder
+> (a) (b) (c)
+> (d)
+> (e)
+> reliable
+> unreliable
+> × 𝑤 𝑘 𝑣
+
+Figure 2: Illustration of the proposed RA-MMEA, which assesses visual modality reliability and adaptively improves unreliable visual representations through generated feature for MMEA. (a) Inputs with image, graph, relation, and attribute; (b) Multi-modal Embedding; (c) Dependency-Aware Visual Reliability Prediction; (d) Stability-Regularized Visual Embedding Generation; and (e) Multi-modal Fusion. 
+
+fold principle and employ MLLMs for relational reasoning. Despite excellent performance, these LLM-based models may introduce potential infor-mation leakage by relying on external world knowl-edge and entity names. Differently, instead of using external knowledge for MMEA, this work focuses on assessing and leveraging the reliability of visual modality based on the entity itself, aiming to im-prove multi-modal fusion under unreliable images. 
+
+3 Methodology 
+
+Problem Formulation. In MMEA, a multi-modal knowledge graph (MMKG) is formalized as G =(E, R, A, T, I, P ), where E, R, A, T , and I are the sets of entities, relations, attributes, triples, and im-ages, and P = {(e, i ) | e ∈ E, i ∈ I} denotes the set of entity-image pairs. Each entity is associated to multiple attributes and 0 ∼ 1 image. Given two MMKGs G1 = ( E1, R 1, A 1, T 1, I 1, P 1) and G2 =(E2, R 2, A 2, T 2, I 2, P 2), the set of seed alignments across them is defined as H = {(e1, e 2) | e1 ∈
+
+E1, e 2 ∈ E2, e 1 ≡ e2}, where ≡ represents the equivalence of two entities. Given a set of pre-aligned entity pairs as training guidance, MMEA aims to match the counterpart entities e1 and e2 de-scribing the same concepts in the real world from distinct multi-modal knowledge graphs. 
+
+Overview In this paper, we propose RA-MMEA, a reliability-aware framework for robust multi-modal entity alignment. As shown in Fig. 2, given an en-tity containing visual image, graph structure, rela-tions, and attributes, we first extract their embed-ding (Sec. 3.1). Afterwards, DA-VRP (Sec. 3.2) is applied to predict the reliability of the image. If the image is reliable, we perform multi-modal fusion (Sec. 3.4) to obtain the entity representation; other-wise, we discard the unreliable visual embedding and apply SR-VEG (Sec. 3.3) to produce a virtual visual embedding for modality fusion (Sec. 3.4). 
+
+3.1 Multi-modal Knowledge Embedding 
+
+In this section, we describe embedding extraction for the visual image, graph structure, relations, and attributes of the entity ek.
+
+Visual Embedding. Given a visual image of the k-th entity ek, we apply a pre-trained CLIP model (Radford et al., 2021), followed by fully connected (FC) layers, to extract the visual embed-ding hvk.
+
+Graph Structure Embedding. For the graph struc-ture of ek, we follow (Li et al., 2025b; Chen et al., 2023a) and use graph attention network (Veliˇ ckovi´ cet al., 2018) with two attention heads and two lay-ers to extract the graph embedding hgk.
+
+Relation Embedding. Following (Yang et al., 2019; Chen et al., 2023a), for the relations of ek,we utilize bag-of-words followed by FC layers to extract the relation embedding hrk.
+
+Attribute Embedding. For the attribute modality of ek, we first employ bag-of-words and BERT (De-vlin et al., 2019) to generate two attribute embed-dings, respectively. These embeddings are then combined through learnable weights and FC layers to obtain the final attribute embedding hak.
+
+3.2 Dependency-Aware Visual Reliability Prediction (DA-VRP) 
+
+In RA-MMEA, we propose DA-VRP to estimate whether the visual modality of an entity is reliable under the global multi-modal context. The key intuition is that reliable images should exhibit co-herent semantic dependency with the remaining modalities of an entity, and thus have relatively high dependency score with other modalities. 
+
+Dependency Relation Modeling (DRM). Specifi-cally, we first perform dependency relation model-ing (DRM) to compute the global relevance of each modality with the remaining modalities. More con-cretely, drawing inspiration from the Transformer architecture (Vaswani et al., 2017), we first apply the scalable dot-product to calculate the relevance score with normalization between modalities m
+
+and j, as follows, 
+
+smj = exp( ϕ(hmk )⊤ϕ(hjk)/d )
+
+P 
+
+> n∈M
+
+exp( ϕ(hmk )⊤ϕ(hnk )/d ) (1) where smj is the relevance score between modal-ity m ∈ M and j ∈ M , and M = {v, g, r, a }
+
+with v, g, r, a representing the visual image, graph structure, relation, and attribute modalities. d is a scaling factor, and ϕ(·) the linear projection. Afterwards, we aggregate all relevance scores of each modality m with normalization to compute its dependency score within the entity ek, as follows, 
+
+wmk = exp( P 
+
+> j∈M
+
+smj )
+
+P 
+
+> n∈M
+
+exp( P 
+
+> j∈M
+
+snj ) (2) where wmk denotes the dependency score for modal-ity m. After this, we employ the dependency score 
+
+wvk of visual image to predict the visual reliability. 
+
+Visual Reliability Prediction. The dependency score wkv ∈ [0 , 1] reflects the semantic consistency between the visual modality and the remaining modalities of entity ek, and we use it as a task-level proxy for visual reliability. This is motivated by the fact that cross-modal dependency provides a differ-entiable approximation of semantic consistency, a principled indicator of whether visual information agrees with the overall entity semantics. A higher dependency score indicates that the visual repre-sentation is more coherent with the overall entity semantics. In contrast, a lower score suggests that the image may be noisy, semantically inconsistent, or provide limited visual evidence for representing the corresponding entity. To predict the visual reliability, we first construct a probability vector based on wkv , as follows, 
+
+pvk = [1 − wvk, w vk] (3) where pvk, 0 = 1 − wkv denotes the probability that the image is unreliable, and pvk, 1 = wvk represents the probability that the image is reliable. To obtain the binary reliability prediction, a straightforward way is to apply the Bernoulli function on pvk, 0 and 
+
+pvk, 1. However, this operation is non-differentiable, preventing the entire pipeline from being trained in an end-to-end manner. To handle this, we adopt Gumbel-Softmax (Jang et al., 2017; Maddison et al., 2017) to sample from the categorical distribution, as follows, 
+
+gvk = Gumbel-Softmax (pvk) (4) where gvk denotes a binary one-hot vector represent-ing the predicted visual reliability, with gvk = [0 , 1] 
+
+indicating that the image is reliable and gvk = [1 , 0] 
+
+indicating that the image is unreliable. By employ-ing the Gumbel-Softmax trick, the entire frame-work becomes fully end-to-end trainable, thereby improving entity alignment performance. 
+
+3.3 Stability-Regularized Visual Embedding Generation (SR-VEG) 
+
+To compensate for the loss of visual information caused by filtering the unreliable visual embedding, we propose SR-VEG to generate semantically con-sistent virtual visual embeddings from the remain-ing reliable modalities. Besides handling filtered visual modalities, it can also naturally generalize to entities that inherently lack visual information. Specifically, we first construct a hybrid repre-sentation from the non-visual modalities, including graph structure, relation, and attribute embeddings, with the learned dependency scores from DA-VRP, as follows, 
+
+hhyb  
+
+> k
+
+= ⊕m∈T [wmk · hmk ] , T = {g, r, a } (5) Here, ⊕ denotes concatenation. By incorporating modality-aware weights, SR-VEG preserves cross-modal dependency during visual embedding gen-eration. However, directly removing the visual modality may perturb the original multi-modal de-pendency structure. Although unreliable visual information should be suppressed, its removal can still affect dependency estimation among the re-maining modalities, leading to unstable modality weights and potentially degrading the generated visual representation. To alleviate this issue, we introduce a stability regularization term to constrain the discrepancy be-tween dependency weights estimated before and after visual modality removal. For entities whose visual modalities are filtered, we first recompute dependency scores ˆwmk (m ∈ { g, r, a }) with the embeddings hgk, hrk, and hak using DRM in DA-VRP, and then compare them with the original de-pendency weights wgk, wrk, and wak . We retain only positive deviations using a ReLU operation via 
+
+Lp = X 
+
+> m∈T
+
+max ( ˆ wmk − wmk , 0) (6) Here, the penalty Lp does not directly construct the hybrid representation for generation. Instead, it acts as an auxiliary stability constraint that reg-ularizes dependency estimation under modality perturbation. By discouraging excessive depen-dency shifts after visual removal, SR-VEG main-tains more stable cross-modal relationships and improves the generated visual embeddings. After obtaining hhyb  
+
+> k
+
+, we use a VAE-style frame-work (Kingma and Welling, 2014; Sohn et al., 2015) to generate the pseudo-visual embeddings. Specifically, the encoder first maps the hybrid rep-resentation into the parameters of a latent Gaussian distribution via 
+
+[μk ⊕ log( σk)2] = Φ Enc (hhyb k ) (7) where ΦEnc (·) is the encoder implemented with MLP layers, and μk and σk denote the mean and standard deviation of the latent distribution, respec-tively. Then, latent variables are sampled through the reparameterization trick, as follows, 
+
+zk = μk + ϵ ⊙ σk, ϵ ∼ N (0, I) (8) Afterwards, the sampled latent representation is decoded to generate pseudo-visual embeddings via 
+
+¯hvk = Φ Dec (zk) (9) where ΦDec (·) is the decoder implemented with MLP layers, and ¯hvk denotes the generated pseudo-visual embeddings. ¯hvk is expected to preserve se-mantic consistency with the remaining modalities while compensating for the unreliable or missing visual information. The optimization objective of SR-VEG is detailed in Section 3.5. 
+
+3.4 Multi-modal Feature Fusion 
+
+In RA-MMEA, the final entity representation is ob-tained by fusing embeddings from different modal-ities in a reliability-aware manner. For each entity, when its visual modality is predicted to be reliable, we directly incorporate the original visual embed-ding into the entity representation. Otherwise, we replace the unreliable visual embedding with the generated pseudo-visual embedding from SR-VEG. This process can be formulated as follows, 
+
+hk = wgkhgk ⊕ wrkhrk ⊕ wak hak ⊕ ˜hvk (10) where hk denotes the final representation of entity 
+
+ek. ˜hvk = gvk, 1wvkhvk +gvk, 0¯hvk is the reliability-aware visual representation, where gvk, 1 and gvk, 0 are the two elements of the visual reliability vector gvk ,corresponding to the reliable and unreliable visual states, respectively. 
+
+3.5 Optimization and Inference Optimization. To enhance interaction between modalities, we introduce multi-modal contrastive learning to achieve bidirectional alignment. The loss function is defined as follows, 
+
+Lm = − log ( pm(eu, e t) + pm(et, e u)/2) (11) where pm denotes the alignment probability be-tween two entities eu and et. Furthermore, the intra-modal loss LIAL and inter-modal loss LICL 
+
+can be represented as follows, 
+
+LIAL = X
+
+> m∈M
+
+Lm LICL = X
+
+> m∈M
+
+ˆLm (12) where ˆLm is the post-fusion variant of Lm. To al-leviate imbalance and enforce constraints on recon-structed features, we jointly optimize the SR-VEG loss function LSR together with the contrastive loss. Specifically, inspired by Chen et al. (2023b), we employ two reconstruction objectives, Lvis  
+
+> Re
+
+and 
+
+Lhyb  
+
+> Re
+
+, to minimize the distance between the pseudo and true embeddings, thereby emphasizing the dif-ferences between different features during the au-toencoding process. In addition, minimizing the Kullback-Leibler (KL) divergence LKL encourages the latent space to approximate a Gaussian distri-bution. Then, we introduce a similarity distillation loss LSim to quantify the discrepancy between the similarity matrix of the hybrid embeddings and that of the virtual image features. Finally, the overall loss function can be expressed as follows, 
+
+L = LIAL + LICL + LSR + γ · L p (13) Setting Models Venue FB15K-DB15K FB15K-YG15K Hits@1 ↑ Hits@10 ↑ MRR ↑ Hits@1 ↑ Hits@10 ↑ MRR ↑                                                                                                                                                                        
+
+> Non-iterative
+> MMEA (Chen et al., 2020) KSEM’20 0.265 0.541 0.357 0.234 0.480 0.317 EVA (Liu et al., 2021) AAAI’21 0.199 0.448 0.283 0.153 0.361 0.224 MSNEA (Chen et al., 2022) KDD’22 0.114 0.296 0.175 0.103 0.249 0.153 MCLEA (Lin et al., 2022) COLING’22 0.295 0.582 0.393 0.254 0.484 0.332 MoAlign (Li et al., 2023a) EMNLP’23 0.318 0.564 0.409 0.296 0.525 0.378 MEAformer (Chen et al., 2023a) ACM MM’23 0.417 0.715 0.518 0.327 0.595 0.417 PMF (Huang et al., 2024) ACL’24 0.539 -0.620 0.459 -0.539 RICEA (Li et al., 2025b) ACL’25 0.471 0.720 0.557 0.411 0.658 0.497 SGMEA (Cheng et al., 2025) COLING’25 0.543 0.777 0.625 0.587 0.826 0.670 RULE (Li et al., 2026) ICLR’26 0.444 -0.538 0.389 -0.470 HUMEA (Xing et al., 2026a) AAAI’26 0.512 0.764 0.598 0.439 0.699 0.528
+> RA -MMEA (Ours) –0.849 0.948 0.879 0.787 0.928 0.835
+> Iterative
+> EVA (Liu et al., 2021) AAAI’21 0.231 0.488 0.318 0.188 0.403 0.260 MSNEA (Chen et al., 2022) KDD’22 0.149 0.392 0.232 0.138 0.346 0.210 MCLEA (Lin et al., 2022) COLING’22 0.395 0.656 0.487 0.322 0.546 0.400 MEAformer (Chen et al., 2023a) ACM MM’23 0.578 0.812 0.661 0.444 0.692 0.529 PMF (Huang et al., 2024) ACL’24 0.624 -0.702 0.543 -0.620 IBMEA (Su et al., 2024) ACM MM’24 0.631 0.813 0.697 0.521 0.708 0.584 PCMEA (Wang et al., 2024) AAAI’24 0.676 0.887 0.728 0.590 0.835 0.646 RICEA (Li et al., 2025b) ACL’25 0.567 0.804 0.652 0.516 0.733 0.593 SGMEA (Cheng et al., 2025) COLING’25 0.661 0.847 0.729 0.750 0.901 0.805 EIEA (Wang et al., 2025) KDD’25 0.769 0.869 0.804 0.830 0.915 0.860 DMEA (Xing et al., 2026b) WWW’26 0.804 0.896 0.849 0.898 0.957 0.934
+> RA -MMEA (Ours) –0.915 0.976 0.937 0.899 0.964 0.936
+
+Table 1: Results on two cross-KG datasets using 20% of the reference entity alignments for training. The best results are shown in bold and the second best results are underlined. 
+
+where γ controls the strength of Lp, and LSR =
+
+LKL + Lvis 
+
+Re + Lhyb 
+
+Re + LSim .
+
+Inference. We employ the cosine similarity (Sim) to quantify the alignment probability. The similar-ity matrix between the source entity set E and the target entity set E′
+
+is denoted as Sim ⟨E, E ′
+
+⟩.
+
+4 Experiments 
+
+Datasets. We validate the effectiveness and ro-bustness of RA-MMEA on two cross-KG datasets, FB15K-DB15K/YG15K (Liu et al., 2019), with 20%, 50%, and 80% reference entity alignments as seed pairs, and three bilingual DBP15K datasets (ZH/JA/FR-EN) (Sun et al., 2017) under the unsu-pervised setting. Appendix A depicts the statistics of multi-modal datasets. The details of the evalua-tion metrics are shown in Appendix B. 
+
+Implementation Details. RA-MMEA is imple-mented in PyTorch on a machine with NVIDIA RTX A6000 GPUs. RA-MMEA is trained for 500 epochs, and optionally further trained by 500 ad-ditional epochs with iterative training. We apply AdamW optimizer ( β1 = 0 .9, β2 = 0 .999 ) with batch size of 3,500. The scaling factor d is set to 17. The parameter γ that controls Lp is set to 15. 
+
+Compared Methods. To rigorously evaluate our framework’s effectiveness, we compare it with 16 methods that focus on multi-modal fusion opti-mization as in Sec. 4.1. Notably, several recent MMEA methods, such as TMEA (Chen et al., 2024), LGEA (Lu et al., 2025), and CLAEA (Ji et al., 2025), introduce external knowledge for MMEA. Since our goal is to design a reliability-aware framework that detects and mitigates unreli-able visual modalities by exploiting inherent multi-modal dependency, rather than enhancing inputs with additional external information, we exclude these information-enhancement methods to ensure a fair comparison. For RULE (Li et al., 2026), we adopt the variant without MLLM during testing. 
+
+4.1 State-of-the-art Comparison 
+
+Tab. 1 shows the non-iterative and iterative results on the cross-KG datasets with 20% seed align-ments. RA-MMEA consistently outperforms all baselines on both datasets and under both train-ing settings across all metrics. Specifically, on FB15K-DB15K, RA-MMEA improves Hits@1 by 11.1%–30.6% and MRR by 8.8%–25.4% over the second-best baselines. On FB15K-YG15K, it achieves gains of 0.1%–20.0% in Hits@1 and 0.2%–16.5% in MRR. Notably, the improvements are particularly substantial under the non-iterative setting, demonstrating RA-MMEA’s effectiveness even with limited seed alignments. Additional re-sults with 50% and 80% seed alignments are pro-vided in Appendix C, while results on the bilin-gual DBP15K datasets are reported in Appendix D. Overall, these results demonstrate that RA-MMEA consistently achieves state-of-the-art performance across datasets, seed ratios, and training settings.       
+
+> 
+> 
+
+Figure 3: Performance of strong baselines across visual noise levels on FB15K-DB15K. 
+
+4.2 Robustness Evaluation 
+
+Visual information in real-world scenarios often contains varying degrees of noise, making it impor-tant for MMEA models to maintain stable align-ment performance as visual information becomes increasingly unreliable. To evaluate this robustness, we construct artificial Entity-Image mismatches on FB15K-DB15K by randomly selecting 20%, 50%, and 80% of entities and shuffling their asso-ciated images while preventing them from being reassigned to their original entities, thereby simu-lating progressively increasing visual noise. As shown in Fig. 3, the performance of all methods gradually decreases as the noise ratio in-creases, indicating that incorrect Entity-Image as-sociations make MMEA increasingly challenging. Nevertheless, RA-MMEA consistently achieves the best performance across all noise ratios and exhibits substantially smaller performance degra-dation than MEAformer and RICEA. These results demonstrate that DA-VRP effectively mitigates in-terference caused by incorrect Entity-Image asso-ciations, enabling RA-MMEA to preserve robust multi-modal representations under increasing vi-sual noise and confirming its robustness in chal-lenging noisy MMEA scenarios. 
+
+4.3 Visual Noise Detection 
+
+The above results demonstrate that RA-MMEA re-mains robust under progressively increasing visual noise. We further investigate whether this advan-tage stems from the ability of DA-VRP to identify unreliable visual information. Specifically, we treat the artificially injected Entity-Image mismatches as known unreliable samples and measure the pro-portion of these samples correctly identified as un-reliable by DA-VRP. As shown in Tab. 2, DA-VRP achieves detec-tion rates of 75.24%, 74.87%, and 75.08% under visual noise ratios of 20%, 50%, and 80%, re-spectively, remaining stable at approximately 75%       
+
+> Noise Ratio Ratio=20% Ratio=50% Ratio=80%
+> Detection Rate (%) 75.24 74.87 75.08
+
+Table 2: Detection rate of DA-VRP under varying visual noise ratios. 
+
+DA-VRP SR-VEG Hits@1 ↑ Hits@10 ↑ MRR ↑
+
+❶ ✗ ✗ 0.682 0.860 0.733 
+
+❷ ✓ ✗ 0.798 0.886 0.855 
+
+❸ ✗ ✓ 0.701 0.873 0.752 
+
+❹ ✓ ✓ 0.849 0.948 0.879 
+
+Table 3: Ablation studies on DA-VRP and SR-VEG. 
+
+Hits@1 ↑ Hits@10 ↑ MRR ↑
+
+❶ DA-VRP w/ BS 0.503 0.762 0.590 
+
+❷ DA-VRP w/ GS 0.849 0.948 0.879 
+
+Table 4: Ablation studies on Gumbel-Softmax (GS) and Bernoulli Sampling (BS) in DA-VRP. 
+
+Hits@1 ↑ Hits@10 ↑ MRR ↑
+
+❶ SR-VEG w/o Lp 0.833 0.941 0.874 
+
+❷ SR-VEG w/ Lp 0.849 0.948 0.879 
+
+Table 5: Ablation studies on Lp for SR-VEG.             
+
+> Hits@1 ↑Hits@10 ↑MRR ↑
+> ❶generation w/ ˆwmk0.830 0.938 0.867
+> ❷generation w/ wmk0.849 0.948 0.879
+
+Table 6: Ablation studies on using ˆwmk and using wmk
+
+for hybrid representation in SR-VEG. 
+
+across different noise levels. These results indi-cate that DA-VRP can effectively identify unreli-able visual information based on cross-modal se-mantic inconsistency, while its detection capability remains largely insensitive to changes in the pro-portion of injected noise. Since existing MMEA datasets do not provide ground-truth reliability an-notations for the original Entity-Image pairs, we evaluate only the artificially injected visual noise with known labels. Nevertheless, the consistent detection performance provides empirical evidence that cross-modal dependency serves as an effective task-level proxy for visual reliability. Further qual-itative evidence is provided in Appendix I, where the predicted reliability is consistent with the se-mantic correspondence between entities and their associated images. 
+
+4.4 Ablation Study 
+
+To further analyze RA-MMEA, we conduct abla-tion studies on FB15K-DB15K with 20% seeds. Our final configuration is highlighted in cyan. Hits@1 ↑ Hits@10 ↑ MRR ↑                            
+
+> ❶γ= 1 0.834 0.942 0.874
+> ❷γ= 5 0.836 0.943 0.875
+> ❸γ= 10 0.845 0.946 0.877
+> ❹γ= 15 0.849 0.948 0.879
+> ❺γ= 20 0.840 0.945 0.879
+> Table 7: Ablation studies on the parameter γfor Lp.
+
+Impacts of DA-VRP and SR-VEG. The core of RA-MMEA lies in two key modules, including DA-VRP and SR-VEG. To analyze their impacts, we conduct ablation studies in Tab. 3. As shown, without DA-VRP and SR-VEG, the Hits@1 score is 0.682 ( ❶). When using DA-VRP alone, the Hits@1 score is largely improved to 0.798 with 11.6% gains ( ❷); when applying SR-VEG only, the Hits@1 score is boosted to 0.701 with moderate improvements ( ❸). Using both modules together yields the best performance of 0.849 Hits@1 score with 16.7% gains ( ❹), confirming their strong com-plementarity for improving MMEA. 
+
+Gumbel-Softmax v.s. Bernoulli Sampling. In our DA-VRP, we adopt Gumbel-Softmax to predict the visual reliability, enabling end-to-end training of RA-MMEA. To analyze its effectiveness, we conduct ablation studies by comparing Gumbel-Softmax and Bernoulli sampling for visual reliabil-ity prediction. The results are reported in Tab. 4. As shown, we can observe that, when using Bernoulli sampling for reliability prediction, the Hits@1 score is 0.503 ( ❶). In contrast, when applying Gumbel-Softmax, the Hits@1 score is improved to 0.849 with 34.6% gains ( ❷). This confirms that differentiable reliability estimation is essential for learning accurate modality-filtering behavior. 
+
+Impact of Lp. In SR-VEG, we design a stability regularization term Lp, which aims to constrain de-pendency shifts after removing the visual modality. To analyze the impact of Lp, we conduct the abla-tion studies in Tab. 5. As shown, without Lp, the model suffers from degraded dependency estima-tion, leading to suboptimal pseudo-visual embed-dings and performance. Incorporating Lp consis-tently improves the Hits@1 score from 0.833 ( ❶)to 0.849 ( ❷) with 1.6% gains, demonstrating that stabilizing cross-modal dependency is critical for reliable virtual visual embedding generation. 
+
+Analysis of wmk for Hybrid Representation. In SR-VEG, we apply the original dependency scores 
+
+wmk (m ∈ { g, r, a }) to construct the hybrid rep-resentation in Eq. (5). To validate its effective-                   
+
+> Models Hits@1 ↑Hits@10 ↑MRR ↑
+> MEAformer (Chen et al., 2023a) 0.417 0.715 0.518 MEAformer (+) 0.506 0.758 0.594
+> Improvement (%) 8.9 4.3 7.6
+> RICEA (Li et al., 2025b) 0.471 0.720 0.557 RICEA (+) 0.501 0.755 0.589
+> Improvement (%) 3.0 3.5 3.2
+> Table 8: Plug-and-play evaluation of DA-VRP and SR-VEG across representative MMEA frameworks. "+" denotes their variants.
+
+ness, we compare hybrid representation construc-tion with wmk and ˆwmk in Tab. 6. As shown, using the original dependency scores wmk is more stable (❷ v.s. ❶), as they are computed with full multi-modal information, whereas re-estimating weights after removing the visual modality relies on less information and therefore becomes unstable. 
+
+Impact of γ. To analyze the impact of γ for Lp,we conduct ablation studies in Tab. 7 by changing the value of γ. As shown in Tab. 7, we can see that, when γ = 15 , we show the best performance ( ❹). Therefore, we empirically set γ to 15. 
+
+4.5 Plug-and-Play Capability 
+
+We integrate DA-VRP and SR-VEG into two MMEA frameworks with similar processing pipelines, MEAformer and RICEA, to evaluate the generalizability and plug-and-play capability of the proposed modules. As shown in Tab. 8, in-corporating DA-VRP and SR-VEG consistently improves both frameworks across all evaluation metrics. Specifically, MEAformer achieves im-provements of 8.9% and 7.6% in Hits@1 and MRR, respectively, while RICEA obtains corresponding gains of 3.0% and 3.2%. These consistent improve-ments demonstrate that DA-VRP and SR-VEG are not restricted to a specific MMEA architecture but can be flexibly integrated into existing frameworks to enhance their ability to effectively handle diverse unreliable visual information. 
+
+5 Conclusion 
+
+In this paper, we propose RA-MMEA, a reliability-aware framework for robust multi-modal entity alignment. RA-MMEA estimates visual reliabil-ity through cross-modal dependency and generates alternative representations for unreliable images. Extensive experiments demonstrate its effective-ness and robustness, highlighting the importance of reliability-aware visual modeling in MMEA. Limitations 
+
+Although RA-MMEA demonstrates strong per-formance across multiple benchmarks, existing MMEA datasets typically provide only limited and relatively static visual information for each entity, which may not fully capture the diversity of entity-related images in real-world scenarios. In practice, the same entity may be associated with images ex-hibiting different visual content across different contexts, making it challenging to evaluate MMEA models under more diverse visual conditions. Exploring more diverse visual settings could fur-ther broaden the applicability of reliability-aware MMEA. It would also provide additional insights into visual reliability across different entity types and scenarios. Such investigations could further enrich our understanding of reliability-aware vi-sual modeling in MMEA. These directions may also offer further insights into how visual informa-tion contributes to multi-modal entity alignment. Future work could develop MMEA benchmarks with richer and more diverse visual information, enabling a more comprehensive evaluation of the robustness and generalizability of MMEA methods in real-world scenarios. 
+
+References 
+
+Liyi Chen, Zhi Li, Yijun Wang, Tong Xu, Zhefeng Wang, and Enhong Chen. 2020. Mmea: entity align-ment for multi-modal knowledge graph. In Knowl-edge Science, Engineering and Management: 13th International Conference, KSEM 2020, Hangzhou, China, August 28–30, 2020, Proceedings, Part I 13 ,pages 134–147. Springer. Liyi Chen, Zhi Li, Tong Xu, Han Wu, Zhefeng Wang, Nicholas Jing Yuan, and Enhong Chen. 2022. Multi-modal siamese network for entity alignment. In Pro-ceedings of the 28th ACM SIGKDD conference on knowledge discovery and data mining , pages 118– 126. Liyi Chen, Ying Sun, Shengzhe Zhang, Yuyang Ye, Wei Wu, and Hui Xiong. 2024. Tackling uncertain correspondences for multi-modal entity alignment. 
+
+Advances in Neural Information Processing Systems ,37:119386–119410. Zhuo Chen, Jiaoyan Chen, Wen Zhang, Lingbing Guo, Yin Fang, Yufeng Huang, Yichi Zhang, Yuxia Geng, Jeff Z Pan, Wenting Song, et al. 2023a. Meaformer: Multi-modal entity alignment transformer for meta modality hybrid. In Proceedings of the 31st ACM International Conference on Multimedia , pages 3317– 3327. Zhuo Chen, Lingbing Guo, Yin Fang, Yichi Zhang, Jiaoyan Chen, Jeff Z Pan, Yangning Li, Huajun Chen, and Wen Zhang. 2023b. Rethinking uncertainly miss-ing and ambiguous visual modality in multi-modal entity alignment. In International Semantic Web Con-ference , pages 121–139. Springer. Jingwei Cheng, Mingxiao Guo, and Fu Zhang. 2025. Sgmea: Structure-guided multimodal entity align-ment. In Proceedings of the 31st international confer-ence on computational linguistics , pages 7851–7861. Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. 2019. Bert: Pre-training of deep bidirectional transformers for language understand-ing. In Proceedings of the 2019 conference of the North American chapter of the association for com-putational linguistics: human language technologies, volume 1 (long and short papers) , pages 4171–4186. Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. 2016. Deep residual learning for image recog-nition. In Proceedings of the IEEE conference on computer vision and pattern recognition , pages 770– 778. Yani Huang, Xuefeng Zhang, Richong Zhang, Junfan Chen, and Jaein Kim. 2024. Progressively modal-ity freezing for multi-modal entity alignment. In 
+
+Proceedings of the 62nd Annual Meeting of the As-sociation for Computational Linguistics (Volume 1: Long Papers) , pages 3477–3489. Eric Jang, Shixiang Gu, and Ben Poole. 2017. Cate-gorical reparametrization with gumble-softmax. In 
+
+International Conference on Learning Representa-tions (ICLR 2017) . OpenReview. net. Yongquan Ji, Jingwei Cheng, Fu Zhang, and Cheng-long Lu. 2025. Capturing latent modal association for multimodal entity alignment. In Findings of the Association for Computational Linguistics: EMNLP 2025 , pages 22278–22293. Diederik P. Kingma and Max Welling. 2014. Auto-encoding variational bayes. In International Confer-ence on Learning Representations .Chenxiao Li, Jingwei Cheng, Qiang Tong, and Fu Zhang. 2025a. Exploring the impacts of feature fusion strategy in multi-modal entity alignment. In 
+
+Proceedings of the 31st International Conference on Computational Linguistics , pages 7809–7818. Chenxiao Li, Jingwei Cheng, Qiang Tong, Fu Zhang, and Cairui Wang. 2025b. Probing relative interac-tion and dynamic calibration in multi-modal entity alignment. In Proceedings of the 63rd Annual Meet-ing of the Association for Computational Linguistics (Volume 1: Long Papers) , pages 28504–28516. Haobin Li, Yijie Lin, Peng Hu, Mouxing Yang, and Xi Peng. 2026. Learning with dual-level noisy cor-respondence for multi-modal entity alignment. In 
+
+The Fourteenth International Conference on Learn-ing Representations .Qian Li, Cheng Ji, Shu Guo, Zhaoji Liang, Lihong Wang, and Jianxin Li. 2023a. Multi-modal knowl-edge graph transformer framework for multi-modal entity alignment. In Findings of the Association for Computational Linguistics: EMNLP 2023 , pages 987–999. Qian Li, Jianxin Li, Jia Wu, Xutan Peng, Cheng Ji, Hao Peng, Lihong Wang, and S Yu Philip. 2024. Triplet-aware graph neural networks for factorized multi-modal knowledge graph entity alignment. Neural Networks , page 106479. Yangning Li, Jiaoyan Chen, Yinghui Li, Yuejia Xiang, Xi Chen, and Hai-Tao Zheng. 2023b. Vision, de-duction and alignment: An empirical study on multi-modal knowledge graph alignment. In ICASSP 2023-2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP) , pages 1–5. IEEE. Zhenxi Lin, Ziheng Zhang, Meng Wang, Yinghui Shi, Xian Wu, and Yefeng Zheng. 2022. Multi-modal con-trastive representation learning for entity alignment. In Proceedings of the 29th International Conference on Computational Linguistics , pages 2572–2584. Fangyu Liu, Muhao Chen, Dan Roth, and Nigel Col-lier. 2021. Visual pivoting for (unsupervised) entity alignment. In Proceedings of the AAAI conference on artificial intelligence , volume 35, pages 4257–4266. Ye Liu, Hui Li, Alberto Garcia-Duran, Mathias Niepert, Daniel Onoro-Rubio, and David S Rosenblum. 2019. Mmkg: multi-modal knowledge graphs. In The Se-mantic Web: 16th International Conference, ESWC 2019, Portorož, Slovenia, June 2–6, 2019, Proceed-ings 16 , pages 459–474. Springer. Chenglong Lu, Chenxiao Li, Jingwei Cheng, Yongquan Ji, Guoqing Chen, and Fu Zhang. 2025. Breaking the noise barrier: Llm-guided semantic filtering and en-hancement for multi-modal entity alignment. In Pro-ceedings of the 2025 Conference on Empirical Meth-ods in Natural Language Processing , pages 33141– 33155. Chris J Maddison, Andriy Mnih, and Yee Whye Teh. 2017. The concrete distribution: A continuous relax-ation of discrete random variables. In International Conference on Learning Representations .Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sas-try, Amanda Askell, Pamela Mishkin, Jack Clark, et al. 2021. Learning transferable visual models from natural language supervision. In International confer-ence on machine learning , pages 8748–8763. PmLR. Yinghui Shi, Meng Wang, Ziheng Zhang, Zhenxi Lin, and Yefeng Zheng. 2022. Probing the impacts of visual context in multimodal entity alignment. In 
+
+Asia-Pacific Web (APWeb) and Web-Age Information Management (WAIM) Joint International Conference on Web and Big Data , pages 255–270. Springer. Kihyuk Sohn, Honglak Lee, and Xinchen Yan. 2015. Learning structured output representation using deep conditional generative models. Advances in neural information processing systems , 28. Taoyu Su, Jiawei Sheng, Shicheng Wang, Xinghua Zhang, Hongbo Xu, and Tingwen Liu. 2024. Ib-mea: Exploring variational information bottleneck for multi-modal entity alignment. In Proceedings of the 32nd ACM International Conference on Multime-dia , pages 4436–4445. Zequn Sun, Wei Hu, and Chengkai Li. 2017. Cross-lingual entity alignment via joint attribute-preserving embedding. In The Semantic Web–ISWC 2017: 16th International Semantic Web Conference, Vienna, Aus-tria, October 21–25, 2017, Proceedings, Part I 16 ,pages 628–644. Springer. Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez, Łukasz Kaiser, and Illia Polosukhin. 2017. Attention is all you need. Advances in neural information processing systems , 30. Petar Veliˇ ckovi´ c, Guillem Cucurull, Arantxa Casanova, Adriana Romero, Pietro Liò, and Yoshua Bengio. 2018. Graph attention networks. In International Conference on Learning Representations .Luyao Wang, Pengnian Qi, Xigang Bao, Chunlai Zhou, and Biao Qin. 2024. Pseudo-label calibration semi-supervised multi-modal entity alignment. In Proceed-ings of the AAAI conference on artificial intelligence ,volume 38, pages 9116–9124. Luyao Wang, Chunlai Zhou, and Biao Qin. 2025. Explicit-implicit entity alignment method in multi-modal knowledge graphs. In Proceedings of the 31st ACM SIGKDD Conference on Knowledge Discovery and Data Mining V. 2 , pages 2996–3007. Yu Xing, Qizhuo Xie, Yunhui Liu, Qing Gu, Tao Zheng, Bin Chong, and Tieke He. 2026a. On modality weighting and specificity for multi-modal entity align-ment. In Proceedings of the AAAI Conference on Ar-tificial Intelligence , volume 40, pages 27144–27152. Yu Xing, Qizhuo Xie, You Lv, Ziyang Zhou, Qianzi Hou, Qing Gu, Bin Chong, and Tieke He. 2026b. Enhancing multi-modal entity alignment via multi-grained decision fusion. In Proceedings of the ACM Web Conference 2026 , pages 4047–4056. Hsiu-Wei Yang, Yanyan Zou, Peng Shi, Wei Lu, Jimmy Lin, and Xu Sun. 2019. Aligning cross-lingual enti-ties with multi-aspect information. In Proceedings of the 2019 Conference on Empirical Methods in Natu-ral Language Processing and the 9th International Joint Conference on Natural Language Processing (EMNLP-IJCNLP) , pages 4431–4441. Qingyang Zhang, Yake Wei, Zongbo Han, Huazhu Fu, Xi Peng, Cheng Deng, Qinghua Hu, Cai Xu, Jie Wen, Di Hu, et al. 2024. Multimodal fusion on low-quality data: A comprehensive survey. arXiv preprint arXiv:2404.18947 .A Appendix: Datasets Statistics 
+
+Tab. 9 shows the statistics of datasets, including the number of entities (Ent.), relations (Rel.), attributes (Attr.), number of relation triples (Rel Tr.) and at-tribute triples (Attr Tr.), number of images (Image), and number of the reference entity pairs (EA pairs). Each entity is associated to multiple attributes and 0 ∼ 1 image. 
+
+B Appendix: Evaluation Metrics 
+
+We adopt Hits@n and MRR as evaluation metrics for all methods. Hits@n measures the proportion of correct entities ranked within the top n accord-ing to similarity scores, while MRR represents the mean reciprocal rank of the correct entities. Higher values of Hits@n and MRR indicate superior per-formance of the evaluated method. 
+
+C Appendix: More Results on Cross-KG Datasets 
+
+Tabs. 10 and 11 report the results on the cross-KG datasets using 50% and 80% of the reference entity alignments as seed pairs, respectively. RA-MMEA consistently achieves the best performance across all settings. Specifically, with 50% seed align-ments, RA-MMEA improves Hits@1 by 9.2%– 20.0% and MRR by 7.2%–16.2% over the second-best baselines. With 80% seed alignments, it fur-ther achieves gains of 6.0%–13.6% in Hits@1 and 4.4%–11.1% in MRR. As the proportion of seed alignments increases, the performance of most methods improves due to the stronger alignment supervision. Neverthe-less, RA-MMEA maintains a clear advantage over existing methods under both non-iterative and iter-ative settings. Notably, the improvements remain substantial even with 80% seed alignments, where competing methods already achieve strong align-ment performance. This indicates that the benefit of reliability-aware visual modeling is not limited to low-supervision scenarios but remains effective when abundant alignment supervision is available. Together with the results using 20% seed align-ments in Tab. 1, these results demonstrate that RA-MMEA consistently benefits from reliable visual information across different levels of alignment supervision, further confirming the effectiveness and generalizability of the proposed framework on cross-KG datasets. 
+
+D Appendix: Unsupervised Training on Bilingual Datasets 
+
+To validate the performance of our framework on the bilingual domain, we also conducted un-supervised experiments on the bilingual datasets DBP15K (Sun et al., 2017). Unsupervised train-ing was initially introduced by Liu et al. (2021) to mitigate dependence on gold labels. Following Lin et al. (2022), the vision encoders Enc v are config-ured as ResNet-152 (He et al., 2016) with a vision feature dimension of dv = 2048 . We utilize pre-trained 300-d GloVe vectors along with character bigrams for surface representation after applying machine translations for entity names. Tab. 12 shows that our framework consistently outperforms all strong baselines on both Hits@1 and MRR, achieving improvements of 0.4%–3.3% and 0.2%–2.8%, respectively, across two set-tings on three bilingual datasets. Notably, the Hits@10 score reaches 1.0 on the DBP15K JA-EN 
+
+and DBP15K FR-EN .
+
+E Appendix: Low-Resource Comparison 
+
+To investigate the reliance of our framework on alignment labels during training, we evaluate RA-Dataset KG Ent. Rel. Attr. Rel. Tr. Attr. Tr. Image EA pairs FB15K-DB15K FB15K 14,951 1,345 116 592,213 29,395 14,836 12,846 DB15K 12,842 279 225 89,197 48,080 12,812 FB15K-YG15K FB15K 14,951 1,345 116 592,213 29,395 14,836 11,199 YG15K 15,404 32 7 122,886 23,532 11,172 DBP15K ZH −EN                                        
+
+> ZH 19,388 1,701 8,111 70,414 248,035 15,912 15,000 EN 19,572 1,323 7,173 95,142 343,218 14,125 DBP15K JA −EN
+> JA 19,814 1,299 5,882 77,214 248,991 12,739 15,000 EN 19,780 1,153 6,066 93,484 320,616 13,741 DBP15K F R −EN
+> FR 19,661 903 4,547 105,998 273,825 14,174 15,000 EN 19,993 1,208 6,422 115,722 351,094 13,858
+> Table 9: Statistics of MMEA datasets, with EA pairs representing the reference entity alignments.
+
+Setting Models FB15K-DB15K FB15K-YG15K Hits@1 ↑ Hits@10 ↑ MRR ↑ Hits@1 ↑ Hits@10 ↑ MRR ↑
+
+> Non-iterative
+
+MMEA (Chen et al., 2020) 0.417 0.703 0.512 0.403 0.645 0.486 EVA (Liu et al., 2021) 0.334 0.589 0.422 0.311 0.534 0.388 MSNEA (Chen et al., 2022) 0.288 0.590 0.388 0.320 0.589 0.413 MCLEA (Lin et al., 2022) 0.555 0.784 0.637 0.501 0.705 0.574 MoAlign (Li et al., 2023a) 0.576 0.749 0.634 0.550 0.713 0.617 MEAformer (Chen et al., 2023a) 0.619 0.843 0.698 0.560 0.778 0.639 RICEA (Li et al., 2025b) 0.648 0.852 0.721 0.617 0.811 0.687 SGMEA (Cheng et al., 2025) 0.716 0.882 0.775 0.780 0.924 0.832 HUMEA (Xing et al., 2026a) 0.695 0.880 0.763 0.649 0.847 0.720 
+
+RA -MMEA (Ours) 0.916 0.978 0.937 0.888 0.969 0.917 
+
+> Iterative
+
+EVA (Liu et al., 2021) 0.364 0.606 0.449 0.325 0.560 0.404 MSNEA (Chen et al., 2022) 0.358 0.656 0.459 0.376 0.646 0.472 MCLEA (Lin et al., 2022) 0.620 0.832 0.696 0.563 0.751 0.631 MEAformer (Chen et al., 2023a) 0.690 0.871 0.755 0.612 0.808 0.682 IBMEA (Su et al., 2024) 0.742 0.880 0.793 0.655 0.821 0.714 PCMEA (Wang et al., 2024) 0.738 0.915 0.781 0.670 0.886 0.721 RICEA (Li et al., 2025b) 0.692 0.869 0.757 0.658 0.827 0.720 SGMEA (Cheng et al., 2025) 0.752 0.894 0.802 0.827 0.938 0.868 
+
+RA -MMEA (Ours) 0.932 0.984 0.950 0.919 0.977 0.940 
+
+Table 10: Results on two cross-KG datasets using 50% of the reference entity alignments for training. The best results are shown in bold and the second best results are underlined. 
+
+Setting Models FB15K-DB15K FB15K-YG15K Hits@1 ↑ Hits@10 ↑ MRR ↑ Hits@1 ↑ Hits@10 ↑ MRR ↑
+
+> Non-iterative
+
+MMEA (Chen et al., 2020) 0.590 0.869 0.685 0.598 0.839 0.682 EVA (Liu et al., 2021) 0.484 0.696 0.563 0.491 0.692 0.565 MSNEA (Chen et al., 2022) 0.518 0.779 0.613 0.531 0.778 0.620 MCLEA (Lin et al., 2022) 0.735 0.890 0.790 0.667 0.824 0.722 MoAlign (Li et al., 2023a) 0.699 0.882 0.773 0.689 0.884 0.769 MEAformer (Chen et al., 2023a) 0.765 0.916 0.820 0.703 0.873 0.766 RICEA (Li et al., 2025b) 0.776 0.916 0.829 0.734 0.892 0.792 SGMEA (Cheng et al., 2025) 0.815 0.931 0.828 0.857 0.951 0.894 HUMEA (Xing et al., 2026a) 0.809 0.935 0.856 0.774 0.920 0.827 
+
+RA -MMEA (Ours) 0.951 0.990 0.967 0.939 0.987 0.957 
+
+> Iterative
+
+EVA (Liu et al., 2021) 0.491 0.711 0.573 0.493 0.695 0.572 MSNEA (Chen et al., 2022) 0.565 0.810 0.651 0.593 0.806 0.668 MCLEA (Lin et al., 2022) 0.741 0.900 0.802 0.681 0.837 0.737 MEAformer (Chen et al., 2023a) 0.784 0.921 0.834 0.724 0.880 0.783 IBMEA (Su et al., 2024) 0.821 0.922 0.859 0.751 0.890 0.800 PCMEA (Wang et al., 2024) 0.820 0.964 0.858 0.756 0.942 0.802 RICEA (Li et al., 2025b) 0.787 0.919 0.838 0.752 0.899 0.804 SGMEA (Cheng et al., 2025) 0.828 0.921 0.861 0.882 0.967 0.915 
+
+RA -MMEA (Ours) 0.958 0.991 0.970 0.942 0.989 0.959 
+
+Table 11: Results on two cross-KG datasets using 80% of the reference entity alignments for training. The best results are shown in bold and the second best results are underlined. 
+
+Models DBP15K ZH-EN DBP15K JA-EN DBP15K FR-EN 
+
+Hits@1 ↑ Hits@10 ↑ MRR ↑ Hits@1 ↑ Hits@10 ↑ MRR ↑ Hits@1 ↑ Hits@10 ↑ MRR ↑
+
+Non-iterative 
+
+EVA (Liu et al., 2021) 0.891 0.961 0.917 0.941 0.986 0.958 0.970 0.996 0.982 MSNEA (Chen et al., 2022) 0.859 0.936 0.887 0.921 0.970 0.939 0.954 0.989 0.968 MCLEA (Lin et al., 2022) 0.860 0.950 0.893 0.914 0.975 0.938 0.953 0.990 0.967 MEAformer (Chen et al., 2023a) 0.909 0.974 0.933 0.950 0.990 0.965 0.972 0.997 0.983 
+
+RA -MMEA (Ours) 0.942 0.992 0.961 0.971 0.998 0.982 0.991 0.999 0.995 
+
+Gain over Prior Best (%) 3.3 1.8 2.8 2.1 0.8 1.7 1.9 0.2 1.2 
+
+Iterative 
+
+EVA (Liu et al., 2021) 0.948 0.992 0.964 0.977 0.997 0.985 0.990 1.000 0.995 MSNEA (Chen et al., 2022) 0.871 0.943 0.898 0.927 0.976 0.945 0.959 0.993 0.979 MCLEA (Lin et al., 2022) 0.942 0.994 0.963 0.974 0.999 0.984 0.986 1.000 0.992 MEAformer (Chen et al., 2023a) 0.964 0.998 0.975 0.985 1.000 0.991 0.992 1.000 0.996 
+
+RA -MMEA (Ours) 0.969 0.999 0.978 0.989 1.000 0.993 0.998 1.000 0.999 
+
+Gain over Prior Best (%) 0.5 0.1 0.3 0.4 0.0 0.2 0.6 0.0 0.3 
+
+Table 12: Unsupervised results on bilingual datasets are presented.         
+
+>   
+>   
+
+Figure 4: Performance of strong baselines with fewer seed alignments on FB15K-DB15K.             
+
+> Models Hits@1 ↑Hits@10 ↑MRR ↑
+> RA-MMEA-R 0.708 0.824 0.745 RA-MMEA-A 0.732 0.845 0.811 RA-MMEA-V 0.798 0.886 0.855
+
+Table 13: Performance of applying our reliability pre-diction method to textual modalities. 
+
+MMEA on FB15K-DB15K with fewer seed align-ments. Following Chen et al. (2023a) and Li et al. (2025b), we set the seed alignment ratios to Rsa ={0.01, 0.03, 0.07, 0.11, 0.14, 0.18}. For a more intu-itive comparison of performance trends, we adopt the same backbone as their methods. Fig. 4 presents the comparison with other meth-ods. RA-MMEA consistently outperforms all base-lines across all seed alignment ratios, with in-creasingly pronounced advantages as more seed alignments become available. Notably, even when 
+
+Rsa = 0 .01 , RA-MMEA achieves the best Hits@1 and MRR among all compared methods. When 
+
+Rsa = 0 .18 , RA-MMEA even surpasses RICEA with Rsa = 0 .20 . These results not only demon-strate the robustness of RA-MMEA to unreliable visual data but also highlight its potential in low-resource scenarios. 
+
+F Appendix: Applying DA-VRP to Textual Modalities 
+
+To further evaluate DA-VRP’s ability to filter unre-liable information beyond the visual modality, we additionally examine its performance on the rela-tional and attribute modalities on FB15K-DB15K with 20% seeds. In this section, we focus solely on identifying and removing unreliable textual modal-ities, without involving modality reconstruction. Please note that, we do not filter the structural modality, as it provides the essential backbone for modeling cross-modal dependency. Remov-ing structural information would compromise the stability of the alignment framework. Tab. 13 reports the results. RA-MMEA-V, RA-              
+
+> Hits@1 ↑Hits@10 ↑MRR ↑
+> ❶Concatenation 0.831 0.941 0.873
+> ❷Weighted-Concatenation 0.835 0.944 0.876
+> ❸Ours 0.849 0.948 0.879
+
+Table 14: Comparison of strategies for handling unreli-able visual representations. 
+
+MMEA-R, and RA-MMEA-A respectively repre-sent the variants applying reliability prediction on the visual image as proposed in this work, the re-lation modality, and the attribute modality. Please note that, for all these three variants, we do not per-form modality reconstruction. As shown in Tab. 13, DA-VRP continues to provide clear benefits when applied to textual modalities, outperforming all other baselines in Tab. 1. However, textual modali-ties often contain complementary relational cues, and aggressive filtering may inadvertently discard useful information. In future work, we will develop finer-grained criteria to better separate complemen-tary from redundant cross-modal relationships, en-abling more selective modality filtering. 
+
+G Appendix: Visual Replacement Strategy 
+
+Although unreliable visual representations may still contain useful entity-related information, retain-ing them may also introduce additional noise. We therefore compare two alternative strategies that preserve the original unreliable visual representa-tions: Concatenation and Weighted-Concatenation. Specifically, Concatenation combines the unre-liable visual representation with the generated virtual visual representation, while Weighted-Concatenation reduces its contribution according to the estimated reliability. As shown in Tab. 14, Weighted-Concatenation slightly outperforms Concatenation ( ❷ v.s. ❶), in-dicating that suppressing unreliable visual infor-mation can alleviate its negative impact. Neverthe-less, our strategy ( ❸) achieves the best performance across all metrics, improving Hits@1 by 1.4 and 1.8 percentage points over Weighted-Concatenation and Concatenation, respectively. These results sug-gest that retaining unreliable visual representations may still introduce misleading visual semantics into multi-modal fusion and consequently affect entity representations during the alignment process, especially when visual information is highly un-reliable. In contrast, directly replacing them with virtual visual representations generated from the (b) Images Predicted as Reliable (a) Images Predicted as Unreliable  
+
+> Languages of Spain
+> 2011 Poké mon (anime)
+> European
+> Parliament
+> Disque
+> compact
+> Championnat d’
+> Europe de football
+> 2014 AFC
+> Champions League
+> University of Texas at Austin
+> Python (programming language)
+> Édouard
+> Daladier
+> Beaver
+> Pope Julius II Kyrie
+> Irving
+
+Figure 5: Case study of visual reliability on DBP15K, showing representative images predicted as unreliable (left) and reliable (right) by DA-VRP based on their cross-modal dependency with the corresponding entity semantics. The entity associated with each image is shown above the image.          
+
+> Models Train. Time Learnable Paras. GPU Mem.
+> MEAformer (Chen et al., 2023a)* 22min 10M 13.6G RICEA (Li et al., 2025b)* 22min 10M 13.2G RA-MMEA (Ours) 24min 13M 16.0G
+
+Table 15: Comparison of complexity on FB15K-DB15K. * indicates our reproduced results. 
+
+remaining reliable modalities provides more seman-tically consistent and informative visual represen-tations for accurate entity alignment, validating the visual replacement strategy in RA-MMEA. 
+
+H Appendix: Model Complexity Analysis 
+
+To further evaluate our framework, we compare the complexity of RA-MMEA with two representa-tive lightweight baselines on FB15K-DB15K. As shown in Tab. 15, the training time, learnable pa-rameters, and GPU memory of our RA-MMEA are 24 minutes, 13M, and 16G, which are com-parable to the complexities of MEAformer and RICEA. However, compared to these two methods, RA-MMEA achieves superior alignment perfor-mance on different metrics (see Tab. 1, Appendix C and Appendix D), showing an effective balance be-tween accuracy and model complexity. 
+
+I Appendix: Case Study 
+
+To qualitatively examine whether DA-VRP can dis-tinguish unreliable from reliable visual information, we present cases from DBP15K in Fig. 5. The left side shows images predicted as unreliable by DA-VRP. For European Parliament , the image is an ab-stract seating diagram and provides limited visual semantics for representing the entity. The image as-sociated with Compact disc is nearly blank, while 
+
+Championnat d’Europe de football is represented by a general map of Europe rather than the football competition itself. Similar cases include 2014 AFC Champions League , 2011 Pokémon (anime) , and 
+
+Languages of Spain , whose images provide am-biguous, incomplete, or weakly related visual cues. These cases show that unreliable images may be irrelevant or capture only limited or indirect entity semantics. In contrast, the reliable cases on the right ex-hibit entity–image semantic consistency. Édouard Daladier is depicted by a portrait, Beaver by an image of the corresponding animal, and University of Texas at Austin by its recognizable institutional identity. Likewise, the images of Python (program-ming language) , Pope Julius II , and Kyrie Irving 
+
+contain distinctive visual information that directly corresponds to their entity semantics. Compared with the unreliable cases, these images provide more explicit and discriminative visual evidence for identifying the entities. The comparison shows that unreliable images may provide uninformative or weakly related semantics, potentially introduc-ing misleading evidence, whereas reliable images exhibit stronger entity-image semantic consistency. Notably, these examples cover diverse entity types, suggesting that the predicted reliability is not restricted to entity or visual content types. De-spite their different visual characteristics, reliable images exhibit clearer semantic correspondence, while unreliable images provide more ambiguous or incomplete visual evidence. The qualitative results show that DA-VRP captures differences in visual reliability through cross-modal depen-dency. Together with the quantitative results in Sec. 4.3, these cases further support cross-modal dependency as an effective task-level proxy for vi-sual reliability.

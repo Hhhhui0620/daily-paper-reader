@@ -1,0 +1,41 @@
+{
+  "date": "20260922",
+  "date_label": "",
+  "generated_at": "2026-09-22 22:04:36 UTC",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2609.23267v1",
+      "route": "202609/22/2609.23267v1-knowing-when-to-trust-images-reliability-aware-multi-modal-entity-alignment",
+      "title": "Knowing When to Trust Images: Reliability-Aware Multi-modal Entity Alignment",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "可靠性感知的自适应对齐，处理噪声与语义错位",
+      "first_seen_at": "2026-09-22 22:04:36 UTC",
+      "updated_at": "2026-09-22 22:04:36 UTC"
+    },
+    {
+      "paper_id": "2609.24531v1",
+      "route": "202609/22/2609.24531v1-dynamic-thermal-gaussians-multimodal-4d-gaussian-splatting",
+      "title": "Dynamic Thermal Gaussians: Multimodal 4D Gaussian Splatting",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "uav-rgbt-sod"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "将颜色与热模态锚定到共享几何基底以保持一致性",
+      "first_seen_at": "2026-09-22 22:04:36 UTC",
+      "updated_at": "2026-09-22 22:04:36 UTC"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "label": "2026-09-22",
+  "date": "2026-09-22",
+  "generated_at": "2026-09-22T22:04:37",
+  "count": 2,
+  "papers": [
+    {
+      "paper_id": "202609/22/2609.23267v1-knowing-when-to-trust-images-reliability-aware-multi-modal-entity-alignment",
+      "section": "quick",
+      "title_en": "Knowing When to Trust Images: Reliability-Aware Multi-modal Entity Alignment",
+      "authors": "Chenxiao Li, Yunhe Feng, Dongfang Liu, Dong Nie, Yan Huang, Heng Fan",
+      "date": "2026-09-20",
+      "pdf": "https://arxiv.org/pdf/2609.23267v1",
+      "score": "7.0",
+      "evidence": "可靠性感知的自适应对齐，处理噪声与语义错位",
+      "tldr": "多模态实体对齐中，图像虽重要，但现有方法常直接融合，忽视图像噪声及其与实体的语义错位，导致融合效果受限。本文提出可靠性感知框架RA-MMEA：先用依赖感知视觉可靠性预测，利用实体内部多模态依赖估计图像可信度；再用稳定性正则化视觉嵌入生成，在文本语义条件下生成替代视觉表示，以支持更可靠的多模态融合。在大量实验中，RA-MMEA取得当前最优结果，验证可靠视觉模态对实体对齐的关键作用及框架有效性。",
+      "tags": "query:uav-rgbt-sod",
+      "abstract_en": "The visual modality, i.e., images, plays a key role in multi-modal entity alignment (MMEA). Existing approaches often directly fuse the image with other modalities to align different entities. Although simple, such strategies overlook the potential noise in the images and their semantic misalignment with corresponding entities, resulting in suboptimal fusion and degraded performance. Addressing this, we propose a novel Reliability-Aware framework for MMEA (RA-MMEA), which assesses visual reliability and adaptively improves unreliable visual representations for robust entity alignment. The core lies in two modules, including dependency-aware visual reliability prediction (DA-VRP) and stability-regularized visual embedding generation (SR-VEG). The former aims to estimate the reliability of an image by leveraging multi-modal dependency within the entity, while the latter focuses on producing alternative visual representation conditioned on semantics encoded in textual modalities for multi-modal fusion. Compared to current methods, RA-MMEA enables more reliable visual representations for modality fusion, thereby improving performance. In extensive experiments, RA-MMEA achieves state-of-the-art results, verifying the importance of reliable visual modality for entity alignment and the effectiveness of RA-MMEA. The code and results will be released.",
+      "source": "arxiv",
+      "selection_source": "fresh_fetch"
+    },
+    {
+      "paper_id": "202609/22/2609.24531v1-dynamic-thermal-gaussians-multimodal-4d-gaussian-splatting",
+      "section": "quick",
+      "title_en": "Dynamic Thermal Gaussians: Multimodal 4D Gaussian Splatting",
+      "authors": "Rongfeng Lu, Lifeng Lin, Xiaobao Wei, Quan Chen, Ming Lu, Yitian Xue, Yaoqi Sun, Yuhan Gao, Anke Xue, Chenggang Yan",
+      "date": "2026-09-21",
+      "pdf": "https://arxiv.org/pdf/2609.24531v1",
+      "score": "6.0",
+      "evidence": "将颜色与热模态锚定到共享几何基底以保持一致性",
+      "tldr": "现有三维热重建多假设温度静态，忽略真实环境中热传递的时间动态。本文提出首个面向复杂场景的动态RGB-热重建框架，将颜色与热模态锚定到共享几何基底，并设计多模态嵌入与路由机制。方法在保持统一多模态高斯几何主干的同时，按模态自适应生成专用高斯以增强细节表达。作者还贡献了高频温度变化基准数据集，实验表明可实现外观与温度的高保真时空重建。",
+      "tags": "query:uav-rgbt-sod",
+      "abstract_en": "Thermography plays a vital role in military and broader thermal analysis applications. Recent progress in 3D thermal reconstruction has extended temperature analysis from 2D to 3D space, yet most existing works assume static temperature distributions, neglecting the temporal dynamics of heat transfer in real-world environments. To address this limitation, we propose the first dynamic RGB-Thermal reconstruction framework for complex scenes. Our method jointly models RGB appearance, thermal observations, and scene geometry as they change over time. Specifically, we introduce a multimodal dynamic scene representation that anchors both the color and thermal modalities to a shared geometric substrate, ensuring their consistency under spatiotemporal deformations. We further design multimodal embeddings to enhance the motion expressiveness for each modality, and propose a multimodal routing mechanism that retains a unified set of shared multimodal Gaussians as the geometric backbone while adaptively spawning modality-specific Gaussians to strengthen the representational capacity in detail-rich regions of each individual modality. In addition, we contribute a novel benchmark dataset featuring high-frequency temperature variations to facilitate the evaluation of 4D reconstruction. Extensive experiments demonstrate that our method achieves high-fidelity spatiotemporal reconstruction of both appearance and temperature. Our code and dataset are available at: https://github.com/LinLif1869/DTG.",
+      "source": "arxiv",
+      "selection_source": "fresh_fetch"
+    }
+  ],
+  "errors": []
+}
