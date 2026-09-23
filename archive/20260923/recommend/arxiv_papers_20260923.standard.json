@@ -1,0 +1,100 @@
+{
+  "mode": "standard",
+  "generated_at": "2026-09-23T22:09:15.305292+00:00",
+  "stats": {
+    "mode": "standard",
+    "tag_count": 1,
+    "deep_divecandidates": 0,
+    "deep_cap": 6,
+    "deep_selected": 0,
+    "quick_candidates": 2,
+    "quick_skim_target": 11,
+    "quick_selected": 2
+  },
+  "deep_dive": [],
+  "quick_skim": [
+    {
+      "id": "2609.24668v1",
+      "source": "arxiv",
+      "title": "Ev-YOLO: Uncertainty-Aware Object Detection via a Unified Evidential Formulation",
+      "abstract": "Reliable uncertainty estimation is essential for deploying object detectors in autonomous systems operating in uncertain environments. Evidential Deep Learning (EDL) provides a principled framework for uncertainty-aware classification by representing network outputs as evidence and interpreting predictions through subjective logic. However, existing evidential object detectors typically combine evidential classification with regression uncertainty models that do not share the same theoretical foundation. In this work, we propose an evidential version of YOLOv8 in which both classification and bounding-box regression are formulated within a common evidential framework. Our approach exploits YOLOv8's distribution-based bounding-box representation, allowing the evidential formulation to be applied not only to classification but also to localisation. As a result, both tasks produce belief, uncertainty, and probability estimates that can be interpreted within the Dempster--Shafer framework. Experiments on KITTI, MUSES, and nuScenes show that the resulting detector remains broadly competitive with standard YOLOv8 in terms of detection accuracy while providing a localisation uncertainty that effectively discriminates between correct and erroneous detections. Moreover, this uncertainty becomes increasingly discriminative under domain shift.",
+      "authors": [
+        "Simon Barbarit-Gaboriau",
+        "Hind Laghmara",
+        "Rémi Boutteau",
+        "Samia Ainouz"
+      ],
+      "primary_category": "cs.CV",
+      "categories": [
+        "cs.CV"
+      ],
+      "published": "2026-09-21T14:31:45+00:00",
+      "link": "https://arxiv.org/pdf/2609.24668v1",
+      "tags": [
+        "keyword:uav-rgbt-sod",
+        "query:uav-rgbt-sod"
+      ],
+      "llm_score": 6.0,
+      "llm_evidence_en": "uncertainty-aware evidential formulation for detection",
+      "llm_evidence_cn": "面向检测的不确定性感知证据建模",
+      "llm_evidence": "面向检测的不确定性感知证据建模",
+      "canonical_evidence": "面向检测的不确定性感知证据建模",
+      "llm_tldr_en": "Existing evidential detectors mix evidential classification with inconsistent regression uncertainty. Ev-YOLO unifies classification and box regression in one evidential framework, yielding principled, reliable uncertainty for autonomous detection.",
+      "llm_tldr_cn": "针对现有证据式目标检测中分类不确定性与回归不确定性理论不一致的问题，本文将YOLOv8的分类与边界框回归统一到同一证据深度学习框架下，利用其分布式框表示进行证据建模。方法在检测中同时输出可解释的不确定性估计，提升了自主系统在不确定环境下的可靠性。该统一证据范式为不确定性感知检测提供了可迁移的建模思路，可启发多模态对齐中的不确定性建模。",
+      "llm_tldr": "针对现有证据式目标检测中分类不确定性与回归不确定性理论不一致的问题，本文将YOLOv8的分类与边界框回归统一到同一证据深度学习框架下，利用其分布式框表示进行证据建模。方法在检测中同时输出可解释的不确定性估计，提升了自主系统在不确定环境下的可靠性。该统一证据范式为不确定性感知检测提供了可迁移的建模思路，可启发多模态对齐中的不确定性建模。",
+      "llm_tags": [
+        "query:uav-rgbt-sod"
+      ],
+      "matched_query_tag": "query:uav-rgbt-sod",
+      "matched_query_text": "uncertainty-aware alignment of multimodal features",
+      "matched_requirement_id": "req-4",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "6"
+    },
+    {
+      "id": "2609.25860v1",
+      "source": "arxiv",
+      "title": "MatchFusion: Explicit-Implicit Instance Matching for Spatio-Temporal Multimodal Autonomous Driving",
+      "abstract": "Sparse instance representations provide a compact interface for spatial LiDAR-camera and temporal past-current interaction in multimodal perception and E2EAD. Effective interaction requires reliable instance correspondences despite geometric discrepancies and heterogeneous semantic representations. Attention-based methods exploit contextual semantics but often require specialized representation alignment, increasing computational overhead. In contrast, association based on structured object states is efficient and interpretable but lacks contextual evidence to resolve ambiguous matches. To combine these complementary strengths, we propose MatchFusion, a learnable instance matching and fusion module for spatio-temporal multimodal autonomous driving. MatchFusion initializes pairwise affinities using geometric similarity and category consistency, then selectively refines structurally plausible associations using instance embeddings. The resulting soft matchmap guides a common residual aggregation operator for adaptive information exchange. This unified matching-fusion formulation supports spatial LiDAR-camera and temporal past-current interaction, using multi-view image-plane geometry and motion-compensated BEV geometry as the respective structural priors. Experiments on nuScenes demonstrate consistent perception gains across diverse front-end configurations. Compared with a prior instance-centric fusion method, the MatchFusion-equipped system achieves higher perception accuracy while reducing FLOPs by 55.3% and GPU memory usage by 39.3%, with the matching-fusion module accounting for only 3.7% of total perception latency. Integrating temporal MatchFusion into SparseDrive further improves perception within an E2E framework without additional supervision. These results establish explicit-implicit matching as an effective and efficient mechanism for spatio-temporal instance interaction.",
+      "authors": [
+        "Xiaoyu Li",
+        "Jiajia Fu",
+        "Long Shi",
+        "Tianyu Du",
+        "Ruihang Li",
+        "Xian Wu",
+        "Lijun Zhao",
+        "Yingtao Zhang",
+        "Lining Sun",
+        "Ruifeng Li"
+      ],
+      "primary_category": "cs.CV",
+      "categories": [
+        "cs.CV",
+        "cs.RO"
+      ],
+      "published": "2026-09-22T08:24:12+00:00",
+      "link": "https://arxiv.org/pdf/2609.25860v1",
+      "tags": [
+        "keyword:uav-rgbt-sod",
+        "query:uav-rgbt-sod"
+      ],
+      "llm_score": 6.0,
+      "llm_evidence_en": "instance matching and fusion under geometric discrepancy",
+      "llm_evidence_cn": "几何差异下的实例匹配与融合",
+      "llm_evidence": "几何差异下的实例匹配与融合",
+      "canonical_evidence": "几何差异下的实例匹配与融合",
+      "llm_tldr_en": "Multimodal perception needs reliable instance correspondences despite geometric and semantic discrepancies. MatchFusion combines explicit structured matching with implicit contextual fusion for spatio-temporal multimodal driving perception.",
+      "llm_tldr_cn": "针对多模态感知中LiDAR与相机存在几何差异和异构语义、难以建立可靠实例对应的问题，本文提出MatchFusion可学习实例匹配与融合模块。方法将基于结构化物体状态的显式关联与基于注意力的隐式上下文融合相结合，兼顾效率、可解释性与歧义消解能力。该思路对未配准多模态特征的对齐与融合具有直接的方法迁移价值，虽面向自动驾驶而非UAV显著检测。",
+      "llm_tldr": "针对多模态感知中LiDAR与相机存在几何差异和异构语义、难以建立可靠实例对应的问题，本文提出MatchFusion可学习实例匹配与融合模块。方法将基于结构化物体状态的显式关联与基于注意力的隐式上下文融合相结合，兼顾效率、可解释性与歧义消解能力。该思路对未配准多模态特征的对齐与融合具有直接的方法迁移价值，虽面向自动驾驶而非UAV显著检测。",
+      "llm_tags": [
+        "query:uav-rgbt-sod"
+      ],
+      "matched_query_tag": "query:uav-rgbt-sod",
+      "matched_query_text": "multimodal feature fusion under misalignment",
+      "matched_requirement_id": "req-6",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "6"
+    }
+  ]
+}
