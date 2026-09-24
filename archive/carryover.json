@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-09-23T22:09:15.306167+00:00",
-  "updated_date": "20260923",
+  "generated_at": "2026-09-24T22:20:02.851577+00:00",
+  "updated_date": "20260924",
   "carryover_days": 9,
   "tag_states": {
     "uav-rgbt-sod": {
-      "updated_date": "20260923",
+      "updated_date": "20260924",
       "carryover_days": 9,
       "items": []
     }
